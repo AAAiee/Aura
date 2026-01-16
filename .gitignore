@@ -1,0 +1,109 @@
+##############################
+# Unreal Engine
+##############################
+
+# Build products
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Local config overrides
+Saved/Config/Windows/
+Saved/Config/Linux/
+Saved/Config/Mac/
+
+# Crash reports
+Saved/Crashes/
+
+# Shader cache
+Saved/Shaders/
+Saved/Collections/
+
+# Logs
+Saved/Logs/
+
+# Unreal auto-generated files
+*.generated.h
+*.generated.cpp
+*.gen.cpp
+
+##############################
+# Unreal Engine Plugins
+##############################
+
+# Plugin build artifacts
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+##############################
+# Visual Studio
+##############################
+
+.vs/
+*.VC.db
+*.VC.opendb
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.vcxproj.*
+*.user
+*.suo
+*.ipch
+*.pdb
+*.ilk
+*.obj
+*.tlog
+*.idb
+
+##############################
+# CMake / Ninja (if used)
+##############################
+
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+build.ninja
+.ninja_deps
+.ninja_log
+out/
+.vscode/
+
+##############################
+# vcpkg (if used)
+##############################
+
+vcpkg_installed/
+vcpkg-manifest-install.log
+
+##############################
+# OS / Editor junk
+##############################
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+##############################
+# Packaging outputs
+##############################
+
+*.pak
+*.sig
+*.ucas
+*.utoc
+
+##############################
+# Optional: keep these tracked
+##############################
+# !Config/DefaultEngine.ini
+# !Config/DefaultInput.ini
+# !Config/DefaultGame.ini
