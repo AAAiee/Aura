@@ -45,6 +45,7 @@ Plugins/*/Intermediate/
 *.VC.db
 *.VC.opendb
 *.sln
+*.vsconfig
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
