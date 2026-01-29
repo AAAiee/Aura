@@ -6,6 +6,7 @@
 /*Input Related Begin*/
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "Interaction/Highlightable.h"
 /*Input Related End*/
 
 
@@ -36,6 +37,14 @@ void AAuraPlayerController::BeginPlay()
 	SetInputMode(InputModeData);
 }
 
+void AAuraPlayerController::PlayerTick(float DeltaTime)
+{
+
+	Super::PlayerTick(DeltaTime);
+
+	CursorTrace();
+}
+
 void AAuraPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -61,6 +70,59 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 		ControlledPawn->AddMovementInput(PlayerForwardDirection, MoveVector.Y);
 		ControlledPawn->AddMovementInput(PlayerRightDirection, MoveVector.X);
 	}
+
+}
+
+void AAuraPlayerController::CursorTrace()
+{
+	FHitResult CursorHitResult;
+	GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
+
+	if (CursorHitResult.bBlockingHit == false) return;
+
+	LastHighlightable = CurrentHighlightable; 
+	CurrentHighlightable = CursorHitResult.GetActor();
+
+	/**
+	 * Now there is a few scenarios
+	 * 1. CurHighlightable != null && LastHighlightable == null : Just started highlighting the current one
+	 * 2. CurHighlightable == null && LastHighlightable != null : Just stopped highlighting the last one
+	 * 3. Both are valid && CurHighlightable != LastHighlightable : Switched highlight from last to current
+	 * 4. Both are valid && CurHighlightable == LastHighlightable : Do nothing
+	 * 5. Both are null : Do nothing
+	 */
+
+	if (CurrentHighlightable)
+	{
+		if (LastHighlightable == nullptr)
+		{
+			CurrentHighlightable->HighLightActor();
+		}
+		else
+		{
+			if (CurrentHighlightable != LastHighlightable)
+			{
+				LastHighlightable->UnhighLightActor();
+				CurrentHighlightable->HighLightActor();
+			}
+			else
+			{
+				// Do nothing
+			}
+		}
+	}
+	else // CurrentHighlightable is null
+	{
+		if (LastHighlightable)
+		{
+			LastHighlightable->UnhighLightActor();
+		}
+		else
+		{
+			// Do nothing
+		}
+	}
+
 
 }
 

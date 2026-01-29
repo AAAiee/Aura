@@ -9,6 +9,7 @@
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
+class IHighlightable;
 
 /**
  * 
@@ -22,13 +23,18 @@ public:
 	AAuraPlayerController();
 
 protected:
-	void BeginPlay() override;
-	/*Input Component Setup*/
-	void SetupInputComponent() override;
+	virtual void BeginPlay() override;
+	virtual void PlayerTick(float DeltaTime) override;
+	virtual void SetupInputComponent() override;
 
 private:
-	/*Movement*/
+	/*Movement Related Begins*/
 	void Move(const FInputActionValue& ActionValues);
+	/*Movement Related Ends*/
+
+	/*Cursor Functionalities Begins*/
+	void CursorTrace();
+	/*Cursor Functionalities Ends*/
 
 private:
 	/*Input Actions Begin*/ 
@@ -38,5 +44,10 @@ private:
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputAction> Movement;
 	/*Input Actions End*/
+
+
+	/*Highlight Related Begin*/
+	TScriptInterface<IHighlightable>  LastHighlightable;
+	TScriptInterface<IHighlightable>  CurrentHighlightable;
 	
 };

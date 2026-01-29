@@ -7,6 +7,7 @@
 
 AAuraCharacter::AAuraCharacter()
 {
+
 	/*Movement configuration*/
 	UCharacterMovementComponent* AuraMovementComponent = GetCharacterMovement();
 	check(AuraMovementComponent);
@@ -15,11 +16,8 @@ AAuraCharacter::AAuraCharacter()
 	AuraMovementComponent->bConstrainToPlane = true; 
 	AuraMovementComponent->bSnapToPlaneAtStart = true; 
 
-	AuraMovementComponent->MaxAcceleration =  
-
 	/*Fixed Camera*/
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
-
 }
