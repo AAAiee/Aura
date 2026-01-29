@@ -10,6 +10,12 @@
 /*Input Related End*/
 
 
+/*AI Related Begin*/
+#include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "Navigation/PathFollowingComponent.h"
+/*AI Related End*/
+
+
 AAuraPlayerController::AAuraPlayerController()
 {
 	bReplicates = true; 
@@ -39,7 +45,6 @@ void AAuraPlayerController::BeginPlay()
 
 void AAuraPlayerController::PlayerTick(float DeltaTime)
 {
-
 	Super::PlayerTick(DeltaTime);
 
 	CursorTrace();
@@ -50,14 +55,18 @@ void AAuraPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
-	check(Movement);
+	check(KeyboardMovementAction);
+	check(MouseClickAction);
 
 	/*Bind Input Actions*/
-	EnhancedInputComponent->BindAction(Movement, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
+	EnhancedInputComponent->BindAction(KeyboardMovementAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
+	EnhancedInputComponent->BindAction(MouseClickAction, ETriggerEvent::Started, this, &AAuraPlayerController::OnClickMove);
 }
 
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 {
+	CancelAutoMove();
+
 	FVector2D MoveVector = ActionValues.Get<FVector2D>();
 
 	/*Figure out where the user is looking at, then apply velocity*/
@@ -70,7 +79,20 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 		ControlledPawn->AddMovementInput(PlayerForwardDirection, MoveVector.Y);
 		ControlledPawn->AddMovementInput(PlayerRightDirection, MoveVector.X);
 	}
+}
 
+
+void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
+{
+	/*If there is no valid target, do nothing*/
+	if (!CachedMoveTargetActor.IsValid()) return;
+
+	/*Filtering goes here*/
+
+	/*The impact point might be in the air? do we need to snap it to the ground(we don;t know where the ground is, right?) */ 
+	UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedMoveTargetLocation);
+
+	bIsAutoMoving = true;
 }
 
 void AAuraPlayerController::CursorTrace()
@@ -78,10 +100,22 @@ void AAuraPlayerController::CursorTrace()
 	FHitResult CursorHitResult;
 	GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
 
-	if (CursorHitResult.bBlockingHit == false) return;
+	LastHighlightable = CurrentHighlightable;
 
-	LastHighlightable = CurrentHighlightable; 
-	CurrentHighlightable = CursorHitResult.GetActor();
+	if (CursorHitResult.bBlockingHit)
+	{
+		/*Cache cursor's position for click-to-move function*/
+		CachedMoveTargetActor = CursorHitResult.GetActor();
+		CachedMoveTargetLocation = CursorHitResult.ImpactPoint; 
+
+		CurrentHighlightable = CursorHitResult.GetActor();
+	}
+	else
+	{
+		CachedMoveTargetActor = nullptr;
+		CachedMoveTargetLocation = FVector();
+		CurrentHighlightable = nullptr;
+	}
 
 	/**
 	 * Now there is a few scenarios
@@ -91,7 +125,6 @@ void AAuraPlayerController::CursorTrace()
 	 * 4. Both are valid && CurHighlightable == LastHighlightable : Do nothing
 	 * 5. Both are null : Do nothing
 	 */
-
 	if (CurrentHighlightable)
 	{
 		if (LastHighlightable == nullptr)
@@ -124,5 +157,14 @@ void AAuraPlayerController::CursorTrace()
 	}
 
 
+}
+
+void AAuraPlayerController::CancelAutoMove()
+{
+	if (bIsAutoMoving)
+	{
+		StopMovement();
+		bIsAutoMoving = false;
+	}
 }
 

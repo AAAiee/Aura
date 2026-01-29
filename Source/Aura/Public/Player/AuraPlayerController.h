@@ -10,6 +10,7 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class IHighlightable;
+struct FHitResult;
 
 /**
  * 
@@ -30,24 +31,37 @@ protected:
 private:
 	/*Movement Related Begins*/
 	void Move(const FInputActionValue& ActionValues);
+	void OnClickMove(const FInputActionValue& ActionValues);
 	/*Movement Related Ends*/
 
 	/*Cursor Functionalities Begins*/
 	void CursorTrace();
+	void CancelAutoMove();
 	/*Cursor Functionalities Ends*/
 
 private:
-	/*Input Actions Begin*/ 
+	/*Inputs Actions Begin*/ 
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputMappingContext> AuraContext;
 
 	UPROPERTY(EditAnywhere, Category=Input)
-	TObjectPtr<UInputAction> Movement;
-	/*Input Actions End*/
+	TObjectPtr<UInputAction> KeyboardMovementAction;
 
+	UPROPERTY(EditAnywhere, Category =Input)
+	TObjectPtr<UInputAction> MouseClickAction;
+	/*Inputs Actions End*/
+
+	/*Left Click Auto Moving Related*/
+	UPROPERTY()
+	TWeakObjectPtr<AActor> CachedMoveTargetActor;
+	FVector CachedMoveTargetLocation;
+	bool bIsAutoMoving = false;
+	/*Cursor Action Related End*/
 
 	/*Highlight Related Begin*/
+	UPROPERTY()
 	TScriptInterface<IHighlightable>  LastHighlightable;
+	UPROPERTY()
 	TScriptInterface<IHighlightable>  CurrentHighlightable;
-	
+	/*Highlight Related End*/
 };
