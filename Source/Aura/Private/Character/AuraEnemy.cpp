@@ -2,6 +2,9 @@
 
 #include "Character/AuraEnemy.h"
 #include "Aura/Aura.h"
+#include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAttributeSet.h"
+
 
 
 AAuraEnemy::AAuraEnemy()
@@ -10,6 +13,14 @@ AAuraEnemy::AAuraEnemy()
 
 	/*Block trace by player's cursor */
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
+	/*Ability System*/
+	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>("AbilitySystemComponent");
+	AbilitySystemComponent->SetIsReplicated(true); 
+
+	// Minimal for AI Controlled Enemy
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>("AttributeSet");
 }
 
 void AAuraEnemy::Tick(float DeltaTime)
@@ -17,6 +28,16 @@ void AAuraEnemy::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+
+void AAuraEnemy::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Enemy owns ASC , so we initialize it here in the constructor
+	check(AbilitySystemComponent); 
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+}
 
 void AAuraEnemy::HighLightActor()
 {

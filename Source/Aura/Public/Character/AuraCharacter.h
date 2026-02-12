@@ -6,6 +6,7 @@
 #include "Character/AuraCharacterBase.h"
 #include "AuraCharacter.generated.h"
 
+
 /**
  * 
  */
@@ -17,5 +18,14 @@ class AURA_API AAuraCharacter : public AAuraCharacterBase
 
 public:
 	AAuraCharacter(); 
+
+	//~ ACharacters Begins 
+	virtual void PossessedBy(AController* NewController) override;
+	//~ ACharacters Ends
+
+	/** PlayerState Replication Notification Callback */
+	virtual void OnRep_PlayerState() override;
+private:
+	void InitAbilityActorInfo();
 
 };

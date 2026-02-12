@@ -1,7 +1,7 @@
 // @Copyright HaolunYuan
 
 
-#include "Player/Components/AutoMoveComponent.h"
+#include "Components/Player/AutoMoveComponent.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "GameFramework/Character.h"
@@ -21,11 +21,12 @@ void UAutoMoveComponent::RequestToMoveToLocation(const FVector& InTargetPosition
 	{
 		if (!Owner->HasAuthority())
 		{
+			/*Client requests the server to compute a nav path.*/
 			Server_RequestMoveToLocation(FVector_NetQuantize(InTargetPosition));
 			return;
 		}
 
-		/*Server: compute the path and send waypoints to the owning client*/
+		/*Server computes a nav path and sends it back to the owning client.*/
 		APawn* OwnerPawn = GetOwnerPawn();
 		if (!OwnerPawn)
 		{
@@ -59,11 +60,12 @@ void UAutoMoveComponent::RequestCancelAutoMove()
 	{
 		if (Owner->HasAuthority())
 		{
+			/*Server tells the owning client to stop auto-move.*/
 			Client_CancelAutoMove();
 		}
 		else
 		{
-			/*Client-side immediate cancel for responsiveness*/
+			/*Client-side immediate cancel for responsiveness.*/
 			bIsAutoMoving = false;
 			PathPoints.Empty();
 			SetComponentTickEnabled(false);
@@ -143,7 +145,7 @@ void UAutoMoveComponent::FollowPath()
 		return;
 	}
 
-	/*Skip to the next way point if close enough*/
+	/*Advance to the next waypoint if close enough*/
 	while (CurrentPathIndex < PathPoints.Num())
 	{
 		const float DistXY = FVector::Dist2D(OwnerPawn->GetActorLocation(), PathPoints[CurrentPathIndex]);
@@ -157,7 +159,7 @@ void UAutoMoveComponent::FollowPath()
 		}
 	}
 
-	/*Arrived at final destination*/
+	/*Stop when the final destination is reached*/
 	if (CurrentPathIndex >= PathPoints.Num())
 	{
 		bIsAutoMoving = false;
@@ -166,7 +168,7 @@ void UAutoMoveComponent::FollowPath()
 		return;
 	}
 
-	/*Steer toward the current waypoint using AddMovementInput ¡ª same pipeline as WASD*/
+	/*Drive movement through AddMovementInput to preserve client prediction*/
 	const FVector Direction = (PathPoints[CurrentPathIndex] - OwnerPawn->GetActorLocation()).GetSafeNormal2D();
 	OwnerPawn->AddMovementInput(Direction, 1.f);
 }

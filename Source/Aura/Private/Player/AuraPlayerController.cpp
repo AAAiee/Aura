@@ -10,7 +10,7 @@
 /*Input Related End*/
 
 /*AutoMove Component Support Begin*/
-#include "Player/Components/AutoMoveComponent.h"
+#include "Components/Player/AutoMoveComponent.h"
 /*AutoMove Component Support End*/
 
 
