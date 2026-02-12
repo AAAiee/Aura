@@ -9,22 +9,25 @@
 #include "Interaction/Highlightable.h"
 /*Input Related End*/
 
-
-/*AI Related Begin*/
-#include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "Navigation/PathFollowingComponent.h"
-/*AI Related End*/
+/*AutoMove Component Support Begin*/
+#include "Player/Components/AutoMoveComponent.h"
+/*AutoMove Component Support End*/
 
 
 AAuraPlayerController::AAuraPlayerController()
 {
 	bReplicates = true; 
 
+	AutoMoveComponent = CreateDefaultSubobject<UAutoMoveComponent>(TEXT("AutoMoveComponent"));
+
 }
 
 void AAuraPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (!IsLocalController()) return;
+
 	check(AuraContext);
 
 	/*Enhanced System Configuration*/
@@ -46,8 +49,11 @@ void AAuraPlayerController::BeginPlay()
 void AAuraPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	if (IsLocalController())
+	{
+		CursorTrace();
+	}
 
-	CursorTrace();
 }
 
 void AAuraPlayerController::SetupInputComponent()
@@ -60,12 +66,15 @@ void AAuraPlayerController::SetupInputComponent()
 
 	/*Bind Input Actions*/
 	EnhancedInputComponent->BindAction(KeyboardMovementAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
-	EnhancedInputComponent->BindAction(MouseClickAction, ETriggerEvent::Started, this, &AAuraPlayerController::OnClickMove);
+	EnhancedInputComponent->BindAction(MouseClickAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::OnClickMove);
 }
 
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 {
-	CancelAutoMove();
+	if (AutoMoveComponent && AutoMoveComponent->IsAutoMoving())
+	{
+		AutoMoveComponent->RequestCancelAutoMove();
+	}
 
 	FVector2D MoveVector = ActionValues.Get<FVector2D>();
 
@@ -85,14 +94,14 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 {
 	/*If there is no valid target, do nothing*/
-	if (!CachedMoveTargetActor.IsValid()) return;
+	if (!bHasCachedMoveTargetLocation)
+	{
+		return;
+	}
 
 	/*Filtering goes here*/
-
-	/*The impact point might be in the air? do we need to snap it to the ground(we don;t know where the ground is, right?) */ 
-	UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedMoveTargetLocation);
-
-	bIsAutoMoving = true;
+	check(AutoMoveComponent);
+	AutoMoveComponent->RequestToMoveToLocation(CachedMoveTargetLocation);
 }
 
 void AAuraPlayerController::CursorTrace()
@@ -105,15 +114,22 @@ void AAuraPlayerController::CursorTrace()
 	if (CursorHitResult.bBlockingHit)
 	{
 		/*Cache cursor's position for click-to-move function*/
-		CachedMoveTargetActor = CursorHitResult.GetActor();
 		CachedMoveTargetLocation = CursorHitResult.ImpactPoint; 
+		bHasCachedMoveTargetLocation = true;
 
-		CurrentHighlightable = CursorHitResult.GetActor();
+		AActor* HitActor = CursorHitResult.GetActor();
+		if (HitActor && HitActor->Implements<UHighlightable>())
+		{
+			CurrentHighlightable = HitActor;
+		}
+		else
+		{
+			CurrentHighlightable = nullptr;
+		}
 	}
 	else
 	{
-		CachedMoveTargetActor = nullptr;
-		CachedMoveTargetLocation = FVector();
+		bHasCachedMoveTargetLocation = false;
 		CurrentHighlightable = nullptr;
 	}
 
@@ -159,12 +175,7 @@ void AAuraPlayerController::CursorTrace()
 
 }
 
-void AAuraPlayerController::CancelAutoMove()
-{
-	if (bIsAutoMoving)
-	{
-		StopMovement();
-		bIsAutoMoving = false;
-	}
-}
+
+
+
 

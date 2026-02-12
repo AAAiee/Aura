@@ -36,7 +36,6 @@ private:
 
 	/*Cursor Functionalities Begins*/
 	void CursorTrace();
-	void CancelAutoMove();
 	/*Cursor Functionalities Ends*/
 
 private:
@@ -51,11 +50,14 @@ private:
 	TObjectPtr<UInputAction> MouseClickAction;
 	/*Inputs Actions End*/
 
+	/*AutoMove Component Support */
+	UPROPERTY(VisibleAnywhere, Category="Movement")
+	TObjectPtr<class UAutoMoveComponent> AutoMoveComponent;
+
 	/*Left Click Auto Moving Related*/
-	UPROPERTY()
-	TWeakObjectPtr<AActor> CachedMoveTargetActor;
 	FVector CachedMoveTargetLocation;
-	bool bIsAutoMoving = false;
+	bool bHasCachedMoveTargetLocation = false;
+
 	/*Cursor Action Related End*/
 
 	/*Highlight Related Begin*/
