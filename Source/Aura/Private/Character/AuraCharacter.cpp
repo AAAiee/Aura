@@ -9,6 +9,9 @@
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 
+#include "Player/AuraPlayerController.h"
+#include "UI/HUD/AuraHUD.h"
+
 AAuraCharacter::AAuraCharacter()
 {
 
@@ -52,4 +55,15 @@ void AAuraCharacter::InitAbilityActorInfo()
 	AuraPlayerState->GetAbilitySystemComponent()->InitAbilityActorInfo(AuraPlayerState, this);
 	AbilitySystemComponent = AuraPlayerState->GetAbilitySystemComponent();
 	AttributeSet = AuraPlayerState->GetAttributeSet();
+
+
+	// Run only on owning client, the HUD is only relevant to owning client
+	if (AAuraPlayerController* AuraPlayerController = GetController<AAuraPlayerController>())
+	{
+		//HUD is only valid if is locally controlled 
+		if (AAuraHUD* AuraHUD = AuraPlayerController->GetHUD<AAuraHUD>())
+		{
+			AuraHUD->InitOverlayWidget(AuraPlayerController, AuraPlayerState, AbilitySystemComponent, AttributeSet);
+		}
+	}
 }

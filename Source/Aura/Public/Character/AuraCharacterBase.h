@@ -20,6 +20,7 @@ public:
 	/*Constructor*/
 	AAuraCharacterBase();
 
+	/*Getters*/
 	FORCEINLINE virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 	FORCEINLINE UAttributeSet* GetAttributeSet() const { return AttributeSet; }
 
@@ -35,7 +36,6 @@ protected:
 	TObjectPtr<USkeletalMeshComponent> Weapon; //TObjectPtr(Lazy Loading and Tracking)
 	/*Combat Related Components Ends*/
 
-
 	/*GameAbilitySystemComponent Begins*/
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -43,7 +43,4 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UAttributeSet> AttributeSet;
 	/*GameAbilitySystemComponent Ends*/
-
-
-
 };

@@ -20,15 +20,18 @@ class AURA_API AAuraPlayerState : public APlayerState, public IAbilitySystemInte
 
 public:
 	AAuraPlayerState();
+
+	/*Getters*/
 	FORCEINLINE virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 	FORCEINLINE UAttributeSet* GetAttributeSet() const { return AttributeSet; }
 
-
 protected:
+	/*ASC begins*/
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY()
 	TObjectPtr<UAttributeSet> AttributeSet;
+	/*ASC Ends*/
 };
 

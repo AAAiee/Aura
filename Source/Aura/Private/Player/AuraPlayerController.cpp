@@ -26,14 +26,15 @@ void AAuraPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!IsLocalController()) return;
-
 	check(AuraContext);
 
 	/*Enhanced System Configuration*/
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
-	check(Subsystem);
-	Subsystem->AddMappingContext(AuraContext, 0);
+	// Only run on the owning client
+	if (Subsystem)
+	{
+		Subsystem->AddMappingContext(AuraContext, 0);
+	}
 
 	/*Cursor Configuration*/ 
 	bShowMouseCursor = true;
@@ -61,8 +62,8 @@ void AAuraPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
-	check(KeyboardMovementAction);
-	check(MouseClickAction);
+	checkf(KeyboardMovementAction,TEXT("KeyboardMoveAction is not set in PlayerController"));
+	checkf(MouseClickAction, TEXT("MouseClickAction is not set in PlayerController"));
 
 	/*Bind Input Actions*/
 	EnhancedInputComponent->BindAction(KeyboardMovementAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);

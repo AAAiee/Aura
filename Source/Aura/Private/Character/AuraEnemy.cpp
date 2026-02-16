@@ -13,6 +13,7 @@ AAuraEnemy::AAuraEnemy()
 
 	/*Block trace by player's cursor */
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); 
 
 	/*Ability System*/
 	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>("AbilitySystemComponent");
@@ -21,22 +22,6 @@ AAuraEnemy::AAuraEnemy()
 	// Minimal for AI Controlled Enemy
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>("AttributeSet");
-}
-
-void AAuraEnemy::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-
-void AAuraEnemy::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// Enemy owns ASC , so we initialize it here in the constructor
-	check(AbilitySystemComponent); 
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
-
 }
 
 void AAuraEnemy::HighLightActor()
@@ -71,3 +56,19 @@ void AAuraEnemy::UnhighLightActor()
 		Weapon->SetRenderCustomDepth(false); 
 	}
 }
+void AAuraEnemy::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
+
+void AAuraEnemy::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Enemy owns ASC , so we initialize it here in the constructor
+	check(AbilitySystemComponent); 
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+}
+

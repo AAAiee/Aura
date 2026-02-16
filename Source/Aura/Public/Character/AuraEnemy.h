@@ -18,7 +18,6 @@ class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable
 public:
 	AAuraEnemy();
 
-
 	/*IHighlightable Interface Begin */
 	virtual void HighLightActor() override;
 	virtual void UnhighLightActor() override;
@@ -28,8 +27,8 @@ public:
 protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
-private:
 
+private:
 	/*Highlight Related Begin*/
 	bool bIsHighlighted = false;
 	/*Highlight Related Ends*/

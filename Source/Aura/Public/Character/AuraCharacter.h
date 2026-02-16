@@ -26,6 +26,8 @@ public:
 	/** PlayerState Replication Notification Callback */
 	virtual void OnRep_PlayerState() override;
 private:
+
+	/*Initialize the ASC and AttributeSet of the Character, called in both PossessedBy and OnRep_PlayerState to cover both Server and Client cases*/
 	void InitAbilityActorInfo();
 
 };
