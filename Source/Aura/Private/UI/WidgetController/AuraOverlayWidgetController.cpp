@@ -8,6 +8,7 @@ void UAuraOverlayWidgetController::BroadcastInitialValues()
 {
 	if (const UAuraAttributeSet* AuraAttribute = Cast<UAuraAttributeSet>(CachedAttributeSet))
 	{
+		// Push current attribute values to widgets so the UI is up-to-date on initialization
 		float Health = AuraAttribute->GetHealth();
 		OnHealthChanged.Broadcast(Health);
 
@@ -26,6 +27,7 @@ void UAuraOverlayWidgetController::BindAlldDependencies()
 {
 	const UAuraAttributeSet* AuraAttribute = Cast<UAuraAttributeSet>(CachedAttributeSet);
 
+	// Subscribe to attribute change delegates so the UI reacts to gameplay changes in real time
 	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetHealthAttribute()).AddUObject(this, &UAuraOverlayWidgetController::HealthChanged);
 
 	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxHealthAttribute()).AddUObject(this, &UAuraOverlayWidgetController::MaxHealthChanged);
@@ -42,7 +44,7 @@ void UAuraOverlayWidgetController::HealthChanged(const FOnAttributeChangeData& C
 
 void UAuraOverlayWidgetController::MaxHealthChanged(const FOnAttributeChangeData& ChangedData) const
 {
-	OnHealthChanged.Broadcast(ChangedData.NewValue); 
+	OnMaxHealthChanged.Broadcast(ChangedData.NewValue); 
 }
 
 void UAuraOverlayWidgetController::ManaChanged(const FOnAttributeChangeData& ChangedData) const

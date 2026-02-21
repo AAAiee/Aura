@@ -10,6 +10,8 @@ UAuraOverlayWidgetController* AAuraHUD::GetWidgetController(const FWidgetControl
 	if (!OverlayWidgetController)
 	{
 		checkf(OverlayWidgetControllerClass, TEXT("OverlayWidgetControllerClass is not set in %s"), *GetName());
+
+		// Create a new Widget Controller and cache it for future use
 		OverlayWidgetController = NewObject<UAuraOverlayWidgetController>(this, OverlayWidgetControllerClass);
 		OverlayWidgetController->SetWidgetControllerParams(Params);
 	}
@@ -21,6 +23,7 @@ void AAuraHUD::InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbili
 	checkf(OverlayWidgetClass, TEXT("OverlayWidgetClass is not set in %s"), *GetName());
 	OverlayWidget = CreateWidget<UAuraUserWidget>(GetWorld(), OverlayWidgetClass);
 
+	// Wire up the Widget Controller with the required GAS references
 	const FWidgetControllerParameters Params(PC, PS, ASC, AS);
 	UAuraOverlayWidgetController* WidgetController = GetWidgetController(Params);
 
