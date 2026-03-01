@@ -3,23 +3,19 @@
 
 #include "Player/AuraPlayerController.h"
 
-/*Input Related Begin*/
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "Interaction/Highlightable.h"
-/*Input Related End*/
 
-/*AutoMove Component Support Begin*/
 #include "Components/Player/AutoMoveComponent.h"
-/*AutoMove Component Support End*/
 
 
 AAuraPlayerController::AAuraPlayerController()
 {
+	// Replicate the controller so Server RPCs (e.g., AutoMoveComponent) can execute on the server.
 	bReplicates = true; 
 
 	AutoMoveComponent = CreateDefaultSubobject<UAutoMoveComponent>(TEXT("AutoMoveComponent"));
-
 }
 
 void AAuraPlayerController::BeginPlay()
@@ -28,19 +24,21 @@ void AAuraPlayerController::BeginPlay()
 
 	check(AuraContext);
 
-	/*Enhanced System Configuration*/
+	/*Enhanced Input ！ register the mapping context on the local player's input subsystem.
+	 * Priority 0 = lowest; higher-priority contexts can override these bindings later. */
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
-	// Only run on the owning client
-	if (Subsystem)
+	if (Subsystem) // Subsystem is null on dedicated servers (no local player)
 	{
 		Subsystem->AddMappingContext(AuraContext, 0);
 	}
 
-	/*Cursor Configuration*/ 
+	/*Cursor Setup ！ show a hand cursor for the top-down ARPG feel*/
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Hand;
 
-	/*Input Mode Configuration*/
+	/*Input Mode ！ allow both game input and UI interaction.
+	 * DoNotLock: cursor can leave the viewport (useful for windowed mode).
+	 * HideCursorDuringCapture=false: keep cursor visible when clicking. */
 	FInputModeGameAndUI InputModeData;
 	InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputModeData.SetHideCursorDuringCapture(false);
@@ -50,11 +48,12 @@ void AAuraPlayerController::BeginPlay()
 void AAuraPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+
+	// Cursor trace only on the local client ！ remote players don't need it
 	if (IsLocalController())
 	{
 		CursorTrace();
 	}
-
 }
 
 void AAuraPlayerController::SetupInputComponent()
@@ -65,11 +64,17 @@ void AAuraPlayerController::SetupInputComponent()
 	checkf(KeyboardMovementAction,TEXT("KeyboardMoveAction is not set in PlayerController"));
 	checkf(MouseClickAction, TEXT("MouseClickAction is not set in PlayerController"));
 
-	/*Bind Input Actions*/
+	/*Bind input actions ！ Triggered fires every frame the key is held (for smooth movement)*/
 	EnhancedInputComponent->BindAction(KeyboardMovementAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
 	EnhancedInputComponent->BindAction(MouseClickAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::OnClickMove);
 }
 
+/**
+ * WASD Movement ！ camera-relative direction.
+ * We extract the controller's Yaw rotation to determine "forward" and "right"
+ * relative to the camera, then apply the input vector as movement.
+ * Also cancels any active auto-move so WASD takes priority.
+ */
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 {
 	if (AutoMoveComponent && AutoMoveComponent->IsAutoMoving())
@@ -79,11 +84,11 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 
 	FVector2D MoveVector = ActionValues.Get<FVector2D>();
 
-	/*Figure out where the user is looking at, then apply velocity*/
 	const FRotator ControllerRotation = GetControlRotation();
 	const FRotator YawRotation(0, ControllerRotation.Yaw, 0);
 	const FVector PlayerForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector PlayerRightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
 	if (APawn* ControlledPawn = GetPawn())
 	{
 		ControlledPawn->AddMovementInput(PlayerForwardDirection, MoveVector.Y);
@@ -91,20 +96,35 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 	}
 }
 
-
+/** Click-to-Move ！ sends the cached cursor location to the AutoMoveComponent. */
 void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 {
-	/*If there is no valid target, do nothing*/
 	if (!bHasCachedMoveTargetLocation)
 	{
 		return;
 	}
 
-	/*Filtering goes here*/
 	check(AutoMoveComponent);
 	AutoMoveComponent->RequestToMoveToLocation(CachedMoveTargetLocation);
 }
 
+/**
+ * Cursor Trace ！ runs every tick on the local client.
+ *
+ * 1. Line trace under the cursor on ECC_Visibility channel.
+ * 2. Cache the hit location for click-to-move.
+ * 3. Check if the hit actor implements IHighlightable.
+ * 4. Compare CurrentHighlightable vs LastHighlightable and transition:
+ *
+ *    | Last  | Current | Action                              |
+ *    |-------|---------|-------------------------------------|
+ *    | null  | valid   | Highlight current                   |
+ *    | valid | null    | Unhighlight last                    |
+ *    | valid | valid   | If different: unhighlight last,     |
+ *    |       |  』 last |   highlight current                 |
+ *    | valid | valid   | Same actor ！ do nothing             |
+ *    | null  | null    | Do nothing                          |
+ */
 void AAuraPlayerController::CursorTrace()
 {
 	FHitResult CursorHitResult;
@@ -114,7 +134,6 @@ void AAuraPlayerController::CursorTrace()
 
 	if (CursorHitResult.bBlockingHit)
 	{
-		/*Cache cursor's position for click-to-move function*/
 		CachedMoveTargetLocation = CursorHitResult.ImpactPoint; 
 		bHasCachedMoveTargetLocation = true;
 
@@ -134,14 +153,7 @@ void AAuraPlayerController::CursorTrace()
 		CurrentHighlightable = nullptr;
 	}
 
-	/**
-	 * Now there is a few scenarios
-	 * 1. CurHighlightable != null && LastHighlightable == null : Just started highlighting the current one
-	 * 2. CurHighlightable == null && LastHighlightable != null : Just stopped highlighting the last one
-	 * 3. Both are valid && CurHighlightable != LastHighlightable : Switched highlight from last to current
-	 * 4. Both are valid && CurHighlightable == LastHighlightable : Do nothing
-	 * 5. Both are null : Do nothing
-	 */
+	// State machine ！ transition highlights based on the table above
 	if (CurrentHighlightable)
 	{
 		if (LastHighlightable == nullptr)
@@ -155,25 +167,15 @@ void AAuraPlayerController::CursorTrace()
 				LastHighlightable->UnhighLightActor();
 				CurrentHighlightable->HighLightActor();
 			}
-			else
-			{
-				// Do nothing
-			}
 		}
 	}
-	else // CurrentHighlightable is null
+	else
 	{
 		if (LastHighlightable)
 		{
 			LastHighlightable->UnhighLightActor();
 		}
-		else
-		{
-			// Do nothing
-		}
 	}
-
-
 }
 
 

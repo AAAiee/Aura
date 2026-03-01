@@ -11,15 +11,17 @@ AAuraEnemy::AAuraEnemy()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	/*Block trace by player's cursor */
+	/*Collision Setup ！ make the mesh block the Visibility channel so the player's
+	 * cursor trace (ECC_Visibility) can detect this enemy for highlighting.
+	 * Ignore Camera so the spring arm doesn't collide with enemy meshes. */
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); 
 
-	/*Ability System*/
+	/*GAS Setup ！ enemy owns ASC and AttributeSet directly (no PlayerState).
+	 * Replication Mode: Minimal ！ no GE prediction needed for AI-controlled pawns.
+	 * Compare with player's Mixed mode in AuraPlayerState. */
 	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>("AbilitySystemComponent");
 	AbilitySystemComponent->SetIsReplicated(true); 
-
-	// Minimal for AI Controlled Enemy
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>("AttributeSet");
 }
@@ -66,9 +68,17 @@ void AAuraEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Enemy owns ASC , so we initialize it here in the constructor
-	check(AbilitySystemComponent); 
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+}
 
+/**
+ * Enemy's ASC init ！ Owner and Avatar are both "this" (the enemy itself).
+ * Compare with AAuraCharacter where Owner=PlayerState and Avatar=Pawn.
+ * AbilityActorInfoSet() binds the OnGameplayEffectApplied delegate on the ASC.
+ */
+void AAuraEnemy::InitAbilityActorInfo()
+{
+	check(AbilitySystemComponent);
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
 }
 

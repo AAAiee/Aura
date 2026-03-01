@@ -5,10 +5,12 @@
 
 void UAuraUserWidget::SetWidgetController(UObject* Controller)
 {
-	check(Controller); 
+	check(Controller);
 
 	WidgetController = Controller;
 
-	// Notify Blueprint that the controller is ready so it can bind delegates and pull initial data
+	// Fire the Blueprint event so the widget can bind its UI elements to the controller's delegates.
+	// This must happen before BroadcastInitialValues() is called, otherwise the first broadcast
+	// has no Blueprint listeners yet.
 	WidgetControllerSet();
 }

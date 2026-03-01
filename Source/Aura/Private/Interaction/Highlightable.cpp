@@ -3,4 +3,5 @@
 
 #include "Interaction/Highlightable.h"
 
-// Add default functionality here for any Ihighlightable functions that are not pure virtual.
+// No default implementations ¡ª both methods are pure virtual.
+// Each implementor (e.g., AAuraEnemy) defines its own highlight/unhighlight behavior.

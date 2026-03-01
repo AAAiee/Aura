@@ -13,9 +13,19 @@ class UAbilitySystemComponent;
 class UAttributeSet;
 
 /**
- * AuraHUD is responsible for creating and managing the Overlay Widget and its associated Widget Controller.
- * It serves as the entry point for initializing the UI layer, wiring up the data flow between
- * the Gameplay Ability System and the on-screen widgets.
+ * The HUD class for Aura ！ creates and owns the Overlay Widget + its Widget Controller.
+ *
+ * The HUD is spawned automatically by the GameMode's HUDClass setting.
+ * It only exists on the OWNING CLIENT (not on the server or other clients).
+ *
+ * Initialization flow (called from AAuraCharacter::InitAbilityActorInfo):
+ *   1. InitOverlayWidget() is called with the player's PC, PS, ASC, AS.
+ *   2. The Overlay Widget (UMG) is created from OverlayWidgetClass (set in Blueprint).
+ *   3. GetWidgetController() creates the WidgetController (lazy singleton pattern).
+ *   4. The widget receives the controller ★ WidgetControllerSet fires in Blueprint.
+ *   5. BindAllDependencies() subscribes the controller to ASC attribute-change delegates.
+ *   6. BroadcastInitialValues() pushes current attribute values so the UI starts correct.
+ *   7. Widget is added to viewport.
  */
 UCLASS()
 class AURA_API AAuraHUD : public AHUD
@@ -25,36 +35,32 @@ class AURA_API AAuraHUD : public AHUD
 public:
 
 	/**
-	 * Returns the Overlay Widget Controller. Creates and initializes one if it does not yet exist.
-	 * @param Params	The parameters containing references to PlayerController, PlayerState, ASC, and AttributeSet.
-	 * @return			The cached or newly created Overlay Widget Controller.
+	 * Returns the cached OverlayWidgetController, or creates one if it doesn't exist yet.
+	 * Uses a lazy singleton pattern ！ only one controller per HUD lifetime.
 	 */
 	UAuraOverlayWidgetController* GetWidgetController(const FWidgetControllerParameters& Params);
 
 	/**
-	 * Creates the Overlay Widget, assigns its Widget Controller, binds dependencies, broadcasts
-	 * initial attribute values, and adds the widget to the viewport.
-	 * @param PC	The owning Player Controller.
-	 * @param PS	The owning Player State.
-	 * @param ASC	The Ability System Component providing attribute data.
-	 * @param AS	The Attribute Set containing gameplay attributes (Health, Mana, etc.).
+	 * Full overlay initialization ！ creates the widget, wires up the controller,
+	 * binds delegates, broadcasts initial values, and adds to viewport.
+	 * Must be called BEFORE AbilityActorInfoSet() so the UI listeners exist before GE events fire.
 	 */
 	void InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbilitySystemComponent* ASC, UAttributeSet* AS);
 
 private:
-	/*Overlay Widget Begins*/
+	/*Overlay Widget ！ the actual UMG widget displayed on screen*/
 	UPROPERTY()
 	TObjectPtr<UAuraUserWidget> OverlayWidget;
 
+	/** Set in Blueprint ！ the UMG widget class to create (e.g., WBP_Overlay). */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UAuraUserWidget> OverlayWidgetClass;
-	/*Overlay Widget Ends*/
 
-	/*Overlay Widget Controller Begins*/
+	/*Overlay Widget Controller ！ data provider for the overlay*/
 	UPROPERTY()
 	TObjectPtr<UAuraOverlayWidgetController> OverlayWidgetController;
 
+	/** Set in Blueprint ！ the controller class to create (e.g., BP_OverlayWidgetController). */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UAuraOverlayWidgetController> OverlayWidgetControllerClass;
-	/*Overlay Widget Controller Ends*/
 };
