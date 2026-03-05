@@ -37,10 +37,7 @@ struct FUIWidgetRow : public FTableRowBase
 };
 
 /*Dynamic Multicast Delegates ！ Blueprint widgets bind to these to receive attribute updates*/
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChangedSignature, float, NewHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxHealthChangedSignature, float, NewMaxHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManaChangedSignature, float, NewMana);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxManaChangedSignature, float, NewMaxMana);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAttributeChangeSignature, float, NewHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, FUIWidgetRow, Row);
 
 
@@ -86,25 +83,18 @@ public:
 	virtual void BindAllDependencies() override;
 
 private:
-	/*Attribute Change Callbacks ！ receive FOnAttributeChangeData from the ASC and relay to UI delegates*/
-	void HealthChanged(const FOnAttributeChangeData& ChangedData) const;
-	void MaxHealthChanged(const FOnAttributeChangeData& ChangedData) const;
-	void ManaChanged(const FOnAttributeChangeData& ChangedData) const;
-	void MaxManaChanged(const FOnAttributeChangeData& ChangedData) const;
-
-private:
 	/*Blueprint-Assignable Delegates ！ Blueprint widgets bind to these in WidgetControllerSet*/
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
-	FOnHealthChangedSignature OnHealthChanged;
+	FOnAttributeChangeSignature OnHealthChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
-	FOnMaxHealthChangedSignature OnMaxHealthChanged;
+	FOnAttributeChangeSignature OnMaxHealthChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
-	FOnManaChangedSignature OnManaChanged;
+	FOnAttributeChangeSignature OnManaChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
-	FOnMaxManaChangedSignature OnMaxManaChanged;
+	FOnAttributeChangeSignature OnMaxManaChanged;
 
 	/** Fires when a GE with a "Message.*" tag is applied ！ Blueprint shows a popup widget. */
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Message", meta = (AllowPrivateAccess = "true"))

@@ -39,13 +39,34 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 	const UAuraAttributeSet* AuraAttribute = Cast<UAuraAttributeSet>(CachedAttributeSet);
 
 	// Pathway 1: Attribute value changes ¡ú C++ callback ¡ú Dynamic delegate ¡ú Blueprint
-	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetHealthAttribute()).AddUObject(this, &UAuraOverlayWidgetController::HealthChanged);
+	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetHealthAttribute()).AddLambda(
+		[this](const FOnAttributeChangeData& ChangedData)
+		{
+			this->OnHealthChanged.Broadcast(ChangedData.NewValue);
+		}
+	);
+		
 
-	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxHealthAttribute()).AddUObject(this, &UAuraOverlayWidgetController::MaxHealthChanged);
+	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxHealthAttribute()).AddLambda( 
+		[this](const FOnAttributeChangeData& ChangedData)
+		{
+			this->OnMaxHealthChanged.Broadcast(ChangedData.NewValue);
+		}
+	);
 
-	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetManaAttribute()).AddUObject(this, &UAuraOverlayWidgetController::ManaChanged);
+	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetManaAttribute()).AddLambda(
+		[this](const FOnAttributeChangeData& ChangedData)
+		{
+			this->OnManaChanged.Broadcast(ChangedData.NewValue);
+		}
+	);
 
-	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxManaAttribute()).AddUObject(this, &UAuraOverlayWidgetController::MaxManaChanged);
+	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxManaAttribute()).AddLambda(
+		[this](const FOnAttributeChangeData& ChangedData)
+		{
+			this->OnMaxManaChanged.Broadcast(ChangedData.NewValue);
+		}
+	);
 
 	// Pathway 2: GE applied ¡ú extract asset tags ¡ú filter "Message.*" ¡ú DataTable lookup ¡ú UI
 	Cast<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent)->OnGatherEffectAssetTags.AddLambda(
@@ -66,27 +87,5 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 			}
 		}
 	);
-}
-
-/*Attribute Change Callbacks ¡ª simple relay from FOnAttributeChangeData to Dynamic delegate*/
-
-void UAuraOverlayWidgetController::HealthChanged(const FOnAttributeChangeData& ChangedData) const
-{
-	OnHealthChanged.Broadcast(ChangedData.NewValue);
-}
-
-void UAuraOverlayWidgetController::MaxHealthChanged(const FOnAttributeChangeData& ChangedData) const
-{
-	OnMaxHealthChanged.Broadcast(ChangedData.NewValue); 
-}
-
-void UAuraOverlayWidgetController::ManaChanged(const FOnAttributeChangeData& ChangedData) const
-{
-	OnManaChanged.Broadcast(ChangedData.NewValue); 
-}
-
-void UAuraOverlayWidgetController::MaxManaChanged(const FOnAttributeChangeData& ChangedData) const
-{
-	OnMaxManaChanged.Broadcast(ChangedData.NewValue); 
 }
 

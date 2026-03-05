@@ -36,6 +36,10 @@ public:
 	/** Called on the CLIENT when PlayerState replicates. Initializes ASC for the client. */
 	virtual void OnRep_PlayerState() override;
 
+	/*ICombatInterface*/
+	virtual int32 GetPlayerLevel() const override;
+	/*ends ICombatInterface*/
+
 protected:
 	/**
 	 * Wires up ASC, AttributeSet, HUD, and ASC delegates.

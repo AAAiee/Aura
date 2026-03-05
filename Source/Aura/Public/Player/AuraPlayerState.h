@@ -34,7 +34,13 @@ public:
 
 	/*IAbilitySystemInterface*/
 	FORCEINLINE virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
+	/*ends IAbilitySystemInterface*/
+
 	FORCEINLINE UAttributeSet* GetAttributeSet() const { return AttributeSet; }
+
+	/*ICombatInterface*/
+	FORCEINLINE int32 GetPlayerLevel() const { return PlayerLevel; }
+	/*ends ICombatInterface*/
 
 protected:
 	/*GAS Components ¡ª created here, but initialized in AAuraCharacter::InitAbilityActorInfo()*/
@@ -43,5 +49,8 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UAttributeSet> AttributeSet;
+
+private:
+	int32 PlayerLevel = 0;
 };
 

@@ -58,6 +58,8 @@ void AAuraEnemy::UnhighLightActor()
 		Weapon->SetRenderCustomDepth(false); 
 	}
 }
+
+
 void AAuraEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -81,4 +83,5 @@ void AAuraEnemy::InitAbilityActorInfo()
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
 }
+
 

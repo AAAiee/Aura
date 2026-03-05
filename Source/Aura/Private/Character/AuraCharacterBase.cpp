@@ -2,6 +2,8 @@
 
 
 #include "Character/AuraCharacterBase.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 
 // Sets default values
 AAuraCharacterBase::AAuraCharacterBase()
@@ -19,9 +21,26 @@ AAuraCharacterBase::AAuraCharacterBase()
 void AAuraCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 
+void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const
+{
+	checkf(GameplayEffectClass, TEXT("GameplayEffectClass should be set in blueprint"));
+	check(AbilitySystemComponent);
+	FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
+	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(GameplayEffectClass, Level, ContextHandle);
+	if (SpecHandle.IsValid())
+	{
+		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	}
+}
 
+void AAuraCharacterBase::InitDefaultAttributes()
+{
+	/* Follow the order, primary -> secondary -> vital */
+	ApplyGameEffectToSelf(PrimaryAttributeInitGE, 1.0f);
+	ApplyGameEffectToSelf(SecondaryAttributeInitGE, 1.0f);
+	ApplyGameEffectToSelf(VitalAttributeInitGE, 1.0f); 
+}
 

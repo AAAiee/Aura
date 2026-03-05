@@ -27,9 +27,14 @@ class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable
 public:
 	AAuraEnemy();
 
-	/*IHighlightable Interface ¡ª toggles Custom Depth for post-process outline*/
+	/* IHighlightable Interface ¡ª toggles Custom Depth for post-process outline*/
 	virtual void HighLightActor() override;
 	virtual void UnhighLightActor() override;
+	/* ends IHighlightable Interface*/
+
+	/* ICombatInterface*/
+	FORCEINLINE virtual int32 GetPlayerLevel() const override { return EnemyLevel; }
+	/* ends ICombatInterface*/
 
 protected:
 	virtual void Tick(float DeltaTime) override;
@@ -41,4 +46,7 @@ protected:
 private:
 	/** Tracks highlight state to avoid redundant Custom Depth toggles. */
 	bool bIsHighlighted = false;
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
+	int32 EnemyLevel; 
 };

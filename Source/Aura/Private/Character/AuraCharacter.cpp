@@ -37,6 +37,11 @@ void AAuraCharacter::PossessedBy(AController* NewController)
 
 	// Server-side: PlayerState is already valid at this point
 	InitAbilityActorInfo();
+
+	// Server-side: apply the GE that initializes primary attributes (Strength, Intellect, etc).
+	// This will replicate to clients and trigger UI updates.
+	InitDefaultAttributes();
+
 }
 
 void AAuraCharacter::OnRep_PlayerState()
@@ -45,6 +50,13 @@ void AAuraCharacter::OnRep_PlayerState()
 
 	// Client-side: PlayerState just replicated, safe to read ASC/AS from it now
 	InitAbilityActorInfo();
+}
+
+int32 AAuraCharacter::GetPlayerLevel() const
+{
+	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
+	check(AuraPlayerState);
+	return AuraPlayerState->GetPlayerLevel();
 }
 
 /**
