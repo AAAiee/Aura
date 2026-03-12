@@ -12,9 +12,6 @@
 UAuraAttributeSet::UAuraAttributeSet()
 {
 
-	//TODO: Hard coded default values for testing ¡ª should be data driven in the future
-	InitHealth(50.f);
-	InitMana(84.f);
 }
 
 /**
