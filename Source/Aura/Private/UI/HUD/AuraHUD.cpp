@@ -4,13 +4,14 @@
 #include "UI/HUD/AuraHUD.h"
 #include "UI/Widget/AuraUserWidget.h"
 #include "UI/WidgetController/AuraOverlayWidgetController.h"
+#include "UI/WidgetController/AttributeMenuWidgetController.h"
 
 /**
  * Lazy singleton ¡ª creates the widget controller on first request, then caches it.
  * NewObject<> is used instead of CreateDefaultSubobject because the HUD is already constructed
  * by the time we know what params to pass (ASC, AS, etc.).
  */
-UAuraOverlayWidgetController* AAuraHUD::GetWidgetController(const FWidgetControllerParameters& Params)
+UAuraOverlayWidgetController* AAuraHUD::GetOverlayWidgetController(const FWidgetControllerParameters& Params)
 {
 	if (!OverlayWidgetController)
 	{
@@ -18,8 +19,26 @@ UAuraOverlayWidgetController* AAuraHUD::GetWidgetController(const FWidgetControl
 
 		OverlayWidgetController = NewObject<UAuraOverlayWidgetController>(this, OverlayWidgetControllerClass);
 		OverlayWidgetController->SetWidgetControllerParams(Params);
+		OverlayWidgetController->BindAllDependencies();
+
 	}
 	return OverlayWidgetController;
+}
+
+
+
+UAttributeMenuWidgetController* AAuraHUD::GetAttributeMenuWidgetController(const FWidgetControllerParameters& Params)
+{
+	if (!AttributeMenuWidgetController)
+	{
+		checkf(AttributeMenuWidgetControllerClass, TEXT("AttributeMenuWidgetControllerClass is not set in %s"), *GetName());
+
+		AttributeMenuWidgetController = NewObject<UAttributeMenuWidgetController>(this, AttributeMenuWidgetControllerClass);
+		AttributeMenuWidgetController->SetWidgetControllerParams(Params);
+		AttributeMenuWidgetController->BindAllDependencies();
+
+	}
+	return AttributeMenuWidgetController;
 }
 
 /**
@@ -41,13 +60,11 @@ void AAuraHUD::InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbili
 	OverlayWidget = CreateWidget<UAuraUserWidget>(GetWorld(), OverlayWidgetClass);
 
 	const FWidgetControllerParameters Params(PC, PS, ASC, AS);
-	UAuraOverlayWidgetController* WidgetController = GetWidgetController(Params);
+	UAuraOverlayWidgetController* WidgetController = GetOverlayWidgetController(Params);
 
 	OverlayWidget->SetWidgetController(WidgetController);
 
-	WidgetController->BindAllDependencies();
 	WidgetController->BroadcastInitialValues();
-
 	OverlayWidget->AddToViewport();
 }
 

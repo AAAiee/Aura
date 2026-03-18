@@ -2,7 +2,9 @@
 
 
 #include "AuraAssetManager.h"
-#include "AuraGameTag.h"
+#include "AuraGameTagManager.h"
+#include "Engine/Engine.h"
+#include "Components/AbilitySystem/Data/AttributeDataAsset.h"
 
 UAuraAssetManager& UAuraAssetManager::Get()
 {
@@ -14,5 +16,7 @@ UAuraAssetManager& UAuraAssetManager::Get()
 
 void UAuraAssetManager::StartInitialLoading()
 {
-	FAuraGameTag::InitializeAllNativeTags();
+	FAuraGameTagManager::InitializeAllNativeTags();
+
+
 }

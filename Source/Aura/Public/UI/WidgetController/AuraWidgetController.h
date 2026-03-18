@@ -62,6 +62,8 @@ public:
 	void SetWidgetControllerParams(const FWidgetControllerParameters& Parameters);
 
 	/** Override to broadcast current attribute values to the UI on startup. */
+
+	UFUNCTION(BlueprintCallable)
 	virtual void BroadcastInitialValues() {};
 
 	/** Override to bind delegates to ASC attribute changes, GE events, etc. */
@@ -69,16 +71,16 @@ public:
 
 protected:
 	/*Cached References ¡ª set once via SetWidgetControllerParams, read by derived classes*/
-	UPROPERTY(BlueprintReadOnly, Category =WidgetCongtroller)
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<APlayerController> CachedPlayerController;
 
-	UPROPERTY(BlueprintReadOnly, Category =WidgetController)
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<APlayerState> CachedPlayerState;
 
-	UPROPERTY(BlueprintReadOnly, Category =WidgetController)
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
 
-	UPROPERTY(BlueprintReadOnly, Category =WidgetController)
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<UAttributeSet> CachedAttributeSet;
 
 };

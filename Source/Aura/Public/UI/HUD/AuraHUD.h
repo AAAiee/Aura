@@ -11,6 +11,7 @@ class UAuraOverlayWidgetController;
 struct FWidgetControllerParameters;
 class UAbilitySystemComponent;
 class UAttributeSet;
+class UAttributeMenuWidgetController;
 
 /**
  * The HUD class for Aura ！ creates and owns the Overlay Widget + its Widget Controller.
@@ -38,8 +39,10 @@ public:
 	 * Returns the cached OverlayWidgetController, or creates one if it doesn't exist yet.
 	 * Uses a lazy singleton pattern ！ only one controller per HUD lifetime.
 	 */
-	UAuraOverlayWidgetController* GetWidgetController(const FWidgetControllerParameters& Params);
+	UAuraOverlayWidgetController* GetOverlayWidgetController(const FWidgetControllerParameters& Params);
 
+
+	UAttributeMenuWidgetController* GetAttributeMenuWidgetController(const FWidgetControllerParameters& Params);
 	/**
 	 * Full overlay initialization ！ creates the widget, wires up the controller,
 	 * binds delegates, broadcasts initial values, and adds to viewport.
@@ -63,4 +66,13 @@ private:
 	/** Set in Blueprint ！ the controller class to create (e.g., BP_OverlayWidgetController). */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UAuraOverlayWidgetController> OverlayWidgetControllerClass;
+
+
+	/*Attribute Menu Widget ！ the actual UMG widget displayed on screen*/
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UAttributeMenuWidgetController> AttributeMenuWidgetControllerClass;
+
+	UPROPERTY()
+	TObjectPtr<UAttributeMenuWidgetController> AttributeMenuWidgetController;
 };
+	

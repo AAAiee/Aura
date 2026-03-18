@@ -95,20 +95,11 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
 	}
 
-	if (Data.EvaluatedData.Attribute == GetMaxHealthAttribute())
-	{
-		SetMaxHealth(FMath::Clamp(GetMaxHealth(), 0.0f, GetMaxHealth()));
-	}
-
 	if (Data.EvaluatedData.Attribute == GetManaAttribute())
 	{
 		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
 	}
 
-	if (Data.EvaluatedData.Attribute == GetMaxManaAttribute())
-	{
-		SetMaxMana(FMath::Clamp(GetMaxMana(), 0.0f, GetMaxMana()));
-	}
 }
 
 /*

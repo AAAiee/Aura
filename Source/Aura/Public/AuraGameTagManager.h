@@ -15,6 +15,7 @@
 	FGameplayTag Attribute_Vital_##TagName;
 
 
+
 /**
  * Singleton struct that holds all native GameplayTags used in C++ for the Aura project.
  *
@@ -26,20 +27,56 @@
  *   - Attributes.Primary.*    ¡ª Strength, Intelligence, Resilience, Vigor
  *   - Attributes.Secondary.*  ¡ª Derived stats (Armor, MaxHealth, CritChance, etc.)
  */
-struct AURA_API FAuraGameTag
+struct AURA_API FAuraGameTagManager
 {
 public:
+	struct FNativeGameplayTagInfo
+	{
+
+		FGameplayTag NativeTag;
+		FName TagName;
+		FString Description;
+
+		FNativeGameplayTagInfo() = default;
+
+		FNativeGameplayTagInfo(FGameplayTag InNativeTag, FName InTagName, FString InDescription)
+			: NativeTag(MoveTemp(InNativeTag))
+			, TagName(MoveTemp(InTagName))
+			, Description(MoveTemp(InDescription)) { }
+
+		FNativeGameplayTagInfo(const FNativeGameplayTagInfo&) = default;
+		FNativeGameplayTagInfo& operator=(const FNativeGameplayTagInfo&) = default;
+		FNativeGameplayTagInfo(FNativeGameplayTagInfo&&) = default;
+		FNativeGameplayTagInfo& operator=(FNativeGameplayTagInfo&&) = default;
+
+		bool operator==(const FNativeGameplayTagInfo& Other) const
+		{
+			return NativeTag.MatchesTagExact(Other.NativeTag);
+		}
+	};
+
+public:
 	/*Get the Instance*/
-	static FAuraGameTag& Get();
+	static FAuraGameTagManager& Get();
 
 	/*Populate all native tags*/
 	static void InitializeAllNativeTags();
 
+	static FORCEINLINE const TArray<FNativeGameplayTagInfo>& GetNativeGameplayTagInfos()
+	{
+		return Get().NativeGameplayTagInfos;
+	}
+
+	static FORCEINLINE bool IsNativeTagInfosValid()
+	{
+		return Get().bIsValid;
+	}
+
 	/*Delete copy and move constructors and assign operators*/ 
-	FAuraGameTag(const FAuraGameTag&) = delete;
-	FAuraGameTag& operator=(const FAuraGameTag&) = delete;
-	FAuraGameTag(FAuraGameTag&&) = delete;
-	FAuraGameTag& operator=(FAuraGameTag&&) = delete;
+	FAuraGameTagManager(const FAuraGameTagManager&) = delete;
+	FAuraGameTagManager& operator=(const FAuraGameTagManager&) = delete;
+	FAuraGameTagManager(FAuraGameTagManager&&) = delete;
+	FAuraGameTagManager& operator=(FAuraGameTagManager&&) = delete;
 
 public:
 	/*Vital Attributes*/
@@ -65,5 +102,11 @@ public:
 	DECLARE_SECONDARY_GAME_TAG(MaxMana)
 
 private:
-	FAuraGameTag() = default;
+	//Helper to register native Gameplay tag info while register native tag info
+	static void AddNativeGameplayTagInfo(FGameplayTag NativeTag, FName TagName, FString Description);
+	FAuraGameTagManager() = default;
+
+	bool bIsValid = false;
+
+	TArray<FNativeGameplayTagInfo> NativeGameplayTagInfos;
 };
