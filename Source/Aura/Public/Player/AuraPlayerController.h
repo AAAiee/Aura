@@ -1,7 +1,6 @@
-// @Copyright HaolunYuan
+ï»¿// @Copyright HaolunYuan
 
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "AuraPlayerController.generated.h"
@@ -20,12 +19,13 @@ struct FHitResult;
  *   - Keyboard WASD movement (camera-relative direction)
  *   - Click-to-move via AutoMoveComponent (server-authoritative nav path)
  *   - Cursor trace for actor highlighting (IHighlightable interface)
+ *   - Attribute Menu toggling via keyboard/UI request
  *
  * Input flow:
- *   BeginPlay ¡ú add AuraContext mapping ¡ú SetupInputComponent ¡ú bind Move + OnClickMove
+ *   BeginPlay -> add AuraContext mapping -> SetupInputComponent -> bind Move + OnClickMove + ToggleAttributeMenu
  *
  * Cursor trace flow (every tick):
- *   PlayerTick ¡ú CursorTrace ¡ú line trace under cursor ¡ú highlight/unhighlight actors
+ *   PlayerTick -> CursorTrace -> line trace under cursor -> highlight/unhighlight actors
  *
  * Replication: bReplicates = true so the controller exists on the server for server RPCs.
  */
@@ -37,6 +37,12 @@ class AURA_API AAuraPlayerController : public APlayerController
 public:
 	AAuraPlayerController();
 
+	/** Project Extension â€” shared entry point for the custom Attribute Menu toggle feature. */
+	/** Public entry point so BP/UI can reuse the same toggle logic as the input action. */
+	UFUNCTION(BlueprintCallable, Category="UI")
+	void ToggleAttributeMenuRequested(); 
+
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
@@ -44,12 +50,15 @@ protected:
 
 private:
 	/*Movement Handlers Begins*/
-	/** WASD movement ¡ª computes camera-relative direction and applies AddMovementInput. */
+	/** WASD movement â€” computes camera-relative direction and applies AddMovementInput. */
 	void Move(const FInputActionValue& ActionValues);
 
-	/** Left-click movement ¡ª delegates to AutoMoveComponent for server-authoritative pathfinding. */
+	/** Left-click movement â€” delegates to AutoMoveComponent for server-authoritative pathfinding. */
 	void OnClickMove(const FInputActionValue& ActionValues);
 	/*Movement Handlers Ends*/
+
+	/** Enhanced Input callback for the "toggle attribute menu" action. */
+	void OnToggleAttributeMenu(const FInputActionValue& ActionValues);
 
 	/**
 	 * Runs every tick on the local client. Performs a line trace under the cursor to detect
@@ -58,15 +67,19 @@ private:
 	void CursorTrace();
 
 private:
-	/*Enhanced Input Assets Begins ¡ª set in the editor on the BP_AuraPlayerController*/
+	/*Enhanced Input Assets Begins â€” set in the editor on the BP_AuraPlayerController*/
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputMappingContext> AuraContext;
 
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputAction> KeyboardMovementAction;
 
-	UPROPERTY(EditAnywhere, Category =Input)
+	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputAction> MouseClickAction;
+
+	/** Input Action asset bound to the keyboard shortcut that shows/hides the Attribute Menu. */
+	UPROPERTY(EditAnywhere, Category="Input")
+	TObjectPtr<UInputAction> ToggleAttributeMenuAction;
 	/*Enhanced Input Assets Ends*/
 
 	/** Component that handles click-to-move pathfinding via server RPC. */
@@ -78,7 +91,7 @@ private:
 	bool bHasCachedMoveTargetLocation = false;
 	/*Click-to-Move State Ends*/
 
-	/*Highlight Tracking Begins ¡ª tracks previous and current frame's highlighted actor*/
+	/*Highlight Tracking Begins â€” tracks previous and current frame's highlighted actor*/
 	UPROPERTY()
 	TScriptInterface<IHighlightable>  LastHighlightable;
 	UPROPERTY()

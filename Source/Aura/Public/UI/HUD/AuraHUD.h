@@ -1,4 +1,4 @@
-// @Copyright HaolunYuan
+ï»¿// @Copyright HaolunYuan
 
 #pragma once
 
@@ -6,15 +6,19 @@
 #include "GameFramework/HUD.h"
 #include "AuraHUD.generated.h"
 
-class UAuraUserWidget;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetConstructedSignature);
+
+class UAuraOverlayRootWidget; 
 class UAuraOverlayWidgetController;
 struct FWidgetControllerParameters;
 class UAbilitySystemComponent;
 class UAttributeSet;
 class UAttributeMenuWidgetController;
+class UAuraAttributeMenuWidget;
 
 /**
- * The HUD class for Aura ¡ª creates and owns the Overlay Widget + its Widget Controller.
+ * The HUD class for Aura â€” creates and owns the Overlay Widget + its Widget Controller.
  *
  * The HUD is spawned automatically by the GameMode's HUDClass setting.
  * It only exists on the OWNING CLIENT (not on the server or other clients).
@@ -23,7 +27,7 @@ class UAttributeMenuWidgetController;
  *   1. InitOverlayWidget() is called with the player's PC, PS, ASC, AS.
  *   2. The Overlay Widget (UMG) is created from OverlayWidgetClass (set in Blueprint).
  *   3. GetWidgetController() creates the WidgetController (lazy singleton pattern).
- *   4. The widget receives the controller ¡ú WidgetControllerSet fires in Blueprint.
+ *   4. The widget receives the controller -> WidgetControllerSet fires in Blueprint.
  *   5. BindAllDependencies() subscribes the controller to ASC attribute-change delegates.
  *   6. BroadcastInitialValues() pushes current attribute values so the UI starts correct.
  *   7. Widget is added to viewport.
@@ -34,45 +38,86 @@ class AURA_API AAuraHUD : public AHUD
 	GENERATED_BODY()
 
 public:
-
 	/**
 	 * Returns the cached OverlayWidgetController, or creates one if it doesn't exist yet.
-	 * Uses a lazy singleton pattern ¡ª only one controller per HUD lifetime.
+	 * Uses a lazy singleton pattern â€” only one controller per HUD lifetime.
 	 */
 	UAuraOverlayWidgetController* GetOverlayWidgetController(const FWidgetControllerParameters& Params);
 
-
+	/**
+	* Returns the cached Attribute Menu Widget Controller, or creates one if it doesn't exist yet. 
+	 * Uses a lazy singleton pattern â€” only one controller per HUD lifetime.
+	 */
 	UAttributeMenuWidgetController* GetAttributeMenuWidgetController(const FWidgetControllerParameters& Params);
 	/**
-	 * Full overlay initialization ¡ª creates the widget, wires up the controller,
+	 * Full overlay initialization â€” creates the widget, wires up the controller,
 	 * binds delegates, broadcasts initial values, and adds to viewport.
 	 * Must be called BEFORE AbilityActorInfoSet() so the UI listeners exist before GE events fire.
 	 */
 	void InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbilitySystemComponent* ASC, UAttributeSet* AS);
 
+
+	/**
+	* Attribute Menu helpers.
+	*
+	* Project Extension:
+	*   These helpers are custom additions beyond the tutorial baseline. They let the HUD
+	*   own a cached popup Attribute Menu that is hosted inside the Overlay Root's WindowLayer.
+	*
+	* The HUD owns the widget lifetime:
+	*   - create once on demand
+	*   - add it to the OverlayRoot's WindowLayer
+	*   - then just hide/show the cached instance
+	*/
+	UFUNCTION(BlueprintCallable)
+	void ShowAttributeMenu();
+
+	UFUNCTION(BlueprintCallable)
+	void CloseAttributeMenu();
+
+	/** Lazy-create the menu, parent it under the overlay's WindowLayer, and cache the instance. */
+	UAuraAttributeMenuWidget* CreateAttributeMenuWidgetIfNeeded();
+
+	/** True once the cached menu instance is visible on screen. */
+	FORCEINLINE bool IsAttributeMenuOnScreen() const { UE_LOG(LogTemp, Warning, TEXT("Attribute Menu On Screen: %s"), bIsAttributeMenuOpen ? TEXT("True") : TEXT("False")); return bIsAttributeMenuOpen; }
+
 private:
-	/*Overlay Widget ¡ª the actual UMG widget displayed on screen*/
+	/*Overlay Root â€” the full-screen HUD widget that also exposes a dedicated WindowLayer for popups.*/
 	UPROPERTY()
-	TObjectPtr<UAuraUserWidget> OverlayWidget;
+	TObjectPtr<UAuraOverlayRootWidget> OverlayWidget;
 
-	/** Set in Blueprint ¡ª the UMG widget class to create (e.g., WBP_Overlay). */
+	/** Set in Blueprint â€” the UMG widget class to create (e.g., WBP_Overlay). */
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<UAuraUserWidget> OverlayWidgetClass;
+	TSubclassOf<UAuraOverlayRootWidget> OverlayWidgetClass;
 
-	/*Overlay Widget Controller ¡ª data provider for the overlay*/
+	/*Overlay Widget Controller â€” data provider for the overlay*/
 	UPROPERTY()
 	TObjectPtr<UAuraOverlayWidgetController> OverlayWidgetController;
 
-	/** Set in Blueprint ¡ª the controller class to create (e.g., BP_OverlayWidgetController). */
+	/** Set in Blueprint â€” the controller class to create (e.g., BP_OverlayWidgetController). */
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UAuraOverlayWidgetController> OverlayWidgetControllerClass;
 
-
-	/*Attribute Menu Widget ¡ª the actual UMG widget displayed on screen*/
+	/*Attribute Menu Controller â€” data provider for the popup menu.*/
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UAttributeMenuWidgetController> AttributeMenuWidgetControllerClass;
 
 	UPROPERTY()
 	TObjectPtr<UAttributeMenuWidgetController> AttributeMenuWidgetController;
+
+	/*Attribute Menu Widget â€” cached popup window hosted inside the Overlay Root's WindowLayer.*/
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	TObjectPtr<UAuraAttributeMenuWidget> AttributeMenuWidget;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UAuraAttributeMenuWidget> AttributeMenuWidgetClass;
+
+	UPROPERTY(BlueprintAssignable)
+	FAuraAttributeMenuWidgetConstructedSignature OnAttributeMenuWidgetInstanceConstructed;
+
+private:
+	/*Tracks whether the cached widget is currently visible, so input can toggle it without re-querying visibility each time.*/
+	UPROPERTY(VisibleDefaultsOnly, Category=AttributeMenu)
+	bool bIsAttributeMenuOpen = false;
 };
 	

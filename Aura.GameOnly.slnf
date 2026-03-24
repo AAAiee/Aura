@@ -1,0 +1,9 @@
+﻿{
+  "solution": {
+    "path": "Aura.sln",
+    "projects": [
+      "Intermediate\\ProjectFiles\\Aura.vcxproj",
+      "Intermediate\\ProjectFiles\\UE5.vcxproj"
+    ]
+  }
+}

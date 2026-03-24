@@ -1,4 +1,4 @@
-// @Copyright HaolunYuan
+ï»¿// @Copyright HaolunYuan
 
 
 #include "Player/AuraPlayerController.h"
@@ -8,6 +8,7 @@
 #include "Interaction/Highlightable.h"
 
 #include "Components/Player/AutoMoveComponent.h"
+#include "UI/HUD/AuraHUD.h"
 
 
 AAuraPlayerController::AAuraPlayerController()
@@ -18,13 +19,33 @@ AAuraPlayerController::AAuraPlayerController()
 	AutoMoveComponent = CreateDefaultSubobject<UAutoMoveComponent>(TEXT("AutoMoveComponent"));
 }
 
+void AAuraPlayerController::ToggleAttributeMenuRequested()
+{
+	// The HUD owns the actual widget instance, so the controller only asks it to toggle visibility.
+	AAuraHUD* AuraHUD = Cast<AAuraHUD>(GetHUD());
+	if (!AuraHUD)
+	{
+		return;
+	}
+
+	const bool bIsMenuOpen = AuraHUD->IsAttributeMenuOnScreen();
+	if (bIsMenuOpen)
+	{
+		AuraHUD->CloseAttributeMenu();
+	}
+	else
+	{
+		AuraHUD->ShowAttributeMenu();
+	}
+}
+
 void AAuraPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
 	check(AuraContext);
 
-	/*Enhanced Input ¡ª register the mapping context on the local player's input subsystem.
+	/*Enhanced Input â€” register the mapping context on the local player's input subsystem.
 	 * Priority 0 = lowest; higher-priority contexts can override these bindings later. */
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (Subsystem) // Subsystem is null on dedicated servers (no local player)
@@ -32,11 +53,11 @@ void AAuraPlayerController::BeginPlay()
 		Subsystem->AddMappingContext(AuraContext, 0);
 	}
 
-	/*Cursor Setup ¡ª show a hand cursor for the top-down ARPG feel*/
+	/*Cursor Setup â€” show a hand cursor for the top-down ARPG feel*/
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Hand;
 
-	/*Input Mode ¡ª allow both game input and UI interaction.
+	/*Input Mode â€” allow both game input and UI interaction.
 	 * DoNotLock: cursor can leave the viewport (useful for windowed mode).
 	 * HideCursorDuringCapture=false: keep cursor visible when clicking. */
 	FInputModeGameAndUI InputModeData;
@@ -49,7 +70,7 @@ void AAuraPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 
-	// Cursor trace only on the local client ¡ª remote players don't need it
+	// Cursor trace only on the local client â€” remote players don't need it
 	if (IsLocalController())
 	{
 		CursorTrace();
@@ -63,14 +84,16 @@ void AAuraPlayerController::SetupInputComponent()
 	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
 	checkf(KeyboardMovementAction,TEXT("KeyboardMoveAction is not set in PlayerController"));
 	checkf(MouseClickAction, TEXT("MouseClickAction is not set in PlayerController"));
+	checkf(ToggleAttributeMenuAction, TEXT("ToggleAttributeMenuAction is not set in PlayerController"));
 
-	/*Bind input actions ¡ª Triggered fires every frame the key is held (for smooth movement)*/
+	/*Bind input actions â€” Triggered fires every frame the key is held (for smooth movement)*/
 	EnhancedInputComponent->BindAction(KeyboardMovementAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
 	EnhancedInputComponent->BindAction(MouseClickAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::OnClickMove);
+	EnhancedInputComponent->BindAction(ToggleAttributeMenuAction, ETriggerEvent::Started, this, &AAuraPlayerController::OnToggleAttributeMenu); 
 }
 
 /**
- * WASD Movement ¡ª camera-relative direction.
+ * WASD Movement â€” camera-relative direction.
  * We extract the controller's Yaw rotation to determine "forward" and "right"
  * relative to the camera, then apply the input vector as movement.
  * Also cancels any active auto-move so WASD takes priority.
@@ -96,7 +119,7 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 	}
 }
 
-/** Click-to-Move ¡ª sends the cached cursor location to the AutoMoveComponent. */
+/** Click-to-Move â€” sends the cached cursor location to the AutoMoveComponent. */
 void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 {
 	if (!bHasCachedMoveTargetLocation)
@@ -108,8 +131,15 @@ void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 	AutoMoveComponent->RequestToMoveToLocation(CachedMoveTargetLocation);
 }
 
+void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& ActionValues)
+{
+	// Keep the input callback tiny â€” the shared toggle helper is the real source of truth.
+	ToggleAttributeMenuRequested();
+}
+
+
 /**
- * Cursor Trace ¡ª runs every tick on the local client.
+ * Cursor Trace â€” runs every tick on the local client.
  *
  * 1. Line trace under the cursor on ECC_Visibility channel.
  * 2. Cache the hit location for click-to-move.
@@ -121,8 +151,8 @@ void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
  *    | null  | valid   | Highlight current                   |
  *    | valid | null    | Unhighlight last                    |
  *    | valid | valid   | If different: unhighlight last,     |
- *    |       |  ¡Ù last |   highlight current                 |
- *    | valid | valid   | Same actor ¡ª do nothing             |
+ *    |       |  â‰  last |   highlight current                 |
+ *    | valid | valid   | Same actor â€” do nothing             |
  *    | null  | null    | Do nothing                          |
  */
 void AAuraPlayerController::CursorTrace()
@@ -153,7 +183,7 @@ void AAuraPlayerController::CursorTrace()
 		CurrentHighlightable = nullptr;
 	}
 
-	// State machine ¡ª transition highlights based on the table above
+	// State machine â€” transition highlights based on the table above
 	if (CurrentHighlightable)
 	{
 		if (LastHighlightable == nullptr)
@@ -177,8 +207,3 @@ void AAuraPlayerController::CursorTrace()
 		}
 	}
 }
-
-
-
-
-
