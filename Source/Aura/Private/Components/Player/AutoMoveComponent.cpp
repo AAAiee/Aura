@@ -1,100 +1,92 @@
 // @Copyright HaolunYuan
-
-
 #include "Components/Player/AutoMoveComponent.h"
-#include "NavigationSystem.h"
+#include "Components/SplineComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "NavigationPath.h"
-#include "GameFramework/Character.h"
-
+#include "NavigationSystem.h"
 
 UAutoMoveComponent::UAutoMoveComponent()
 {
+	// Enable ticking but default it to disabled until auto-move starts
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = false; // Only tick while actively following a path
-	SetIsReplicatedByDefault(true); // Required for Server/Client RPCs to work
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	
+	SetIsReplicatedByDefault(true);
+	
+	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("AutoMoveSpline"));
 }
 
-/**
- * Main entry point ！ handles both client and server cases:
- *
- * Client path:
- *   1. Client calls RequestToMoveToLocation()
- *   2. !HasAuthority ★ sends Server_RequestMoveToLocation RPC
- *   3. Server computes nav path via NavigationSystem
- *   4. Server sends Client_StartAutoMove RPC with the path points
- *   5. Client starts following the path locally
- *
- * Server/Listen path:
- *   1. Already has authority ★ computes nav path directly
- *   2. Sends Client_StartAutoMove RPC to the owning client
- */
 void UAutoMoveComponent::RequestToMoveToLocation(const FVector& InTargetPosition)
 {
-	if (const AActor* Owner = GetOwner())
+	const AActor* Owner = GetOwner();
+	if (!Owner)
 	{
-		if (!Owner->HasAuthority())
-		{
-			Server_RequestMoveToLocation(FVector_NetQuantize(InTargetPosition));
-			return;
-		}
+		return;
+	}
 
-		// Server-side: compute the navigation path
-		APawn* OwnerPawn = GetOwnerPawn();
-		if (!OwnerPawn)
-		{
-			return;
-		}
+	// Incrementing the move request ID helps us discard outdated responses/commands
+	const int32 MoveRequestId = ++LatestMoveRequestId;
+	bHasPendingPathRequest = true;
 
-		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (!NavSys)
-		{
-			return;
-		}
+	// If calculating locally, we are either autonomous or server, so if we aren't the server, ask the server
+	if (!Owner->HasAuthority())
+	{
+		Server_RequestMoveToLocation(FVector_NetQuantize(InTargetPosition), MoveRequestId);
+		return;
+	}
 
-		UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(), OwnerPawn->GetActorLocation(), InTargetPosition);
-		if (NavPath && NavPath->PathPoints.Num() > 0)
-		{
-			// Convert to FVector_NetQuantize for network efficiency
-			TArray<FVector_NetQuantize> NetPoints;
-			NetPoints.Reserve(NavPath->PathPoints.Num());
-			for (const FVector& Point : NavPath->PathPoints)
-			{
-				NetPoints.Add(FVector_NetQuantize(Point));
-			}
-			Client_StartAutoMove(NetPoints);
-		}
+	// If we are the server, calculate it now
+	BuildAndSendPathToClient(InTargetPosition, MoveRequestId);
+}
+
+void UAutoMoveComponent::MoveDirectlyToLocation(const FVector& InTargetPosition)
+{
+	APawn* OwnerPawn = GetOwnerPawn();
+	if (!OwnerPawn)
+	{
+		return;
+	}
+
+	// Any manual input cancels an existing auto-move
+	if (bIsAutoMoving || bHasPendingPathRequest)
+	{
+		RequestCancelAutoMove();
+	}
+
+	const FVector Direction = (InTargetPosition - OwnerPawn->GetActorLocation()).GetSafeNormal2D();
+	if (!Direction.IsNearlyZero())
+	{
+		OwnerPawn->AddMovementInput(Direction, 1.f);
 	}
 }
 
-/**
- * Cancel auto-move:
- * - Server: sends Client_CancelAutoMove RPC so the client stops.
- * - Client: also stops locally for immediate responsiveness (don't wait for the RPC round-trip).
- */
 void UAutoMoveComponent::RequestCancelAutoMove()
 {
-	if (const AActor* Owner = GetOwner())
+	const AActor* Owner = GetOwner();
+	if (!Owner)
 	{
-		if (Owner->HasAuthority())
-		{
-			Client_CancelAutoMove();
-		}
-		else
-		{
-			// Client-side immediate cancel for responsive WASD override
-			bIsAutoMoving = false;
-			PathPoints.Empty();
-			SetComponentTickEnabled(false);
-		}
+		return;
+	}
+
+	const int32 MoveRequestId = ++LatestMoveRequestId;
+	bHasPendingPathRequest = false;
+
+	StopAutoMove();
+
+	if (Owner->HasAuthority())
+	{
+		Client_CancelAutoMove(MoveRequestId);
+	}
+	else
+	{
+		Server_CancelAutoMove(MoveRequestId);
 	}
 }
-
 
 void UAutoMoveComponent::BeginPlay()
 {
 	Super::BeginPlay();
 }
-
 
 void UAutoMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -102,99 +94,179 @@ void UAutoMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 	if (bIsAutoMoving)
 	{
-		FollowPath();
+		FollowSpline();
 	}
 }
 
-/** Resolves the pawn ！ works whether the owner is a Pawn directly or a PlayerController. */
 APawn* UAutoMoveComponent::GetOwnerPawn()
 {
+	// Handle cases where the component may live on either the pawn or the controller
 	if (APawn* PawnOwner = Cast<APawn>(GetOwner()))
 	{
 		return PawnOwner;
 	}
 
-	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetOwner()))
 	{
-		return PC->GetPawn();
+		return PlayerController->GetPawn();
 	}
 
 	return nullptr;
 }
 
-/** Server RPC implementation ！ just delegates to the main function (which runs the server path). */
-void UAutoMoveComponent::Server_RequestMoveToLocation_Implementation(const FVector_NetQuantize InTargetPosition)
+void UAutoMoveComponent::BuildAndSendPathToClient(const FVector& InTargetPosition, const int32 MoveRequestId)
 {
-	RequestToMoveToLocation(FVector(InTargetPosition));
-}
-
-/** Client RPC ！ receives the server-computed path and starts following it. Enables tick. */
-void UAutoMoveComponent::Client_StartAutoMove_Implementation(const TArray<FVector_NetQuantize>& InPathPoints)
-{
-	PathPoints.Empty(InPathPoints.Num());
-	for (const FVector_NetQuantize& Point : InPathPoints)
+	APawn* OwnerPawn = GetOwnerPawn();
+	if (!OwnerPawn)
 	{
-		PathPoints.Add(FVector(Point));
+		bHasPendingPathRequest = false;
+		return;
 	}
 
-	CurrentPathIndex = 0;
-	bIsAutoMoving = true;
-	SetComponentTickEnabled(true); // Start ticking to follow the path
+	// The server asks the navigation system for a path synchronously
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys)
+	{
+		bHasPendingPathRequest = false;
+		return;
+	}
+
+	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(), OwnerPawn->GetActorLocation(), InTargetPosition);
+	if (!NavPath || NavPath->PathPoints.Num() == 0)
+	{
+		bHasPendingPathRequest = false;
+		return;
+	}
+
+	// NetQuantize truncates precision slightly to save network bandwidth
+	TArray<FVector_NetQuantize> NetPoints;
+	NetPoints.Reserve(NavPath->PathPoints.Num());
+
+	for (const FVector& Point : NavPath->PathPoints)
+	{
+		NetPoints.Add(FVector_NetQuantize(Point));
+	}
+
+	Client_StartAutoMove(NetPoints, MoveRequestId);
 }
 
-/** Client RPC ！ stops auto-move and disables tick. */
-void UAutoMoveComponent::Client_CancelAutoMove_Implementation()
+void UAutoMoveComponent::Server_RequestMoveToLocation_Implementation(const FVector_NetQuantize InTargetPosition, const int32 MoveRequestId)
+{
+	// Discard out-of-order responses from the network using standard monotonically increasing IDs
+	if (MoveRequestId <= LatestMoveRequestId)
+	{
+		return;
+	}
+
+	LatestMoveRequestId = MoveRequestId;
+	bHasPendingPathRequest = true;
+
+	BuildAndSendPathToClient(FVector(InTargetPosition), MoveRequestId);
+}
+
+void UAutoMoveComponent::Server_CancelAutoMove_Implementation(const int32 MoveRequestId)
+{
+	if (MoveRequestId < LatestMoveRequestId)
+	{
+		return;
+	}
+
+	LatestMoveRequestId = MoveRequestId;
+	bHasPendingPathRequest = false;
+
+	Client_CancelAutoMove(MoveRequestId);
+}
+
+void UAutoMoveComponent::Client_StartAutoMove_Implementation(const TArray<FVector_NetQuantize>& InPathPoints, const int32 MoveRequestId)
+{
+	if (MoveRequestId < LatestMoveRequestId)
+	{
+		return;
+	}
+
+	LatestMoveRequestId = MoveRequestId;
+	bHasPendingPathRequest = false;
+
+	StartFollowingPath(InPathPoints);
+}
+
+void UAutoMoveComponent::Client_CancelAutoMove_Implementation(const int32 MoveRequestId)
+{
+	if (MoveRequestId < LatestMoveRequestId)
+	{
+		return;
+	}
+
+	LatestMoveRequestId = MoveRequestId;
+	bHasPendingPathRequest = false;
+
+	StopAutoMove();
+}
+
+void UAutoMoveComponent::StartFollowingPath(const TArray<FVector_NetQuantize>& InPathPoints)
+{
+	if (!SplineComponent || InPathPoints.Num() == 0)
+	{
+		StopAutoMove();
+		return;
+	}
+
+	SplineComponent->ClearSplinePoints(false);
+
+	// Convert navigation points to spline segments
+	for (const FVector_NetQuantize& Point : InPathPoints)
+	{
+		SplineComponent->AddSplinePoint(FVector(Point), ESplineCoordinateSpace::World, false);
+	}
+
+	SplineComponent->UpdateSpline();
+
+	CachedDestination = FVector(InPathPoints.Last());
+	bIsAutoMoving = true;
+
+	// Turn ticking on so the FollowSpline logic runs frame-by-frame
+	SetComponentTickEnabled(true);
+}
+
+void UAutoMoveComponent::StopAutoMove()
 {
 	bIsAutoMoving = false;
-	PathPoints.Empty();
+	CachedDestination = FVector::ZeroVector;
+
+	if (SplineComponent)
+	{
+		SplineComponent->ClearSplinePoints();
+	}
+
+	// Disable ticking entirely when idle as an optimization
 	SetComponentTickEnabled(false);
 }
 
-/**
- * Path following logic ！ runs every tick while bIsAutoMoving.
- *
- * Algorithm:
- *   1. Skip waypoints that are within AcceptanceRadius (may skip multiple in one tick if pawn is fast).
- *   2. If all waypoints are reached, stop auto-move and disable tick.
- *   3. Otherwise, compute direction to the current waypoint and call AddMovementInput.
- *      Using AddMovementInput (instead of SetActorLocation) lets the CharacterMovementComponent
- *      handle prediction, collision, and smooth replication automatically.
- */
-void UAutoMoveComponent::FollowPath()
+void UAutoMoveComponent::FollowSpline()
 {
 	APawn* OwnerPawn = GetOwnerPawn();
-	if (!OwnerPawn || PathPoints.Num() == 0)
+	if (!OwnerPawn || !SplineComponent || SplineComponent->GetNumberOfSplinePoints() == 0)
 	{
-		bIsAutoMoving = false;
-		SetComponentTickEnabled(false);
+		StopAutoMove();
 		return;
 	}
 
-	// Advance past any waypoints we're already close enough to
-	while (CurrentPathIndex < PathPoints.Num())
+	const FVector PawnLocation = OwnerPawn->GetActorLocation();
+
+	// Finding the mathematically closest point and direction ensures robust recovery if Pawn gets bumped offtrack
+	const FVector LocationOnSpline = SplineComponent->FindLocationClosestToWorldLocation(PawnLocation, ESplineCoordinateSpace::World);
+	const FVector Direction = SplineComponent->FindDirectionClosestToWorldLocation(PawnLocation, ESplineCoordinateSpace::World).GetSafeNormal2D();
+
+	// Use standard movement input framework allowing the Pawn's character component to do the math (e.g., collisions/acceleration)
+	if (!Direction.IsNearlyZero())
 	{
-		const float DistXY = FVector::Dist2D(OwnerPawn->GetActorLocation(), PathPoints[CurrentPathIndex]);
-		if (DistXY <= AcceptanceRadius)
-		{
-			CurrentPathIndex++;
-		}
-		else
-		{
-			break;
-		}
+		OwnerPawn->AddMovementInput(Direction, 1.f);
 	}
 
-	// Reached the final destination ！ stop
-	if (CurrentPathIndex >= PathPoints.Num())
+	// Compute proximity ignoring Z height
+	const float DistanceToDestination = FVector::Dist2D(LocationOnSpline, CachedDestination);
+	if (DistanceToDestination <= AcceptanceRadius)
 	{
-		bIsAutoMoving = false;
-		PathPoints.Empty();
-		SetComponentTickEnabled(false);
-		return;
+		StopAutoMove();
 	}
-
-	// Move toward the current waypoint
-	const FVector Direction = (PathPoints[CurrentPathIndex] - OwnerPawn->GetActorLocation()).GetSafeNormal2D();
-	OwnerPawn->AddMovementInput(Direction, 1.f);
 }
-

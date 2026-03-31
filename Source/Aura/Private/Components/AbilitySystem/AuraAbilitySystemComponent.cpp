@@ -2,6 +2,8 @@
 
 
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "GameplayAbilitySpec.h"
+#include "Components/AbilitySystem/Ability/AuraGameplayAbility.h"
 
 void UAuraAbilitySystemComponent::AbilityActorInfoSet()
 {
@@ -9,6 +11,67 @@ void UAuraAbilitySystemComponent::AbilityActorInfoSet()
 	 * From this point on, every GE applied to this ASC will trigger Client_OnEffectAppliedToSelf,
 	 * which runs on the owning client and rebroadcasts the tags for the UI. */
 	OnGameplayEffectAppliedDelegateToSelf.AddUObject(this, &UAuraAbilitySystemComponent::Client_OnEffectAppliedToSelf);
+}
+
+void UAuraAbilitySystemComponent::AddCharacterAbilities(const TArray<TSubclassOf<UGameplayAbility>>& InAbilitiesClasses)
+{
+	for (const auto& AbilityClass : InAbilitiesClasses)
+	{
+		FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, 1); 
+		if (const UAuraGameplayAbility* AuraAbility = Cast<UAuraGameplayAbility>(AbilitySpec.Ability))
+		{
+			AbilitySpec.DynamicAbilityTags.AddTag(AuraAbility->StartupGameTag);
+			GiveAbility(AbilitySpec);
+		}
+	}
+}
+
+void UAuraAbilitySystemComponent::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
+
+	for (auto& GrantedAbilitySpec : GetActivatableAbilities())
+	{
+
+		if (GrantedAbilitySpec.DynamicAbilityTags.HasTagExact(InputTag))
+		{
+			AbilitySpecInputPressed(GrantedAbilitySpec);
+			if (!GrantedAbilitySpec.IsActive())
+			{
+				TryActivateAbility(GrantedAbilitySpec.Handle);
+			}
+		}
+	}
+
+
+}
+
+void UAuraAbilitySystemComponent::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
+
+	for (auto& GrantedAbilitySpec : GetActivatableAbilities())
+	{
+
+		if (GrantedAbilitySpec.DynamicAbilityTags.HasTagExact(InputTag))
+		{
+
+			AbilitySpecInputReleased(GrantedAbilitySpec);
+		}
+	}
+
+}
+
+void UAuraAbilitySystemComponent::AbilityInputTagHeld(FGameplayTag InputTag)
+{
+
 }
 
 /**

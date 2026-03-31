@@ -41,9 +41,17 @@ public:
 	 * otherwise the broadcast has 0 listeners. See AAuraCharacter::InitAbilityActorInfo() for ordering.
 	 */
 	void AbilityActorInfoSet();
+	void AddCharacterAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InAbilitiesClasses);
 
+	void AbilityInputTagPressed(FGameplayTag InputTag);
+	void AbilityInputTagReleased(FGameplayTag InputTag);
+	void AbilityInputTagHeld(FGameplayTag InputTag);
+
+
+public:
 	/** Public delegate ¡ª UI layer (OverlayWidgetController) subscribes to this. */
 	OnGatherEffectAssetTag OnGatherEffectAssetTags;
+
 
 private:
 	/**

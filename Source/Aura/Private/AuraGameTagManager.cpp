@@ -45,6 +45,16 @@
 		return ToAdd; \
 	}())
 
+
+#define ADD_GAMETAG_CUSTOM(TagName, Description) \
+	([&]() -> FGameplayTag \
+	{ \
+		FGameplayTag ToAdd = UGameplayTagsManager::Get().AddNativeGameplayTag( \
+			FName(TEXT(TagName)), \
+			TEXT(Description)); \
+		return ToAdd; \
+	}())
+
 FAuraGameTagManager& FAuraGameTagManager::Get()
 {
 	static FAuraGameTagManager Instance;
@@ -76,6 +86,12 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Attribute_Secondary_ManaRegeneration = ADD_SECONDARY_ATTRIBUTE("ManaRegeneration", "Amount of Mana regenerated every 1 second");
 	Get().Attribute_Secondary_MaxHealth = ADD_SECONDARY_ATTRIBUTE("MaxHealth", "Maximum amount of Health obtainable");
 	Get().Attribute_Secondary_MaxMana = ADD_SECONDARY_ATTRIBUTE("MaxMana", "Maximum amount of Mana obtainable");
+
+	Get().Input_AuraSpell1 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell1", "Input for Aura Spell 1");
+	Get().Input_AuraSpell2 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell2", "Input for Aura Spell 2");
+	Get().Input_AuraSpell3 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell3", "Input for Aura Spell 3");
+	Get().Input_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
+	Get().Input_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
 
 	Get().bIsValid = true;
 }

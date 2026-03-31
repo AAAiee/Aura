@@ -42,6 +42,8 @@ void AAuraCharacter::PossessedBy(AController* NewController)
 	// This will replicate to clients and trigger UI updates.
 	InitDefaultAttributes();
 
+	AddStartupGameAbilities();
+
 }
 
 void AAuraCharacter::OnRep_PlayerState()

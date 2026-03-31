@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "AuraPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -10,6 +11,8 @@ class UInputAction;
 struct FInputActionValue;
 class IHighlightable;
 struct FHitResult;
+class UAuraInputConfig;
+class UAuraAbilitySystemComponent;
 
 /**
  * Player Controller for the Aura project.
@@ -55,6 +58,7 @@ private:
 
 	/** Left-click movement — delegates to AutoMoveComponent for server-authoritative pathfinding. */
 	void OnClickMove(const FInputActionValue& ActionValues);
+	void OnMoveToCursor(const FInputActionValue& ActionValues);
 	/*Movement Handlers Ends*/
 
 	/** Enhanced Input callback for the "toggle attribute menu" action. */
@@ -66,6 +70,16 @@ private:
 	 */
 	void CursorTrace();
 
+	/**
+	 * placeholder
+	 */
+
+	UAuraAbilitySystemComponent* GetAuraASC(); 
+
+	void AbilityInputTagPressed(FGameplayTag InputTag); 
+	void AbilityInputTagReleased(FGameplayTag InputTag);
+	void AbilityInputTagHeld(FGameplayTag InputTag);
+
 private:
 	/*Enhanced Input Assets Begins — set in the editor on the BP_AuraPlayerController*/
 	UPROPERTY(EditAnywhere, Category=Input)
@@ -75,19 +89,28 @@ private:
 	TObjectPtr<UInputAction> KeyboardMovementAction;
 
 	UPROPERTY(EditAnywhere, Category=Input)
-	TObjectPtr<UInputAction> MouseClickAction;
+	TObjectPtr<UInputAction> ClickToMoveAction;
+
+	UPROPERTY(EditAnywhere, Category=Input)
+	TObjectPtr<UInputAction> MoveToCursorAction;
 
 	/** Input Action asset bound to the keyboard shortcut that shows/hides the Attribute Menu. */
 	UPROPERTY(EditAnywhere, Category="Input")
 	TObjectPtr<UInputAction> ToggleAttributeMenuAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input | Data")
+	TObjectPtr<UAuraInputConfig> InputConfigs;
 	/*Enhanced Input Assets Ends*/
 
-	/** Component that handles click-to-move pathfinding via server RPC. */
+
+	TObjectPtr<UAuraAbilitySystemComponent> CachedASC;
+
+	/** Component that handles click-to-move path finding via server RPC. */
 	UPROPERTY(VisibleAnywhere, Category="Movement")
 	TObjectPtr<class UAutoMoveComponent> AutoMoveComponent;
 
 	/*Click-to-Move State Begins*/
-	FVector CachedMoveTargetLocation;
+	FVector CachedMoveTargetLocation = FVector::ZeroVector;
 	bool bHasCachedMoveTargetLocation = false;
 	/*Click-to-Move State Ends*/
 

@@ -1,4 +1,4 @@
-// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
+ï»¿// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
 
 #pragma once
 
@@ -11,13 +11,15 @@
 class UAbilitySystemComponent;
 class UAttributeSet;
 class UGameplayEffect;
+class UGameplayAbility;
+class USkeletalMeshComponent;
 
 /**
  * Abstract base class for all Aura characters (player and enemies).
  *
  * Key design decisions:
  *   - Implements IAbilitySystemInterface so GAS can find the ASC on any Aura character.
- *   - Marked UCLASS(Abstract) so it cannot be placed in a level directly ¡ª only subclasses can.
+ *   - Marked UCLASS(Abstract) so it cannot be placed in a level directly â€” only subclasses can.
  *   - ASC and AttributeSet pointers are declared here but CREATED in subclasses, because
  *     the player character stores them on the PlayerState (shared between pawns),
  *     while the enemy creates them directly on itself.
@@ -32,10 +34,13 @@ class AURA_API AAuraCharacterBase : public ACharacter, public IAbilitySystemInte
 public:
 	AAuraCharacterBase();
 
-	/*IAbilitySystemInterface ¡ª allows GAS to find the ASC on this actor*/
+	/*IAbilitySystemInterface â€” allows GAS to find the ASC on this actor*/
 	FORCEINLINE virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 	FORCEINLINE UAttributeSet* GetAttributeSet() const { return AttributeSet; }
 	/*ends IAbilitySystemInterface*/
+
+	void AddStartupGameAbilities();
+	virtual FVector GetCombatSocketLocation() const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -52,14 +57,17 @@ protected:
 	void ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const;
 
 	/*Helper function to apply default attributes GE (Primary and Secondary) to the character */
-	void InitDefaultAttributes(); 
+	void InitDefaultAttributes();
 
 protected:
 	/** Weapon mesh attached to the character's hand socket. TObjectPtr provides lazy loading & tracking. */
 	UPROPERTY(EditAnywhere, Category = Combat)
 	TObjectPtr<USkeletalMeshComponent> Weapon;
 
-	/*Ability System Component & Attribute Set pointers ¡ª created and initialized in subclasses, but declared here for easy access in C++ and Blueprints*/
+	UPROPERTY(EditDefaultsOnly, Category = Combat)
+	FName WeaponTipSocketName = FName("TipSocket");
+
+	/*Ability System Component & Attribute Set pointers â€” created and initialized in subclasses, but declared here for easy access in C++ and Blueprints*/
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
@@ -77,4 +85,10 @@ protected:
 	TSubclassOf<UGameplayEffect>  SecondaryAttributeInitGE;
 	UPROPERTY(EditAnywhere, Category = "Default Attributes GE")
 	TSubclassOf<UGameplayEffect> VitalAttributeInitGE;
+
+	/**
+	 * 
+	 */
+	UPROPERTY(EditDefaultsOnly, Category= "Ability")
+	TArray < TSubclassOf<UGameplayAbility> > StartupAbilityClasses;
 };

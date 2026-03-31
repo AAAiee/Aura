@@ -14,6 +14,8 @@
 #define DECLARE_VITAL_GAME_TAG(TagName) \
 	FGameplayTag Attribute_Vital_##TagName;
 
+#define DECLARE_GAMETAG_CUSTOM(PrefixName, TagName) \
+	FGameplayTag  PrefixName##_##TagName;
 
 
 /**
@@ -100,6 +102,17 @@ public:
 	DECLARE_SECONDARY_GAME_TAG(ManaRegeneration)
 	DECLARE_SECONDARY_GAME_TAG(MaxHealth)
 	DECLARE_SECONDARY_GAME_TAG(MaxMana)
+
+	/**
+	 * Input related tags
+	 */
+	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell1)
+	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell2)
+	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell3)
+
+	// replace with the real funciton instead of button
+	DECLARE_GAMETAG_CUSTOM(Input, AuraPrimaryClick)
+	DECLARE_GAMETAG_CUSTOM(Input, AuraSecondaryClick)
 
 private:
 	//Helper to register native Gameplay tag info while register native tag info
