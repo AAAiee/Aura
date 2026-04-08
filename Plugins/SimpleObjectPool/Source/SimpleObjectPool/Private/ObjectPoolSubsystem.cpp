@@ -9,6 +9,8 @@
 #include "PoolableActor.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogObjectPoolSubsystem, Log, All);
+
 UObjectPoolSubsystem::UObjectPoolSubsystem()
 	: HiddenTransform(FTransform(
 		FRotator::ZeroRotator,
@@ -51,7 +53,7 @@ void UObjectPoolSubsystem::InitializePool(TSubclassOf<AActor> InActorClass, int3
 
 	if (Pool.Contains(InActorClass))
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("ObjectPoolSubsystem:: Pool for %s already initialized."), *InActorClass->GetName());
+		UE_LOG(LogObjectPoolSubsystem, Verbose, TEXT("Pool for %s is already initialized."), *InActorClass->GetName());
 		return;
 	}
 
@@ -67,36 +69,28 @@ void UObjectPoolSubsystem::InitializePool(TSubclassOf<AActor> InActorClass, int3
 	}
 
 	Pool.Add(InActorClass, MoveTemp(PoolItems));
-
-#if WITH_EDITOR
-	UE_LOG(LogTemp, Log, TEXT("ObjectPoolSubsystem:: Initialized pool for %s with %d actors."), *InActorClass->GetName(), InInitialSize);
-#endif
+	const TArray<FPoolItem>* InitializedPool = Pool.Find(InActorClass);
+	checkf(InitializedPool, TEXT("ObjectPoolSubsystem:: Pool registration failed for class %s."), *InActorClass->GetName());
+	LogPoolState(TEXT("Initialized pool"), InActorClass, *InitializedPool);
 }
 
-void UObjectPoolSubsystem::InitializePoolFromConfig(TSubclassOf<AActor> InActorClass)
+bool UObjectPoolSubsystem::InitializePoolFromConfig(TSubclassOf<AActor> InActorClass)
 {
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
 
 	if (IsPoolInitialized(InActorClass))
 	{
-		return;
-	}
-
-	const UObjectPoolConfigDataAsset* PoolConfig = LoadPoolConfigIfNeeded();
-	if (!PoolConfig)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No pool config asset is assigned in developer settings. Falling back to manual initialization for %s."), *InActorClass->GetName());
-		return;
+		return true;
 	}
 
 	FPoolClassConfig PoolClassConfig;
-	if (!PoolConfig->FindPoolConfigByClass(InActorClass, PoolClassConfig))
+	if (!TryGetPoolClassConfig(InActorClass, PoolClassConfig))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No config entry found for %s in the assigned pool config asset."), *InActorClass->GetName());
-		return;
+		return false;
 	}
 
 	InitializePool(InActorClass, PoolClassConfig.InitialPoolSize);
+	return IsPoolInitialized(InActorClass);
 }
 
 bool UObjectPoolSubsystem::EnsurePoolInitializedFromConfig(TSubclassOf<AActor> InActorClass)
@@ -105,32 +99,43 @@ bool UObjectPoolSubsystem::EnsurePoolInitializedFromConfig(TSubclassOf<AActor> I
 
 	if (!IsPoolInitialized(InActorClass))
 	{
-		InitializePoolFromConfig(InActorClass);
+		return InitializePoolFromConfig(InActorClass);
 	}
 
-	return IsPoolInitialized(InActorClass);
+	return true;
 }
 
 FPoolRecyclePolicy UObjectPoolSubsystem::GetRecyclePolicyForClass(TSubclassOf<AActor> InActorClass) const
 {
-	FPoolRecyclePolicy RecyclePolicy;
+	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
 
+	FPoolClassConfig PoolClassConfig;
+	if (!TryGetPoolClassConfig(InActorClass, PoolClassConfig))
+	{
+		return FPoolRecyclePolicy{};
+	}
+
+	return BuildRecyclePolicy(PoolClassConfig);
+}
+
+bool UObjectPoolSubsystem::TryGetPoolClassConfig(TSubclassOf<AActor> InActorClass, FPoolClassConfig& OutConfig) const
+{
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
 
 	const UObjectPoolConfigDataAsset* PoolConfig = LoadPoolConfigIfNeeded();
-	if (!PoolConfig)
+	if (!ensureMsgf(PoolConfig, TEXT("ObjectPoolSubsystem:: No pool config asset is assigned in developer settings when resolving config for %s."), *InActorClass->GetName()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No pool config asset is assigned in developer settings when resolving recycle policy for %s."), *InActorClass->GetName());
-		return RecyclePolicy;
+		return false;
 	}
 
-	FPoolClassConfig PoolClassConfig;
-	if (!PoolConfig->FindPoolConfigByClass(InActorClass, PoolClassConfig))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No config entry found for %s when resolving recycle policy."), *InActorClass->GetName());
-		return RecyclePolicy;
-	}
+	const bool bFoundConfig = PoolConfig->FindPoolConfigByClass(InActorClass, OutConfig);
+	ensureMsgf(bFoundConfig, TEXT("ObjectPoolSubsystem:: No config entry found for %s in the assigned pool config asset."), *InActorClass->GetName());
+	return bFoundConfig;
+}
 
+FPoolRecyclePolicy UObjectPoolSubsystem::BuildRecyclePolicy(const FPoolClassConfig& PoolClassConfig)
+{
+	FPoolRecyclePolicy RecyclePolicy;
 	if (PoolClassConfig.bUseDefaultRecycleDelay)
 	{
 		RecyclePolicy.bShouldAutomaticallyReturn = true;
@@ -140,7 +145,38 @@ FPoolRecyclePolicy UObjectPoolSubsystem::GetRecyclePolicyForClass(TSubclassOf<AA
 	return RecyclePolicy;
 }
 
-AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform, bool bInShouldAutomaticallyReturnPool, float InRecycleDelayTime)
+AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform)
+{
+	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
+
+	// Preserve the original "manual pool + optional config" behavior:
+	//   - If a pool already exists, borrow from it even when there is no config entry.
+	//   - If no pool exists yet, fall back to config-driven initialization.
+	FPoolRecyclePolicy RecyclePolicy;
+	if (!IsPoolInitialized(InActorClass))
+	{
+		FPoolClassConfig PoolClassConfig;
+		checkf(TryGetPoolClassConfig(InActorClass, PoolClassConfig), TEXT("ObjectPoolSubsystem:: Missing pool config for class %s."), *InActorClass->GetName());
+		InitializePool(InActorClass, PoolClassConfig.InitialPoolSize);
+		RecyclePolicy = BuildRecyclePolicy(PoolClassConfig);
+	}
+	else
+	{
+		RecyclePolicy = GetRecyclePolicyForClass(InActorClass);
+	}
+
+	return BorrowPooledActor(InActorClass, InSpawnTransform, RecyclePolicy.bShouldAutomaticallyReturn, RecyclePolicy.RecycleDelay);
+}
+
+AActor* UObjectPoolSubsystem::GetPooledActorWithRecyclePolicy(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform, bool bInShouldAutomaticallyReturnPool, float InRecycleDelayTime)
+{
+	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
+	checkf(IsPoolInitialized(InActorClass) || EnsurePoolInitializedFromConfig(InActorClass), TEXT("ObjectPoolSubsystem:: No pool found for class %s and config-based initialization failed."), *InActorClass->GetName());
+
+	return BorrowPooledActor(InActorClass, InSpawnTransform, bInShouldAutomaticallyReturnPool, InRecycleDelayTime);
+}
+
+AActor* UObjectPoolSubsystem::BorrowPooledActor(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform, bool bInShouldAutomaticallyReturnPool, float InRecycleDelayTime)
 {
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem:: ActorClass is null"));
 
@@ -154,11 +190,7 @@ AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, c
 			Item.bInUse = true;
 			AActor* FreeActor = Item.ActorInstance.Get();
 			ActivateActor(FreeActor, InSpawnTransform, bInShouldAutomaticallyReturnPool, InRecycleDelayTime);
-
-#if WITH_EDITOR
-			UE_LOG(LogTemp, Verbose, TEXT("ObjectPoolSubsystem:: Reused actor: %s"), *FreeActor->GetName());
-#endif
-
+			LogPoolState(TEXT("Borrowed actor"), InActorClass, *TargetPool, FreeActor);
 			return FreeActor;
 		}
 	}
@@ -190,9 +222,12 @@ AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, c
 		}
 	}
 
-#if WITH_EDITOR
-	UE_LOG(LogTemp, Log, TEXT("ObjectPoolSubsystem:: Expanded pool for %s by %d actors."), *InActorClass->GetName(), NumToSpawn);
-#endif
+	checkf(SpawnedActorToReturn, TEXT("ObjectPoolSubsystem:: Failed to expand pool for class %s."), *InActorClass->GetName());
+
+	if (SpawnedActorToReturn)
+	{
+		LogPoolState(TEXT("Expanded pool and borrowed actor"), InActorClass, *TargetPool, SpawnedActorToReturn);
+	}
 
 	return SpawnedActorToReturn;
 }
@@ -208,18 +243,14 @@ void UObjectPoolSubsystem::ReturnActorToPool(AActor* InActor)
 	const TSubclassOf<AActor>* ActorClass = ActorToPoolClassMap.Find(ActorKey);
 	if (!ActorClass)
 	{
-#if WITH_EDITOR
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No pool lookup found when returning actor %s."), *InActor->GetName());
-#endif
+		ensureMsgf(false, TEXT("ObjectPoolSubsystem:: No pool lookup found when returning actor %s."), *InActor->GetName());
 		return;
 	}
 
 	TArray<FPoolItem>* TargetPool = Pool.Find(*ActorClass);
 	if (!TargetPool)
 	{
-#if WITH_EDITOR
-		UE_LOG(LogTemp, Warning, TEXT("ObjectPoolSubsystem:: No pool found for class %s when returning actor %s."), *(*ActorClass)->GetName(), *InActor->GetName());
-#endif
+		ensureMsgf(false, TEXT("ObjectPoolSubsystem:: No pool found for class %s when returning actor %s."), *(*ActorClass)->GetName(), *InActor->GetName());
 		return;
 	}
 
@@ -234,9 +265,7 @@ void UObjectPoolSubsystem::ReturnActorToPool(AActor* InActor)
 
 			Item.bInUse = false;
 			DeactivateActor(InActor);
-#if WITH_EDITOR
-			UE_LOG(LogTemp, Verbose, TEXT("ObjectPoolSubsystem:: Returned actor %s to pool."), *InActor->GetName());
-#endif
+			LogPoolState(TEXT("Returned actor"), *ActorClass, *TargetPool, InActor);
 			return;
 		}
 	}
@@ -384,6 +413,36 @@ void UObjectPoolSubsystem::NotifyActorReturnedToPool(AActor* Actor)
 	{
 		PoolableActor->OnReturnedToPool();
 	}
+}
+
+void UObjectPoolSubsystem::LogPoolState(const TCHAR* Action, TSubclassOf<AActor> ActorClass, const TArray<FPoolItem>& TargetPool, const AActor* ActorInstance) const
+{
+	const int32 InUseCount = CountInUseActors(TargetPool);
+	const TCHAR* ActorName = ActorInstance ? *ActorInstance->GetName() : TEXT("<none>");
+
+	UE_LOG(
+		LogObjectPoolSubsystem,
+		Log,
+		TEXT("%s: class=%s actor=%s pool_state=%d_in_use/%d_total"),
+		Action,
+		*ActorClass->GetName(),
+		ActorName,
+		InUseCount,
+		TargetPool.Num());
+}
+
+int32 UObjectPoolSubsystem::CountInUseActors(const TArray<FPoolItem>& TargetPool)
+{
+	int32 InUseCount = 0;
+	for (const FPoolItem& Item : TargetPool)
+	{
+		if (Item.bInUse && IsValid(Item.ActorInstance))
+		{
+			++InUseCount;
+		}
+	}
+
+	return InUseCount;
 }
 
 const UObjectPoolConfigDataAsset* UObjectPoolSubsystem::LoadPoolConfigIfNeeded() const

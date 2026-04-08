@@ -1,23 +1,33 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 
 #include "Components/AbilitySystem/Ability/AuraProjectileSpell.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Effect/AuraProjectile.h"
 #include "GameFramework/Pawn.h"
 #include "Interaction/CombatInterface.h"
-#include "ObjectPoolConfigDataAsset.h"
 #include "ObjectPoolSubsystem.h"
 
-void UAuraProjectileSpell::SpawnProjectile()
+void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation)
 {
+	/*
+	 * Projectile spawn flow:
+	 *   1. Server validates that the ability has a caster + projectile class.
+	 *   2. Resolve the combat socket through ICombatInterface so the spell works for any caster type.
+	 *   3. Borrow a projectile from the pool instead of spawning a fresh actor.
+	 *   4. Build the outgoing damage spec while we still have direct access to the casting ASC.
+	 *   5. Assign owner / instigator and launch the projectile toward the requested target point.
+	 */
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	checkf(AvatarActor, TEXT("AuraProjectileSpell::SpawnProjectile requires a valid avatar actor."));
+	checkf(ProjectileClass, TEXT("AuraProjectileSpell::SpawnProjectile requires ProjectileClass to be set."));
 
-	bool bIsOnServer = GetAvatarActorFromActorInfo()->HasAuthority();
-	if (!bIsOnServer)
+	if (!AvatarActor->HasAuthority())
 	{
 		return;
 	}
 
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	UWorld* World = AvatarActor ? AvatarActor->GetWorld() : nullptr;
 	if (!ensureMsgf(World, TEXT("AuraProjectileSpell::ActivateAbility could not resolve a valid World from AvatarActor %s."), AvatarActor ? *AvatarActor->GetName() : TEXT("None")))
 	{
@@ -30,36 +40,36 @@ void UAuraProjectileSpell::SpawnProjectile()
 		return;
 	}
 
-	if (!PoolSubsystem->EnsurePoolInitializedFromConfig(ProjectileClass))
-	{
-		ensureMsgf(false, TEXT("AuraProjectileSpell::ActivateAbility failed to initialize a pool for projectile class %s. Check Simple Object Pool developer settings and config asset entries."), *ProjectileClass->GetName());
-		return;
-	}
-
 	ICombatInterface* CombatInterface = Cast<ICombatInterface>(AvatarActor);
-	if (CombatInterface)
+	checkf(CombatInterface, TEXT("AuraProjectileSpell::SpawnProjectile requires the avatar actor %s to implement ICombatInterface."), *AvatarActor->GetName());
+
+	// CombatInterface abstracts "where should projectiles originate?" so both player and enemy
+	// casters can reuse the same spawn logic without hard-coding socket lookups here.
+	const FVector SocketLocation = CombatInterface->GetCombatSocketLocation();
+	FRotator TargetRotation = (ProjectileTargetLocation - SocketLocation).Rotation();
+
+	FTransform SpawnTransform;
+	SpawnTransform.SetLocation(SocketLocation);
+	TargetRotation.Pitch = 0.0;
+	SpawnTransform.SetRotation(TargetRotation.Quaternion()); 
+
+	AAuraProjectile* Projectile = PoolSubsystem->GetPooledActorTyped<AAuraProjectile>(
+		ProjectileClass,
+		SpawnTransform);
+	checkf(Projectile, TEXT("AuraProjectileSpell::SpawnProjectile failed to borrow a pooled projectile for class %s."), *ProjectileClass->GetName());
+
+	if (UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetAvatarActorFromActorInfo()))
 	{
-		const FVector SocketLocation = CombatInterface->GetCombatSocketLocation();
+		check(DamageEffect);
 
-		FTransform SpawnTransform;
-		SpawnTransform.SetLocation(SocketLocation);
-
-		const FPoolRecyclePolicy RecyclePolicy = PoolSubsystem->GetRecyclePolicyForClass(ProjectileClass);
-
-		AAuraProjectile* Projectile = PoolSubsystem->GetPooledActorTyped<AAuraProjectile>(
-			ProjectileClass,
-			SpawnTransform,
-			RecyclePolicy.bShouldAutomaticallyReturn,
-			RecyclePolicy.RecycleDelay);
-
-		if (Projectile)
-		{
-			Projectile->SetOwner(AvatarActor);
-			Projectile->SetInstigator(Cast<APawn>(AvatarActor));
-			Projectile->LaunchInDirection(SpawnTransform.GetRotation().GetForwardVector());
-		}
-
+		// Build the outgoing spec once here while we still know the owning ability level / source ASC.
+		// The projectile simply carries this spec until its overlap callback resolves the impact.
+		Projectile->DamageEffectHandle = AbilitySystemComponent->MakeOutgoingSpec(DamageEffect, GetAbilityLevel(), AbilitySystemComponent->MakeEffectContext());
 	}
+
+	Projectile->SetOwner(AvatarActor);
+	Projectile->SetInstigator(Cast<APawn>(AvatarActor));
+	Projectile->LaunchInDirection(SpawnTransform.GetRotation().GetForwardVector());
 
 }
 
@@ -69,4 +79,3 @@ void UAuraProjectileSpell::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 
 
 }
-

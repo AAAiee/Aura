@@ -447,6 +447,43 @@ Behavior:
 Reason:
 - this removes the old spell-owned recycle delay and makes recycle behavior configurable per pooled class
 
+### 4. Pool borrowing API is now config-driven by default
+
+Files:
+- `Plugins/SimpleObjectPool/Source/SimpleObjectPool/Public/ObjectPoolSubsystem.h`
+- `Plugins/SimpleObjectPool/Source/SimpleObjectPool/Private/ObjectPoolSubsystem.cpp`
+- `Source/Aura/Private/Components/AbilitySystem/Ability/AuraProjectileSpell.cpp`
+
+Changed:
+- `GetPooledActor(...)` now resolves pool config and recycle policy inside the subsystem
+- `GetPooledActorTyped(...)` now only requires:
+  - actor class
+  - spawn transform
+- added `GetPooledActorWithRecyclePolicy(...)` as the explicit override path when a caller truly needs a runtime policy override
+
+Reason:
+- keeps gameplay callers clean
+- keeps config lookup inside the pooling system where it belongs
+- preserves one explicit escape hatch for non-default borrowing behavior
+
+### 5. Added fail-fast config validation and pool state logging
+
+Files:
+- `Plugins/SimpleObjectPool/Source/SimpleObjectPool/Private/ObjectPoolSubsystem.cpp`
+
+Changed:
+- added a shared config lookup helper to remove duplicate config-search code
+- missing config asset / missing class config now surfaces through stronger `ensure` / `check` paths instead of being quietly ignored
+- added borrow/return/init logs that report:
+  - actor class
+  - actor instance name
+  - in-use count
+  - total pool size
+
+Reason:
+- pool misconfiguration should fail loudly
+- pool behavior is easier to debug when borrow/return state is visible in logs
+
 ## Validation Performed
 
 Build command used:

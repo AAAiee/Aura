@@ -107,6 +107,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, ManaRegeneration);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxHealth); 
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxMana); 
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, IncomingDamage);
 
 
 public:
@@ -190,6 +191,11 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Mana, Category = "Vital Attributes", meta = (AllowPrivateAccess = "true"))
 	FGameplayAttributeData Mana;
+
+
+	/*Meta Attributes*/
+	UPROPERTY(BlueprintReadOnly, Category = "Meta Attributes", meta = (AllowPrivateAccess = "true"))
+	FGameplayAttributeData IncomingDamage;
 
 
 	/*Primary Attributes - Replicated with REPNOTIFY_Always*/

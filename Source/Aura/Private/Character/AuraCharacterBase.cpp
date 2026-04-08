@@ -6,12 +6,19 @@
 #include "GameplayEffect.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/Character.h"
+#include "../Aura.h"
 
 // Sets default values
 AAuraCharacterBase::AAuraCharacterBase()
 {
 	// Base characters don't need to tick — subclasses can enable it if needed (e.g., enemy AI)
 	PrimaryActorTick.bCanEverTick = false;
+
+	/*Ignore the Camera*/
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); 
 
 	/*Weapon Setup — attach a skeletal mesh to the hand socket defined on the character's skeleton*/
 	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>("Weapon");

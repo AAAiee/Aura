@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "ObjectPoolSubSystem.generated.h"
+#include "ObjectPoolSubsystem.generated.h"
 
 class AActor;
 class UObjectPoolConfigDataAsset;
+struct FPoolClassConfig;
 
 /**
  * A single pooled item entry used by the object pool system.
@@ -78,7 +79,7 @@ public:
 
 	/** Initializes a pool for the specified actor class using project config when available. */
 	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
-	void InitializePoolFromConfig(TSubclassOf<AActor> ActorClass);
+	bool InitializePoolFromConfig(TSubclassOf<AActor> ActorClass);
 
 	/** Ensures a pool exists for the specified actor class using project config when available. */
 	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
@@ -92,19 +93,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
 	AActor* GetPooledActor(
 		TSubclassOf<AActor> ActorClass,
+		const FTransform& SpawnTransform);
+
+	/** Retrieves an available actor from the pool with an explicit runtime recycle policy override. */
+	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
+	AActor* GetPooledActorWithRecyclePolicy(
+		TSubclassOf<AActor> ActorClass,
 		const FTransform& SpawnTransform,
-		bool bShouldAutomaticallyReturnPool = true,
-		float RecycleDelayTime = 1.f);
+		bool bShouldAutomaticallyReturnPool,
+		float RecycleDelayTime);
 
 	template<typename T>
 	T* GetPooledActorTyped(
 		TSubclassOf<T> ActorClass,
-		const FTransform& SpawnTransform,
-		bool bShouldAutomaticallyReturnPool = true,
-		float RecycleDelayTime = 1.f)
+		const FTransform& SpawnTransform)
 	{
 		const TSubclassOf<AActor> BaseActorClass = ActorClass;
-		return Cast<T>(GetPooledActor(BaseActorClass, SpawnTransform, bShouldAutomaticallyReturnPool, RecycleDelayTime));
+		return Cast<T>(GetPooledActor(BaseActorClass, SpawnTransform));
 	}
 
 	/** Returns an actor instance back into the pool. */
@@ -112,7 +117,14 @@ public:
 	void ReturnActorToPool(AActor* Actor);
 
 private:
+	bool TryGetPoolClassConfig(TSubclassOf<AActor> ActorClass, FPoolClassConfig& OutConfig) const;
+	static FPoolRecyclePolicy BuildRecyclePolicy(const FPoolClassConfig& PoolClassConfig);
 	const UObjectPoolConfigDataAsset* LoadPoolConfigIfNeeded() const;
+	AActor* BorrowPooledActor(
+		TSubclassOf<AActor> ActorClass,
+		const FTransform& SpawnTransform,
+		bool bShouldAutomaticallyReturnPool,
+		float RecycleDelayTime);
 	void DelayActor(AActor* InActor, float DelayTime, bool bAutomaticallyReturnPool);
 	void ClearReturnTimer(AActor* InActor);
 	void DeactivateActor(AActor* SpawnedActor, bool bNotifyPoolableActor = true);
@@ -124,6 +136,8 @@ private:
 	AActor* SpawnPooledActor(TSubclassOf<AActor> ActorClass);
 	static void NotifyActorTakenFromPool(AActor* Actor);
 	static void NotifyActorReturnedToPool(AActor* Actor);
+	void LogPoolState(const TCHAR* Action, TSubclassOf<AActor> ActorClass, const TArray<FPoolItem>& TargetPool, const AActor* ActorInstance = nullptr) const;
+	static int32 CountInUseActors(const TArray<FPoolItem>& TargetPool);
 
 private:
 	/** Mapping of actor class to pooled actor entries. */

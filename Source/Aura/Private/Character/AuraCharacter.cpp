@@ -11,9 +11,17 @@
 
 #include "Player/AuraPlayerController.h"
 #include "UI/HUD/AuraHUD.h"
+#include "../Aura.h"
+#include "Components/CapsuleComponent.h"
 
 AAuraCharacter::AAuraCharacter()
 {
+
+	GetCapsuleComponent()->SetGenerateOverlapEvents(false);
+	GetMesh()->SetGenerateOverlapEvents(true);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Projectile, ECR_Overlap);
+
+
 	/*Movement Configuration ¡ª top-down ARPG style:
 	 * bOrientRotationToMovement: character faces the direction of movement automatically.
 	 * bConstrainToPlane + bSnapToPlaneAtStart: keeps movement on a flat plane (no flying). */
@@ -43,7 +51,6 @@ void AAuraCharacter::PossessedBy(AController* NewController)
 	InitDefaultAttributes();
 
 	AddStartupGameAbilities();
-
 }
 
 void AAuraCharacter::OnRep_PlayerState()

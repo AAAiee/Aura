@@ -1,6 +1,5 @@
 // @Copyright HaolunYuan
 
-
 #include "Effect/Projectile/AuraProjectileSphere.h"
 
 AAuraProjectileSphere::AAuraProjectileSphere()

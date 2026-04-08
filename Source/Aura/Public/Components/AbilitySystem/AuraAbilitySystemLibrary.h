@@ -1,13 +1,15 @@
-// @Copyright HaolunYuan
+﻿// @Copyright HaolunYuan
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Data/CharacterClassInfo.h"
 #include "AuraAbilitySystemLibrary.generated.h"
 
 class UAuraOverlayWidgetController;
 class UAttributeMenuWidgetController;
+class UAbilitySystemComponent;
 
 /**
  * Blueprint utility library for resolving Aura-specific widget controllers.
@@ -23,10 +25,20 @@ class AURA_API UAuraAbilitySystemLibrary : public UBlueprintFunctionLibrary
 
 public:
 	/** Returns (and lazily creates) the Overlay widget controller for the local player. */
-	UFUNCTION(BlueprintCallable, Category = "AbilitySystem|WidgetController")
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|WidgetController")
 	static UAuraOverlayWidgetController* GetOverlayWidgetController(const UObject* WorldContextObject);
 
 	/** Returns (and lazily creates) the Attribute Menu widget controller for the local player. */
-	UFUNCTION(BlueprintCallable, Category = "AbilitySystem|WidgetController")
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|WidgetController")
 	static UAttributeMenuWidgetController* GetAttributeMenuWidgetController(const UObject* WorldContextObject);
+
+	/**
+	 * Applies the class-driven startup Gameplay Effects (primary / secondary / vital attributes).
+	 *
+	 * Important runtime rule:
+	 *   - Attribute initialization must be authored by the server because Gameplay Effects are
+	 *     authoritative state. Clients should never create their own default stats locally.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|Attributes")
+	static void InitializeDefaultAttributes(UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level);
 };

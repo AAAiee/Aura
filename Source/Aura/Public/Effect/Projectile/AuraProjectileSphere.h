@@ -20,6 +20,7 @@ public:
 	AAuraProjectileSphere();
 
 
+protected:
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USphereComponent> SphereCollision;

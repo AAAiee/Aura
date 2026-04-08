@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "Character/AuraCharacterBase.h"
 #include "Interaction//Highlightable.h"
+#include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "AuraEnemy.generated.h"
+
+class UActorStatusWidgetComponent;
 
 /**
  * Base class for AI-controlled enemies in Aura.
@@ -14,7 +17,7 @@
  * directly (created in the constructor). There is no PlayerState involved because enemies
  * are AI-controlled and don't need to persist attributes across respawns.
  *
- * Replication Mode: Minimal ¡ª enemies don't need GE prediction (no local player controls them).
+ * Replication Mode: Minimal â€” enemies don't need GE prediction (no local player controls them).
  *
  * Implements IHighlightable so the player's cursor trace can highlight/unhighlight enemies
  * via Custom Depth rendering (post-process outline effect).
@@ -27,7 +30,7 @@ class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable
 public:
 	AAuraEnemy();
 
-	/* IHighlightable Interface ¡ª toggles Custom Depth for post-process outline*/
+	/* IHighlightable Interface â€” toggles Custom Depth for post-process outline*/
 	virtual void HighLightActor() override;
 	virtual void UnhighLightActor() override;
 	/* ends IHighlightable Interface*/
@@ -43,10 +46,24 @@ protected:
 	/** Enemy owns ASC directly, so Owner=this, Avatar=this. */
 	virtual void InitAbilityActorInfo() override;
 
+
+	virtual void InitDefaultAttributes() override;
+	
+
+private:
+	void InitializeStatusWidget();
+
+
 private:
 	/** Tracks highlight state to avoid redundant Custom Depth toggles. */
 	bool bIsHighlighted = false;
 
 	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	int32 EnemyLevel; 
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
+	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = true))
+	TObjectPtr<UActorStatusWidgetComponent> HealthBarComponent;
 };

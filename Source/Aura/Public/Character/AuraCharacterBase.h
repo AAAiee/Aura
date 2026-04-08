@@ -57,7 +57,7 @@ protected:
 	void ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const;
 
 	/*Helper function to apply default attributes GE (Primary and Secondary) to the character */
-	void InitDefaultAttributes();
+	virtual void InitDefaultAttributes();
 
 protected:
 	/** Weapon mesh attached to the character's hand socket. TObjectPtr provides lazy loading & tracking. */

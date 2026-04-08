@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/WidgetController/AuraWidgetController.h"
+#include "ControllerDelegates.h"
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
 #include "AuraOverlayWidgetController.generated.h"
@@ -37,8 +38,7 @@ struct FUIWidgetRow : public FTableRowBase
 };
 
 /*Dynamic Multicast Delegates ¡ª Blueprint widgets bind to these to receive attribute updates*/
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAttributeChangeSignature, float, NewHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, FUIWidgetRow, Row);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, const FUIWidgetRow&, Row);
 
 
 /**

@@ -11,3 +11,4 @@
 
 /** Stencil value used with Custom Depth to render a red outline (post-process highlight). */
 #define CUSTOM_DEPTH_RED 250
+#define ECC_Projectile ECollisionChannel::ECC_GameTraceChannel1

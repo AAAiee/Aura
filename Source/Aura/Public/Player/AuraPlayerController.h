@@ -12,7 +12,9 @@ struct FInputActionValue;
 class IHighlightable;
 struct FHitResult;
 class UAuraInputConfig;
+class UAuraInputComponent;
 class UAuraAbilitySystemComponent;
+class AAuraHUD;
 
 /**
  * Player Controller for the Aura project.
@@ -40,11 +42,8 @@ class AURA_API AAuraPlayerController : public APlayerController
 public:
 	AAuraPlayerController();
 
-	/** Project Extension — shared entry point for the custom Attribute Menu toggle feature. */
-	/** Public entry point so BP/UI can reuse the same toggle logic as the input action. */
 	UFUNCTION(BlueprintCallable, Category="UI")
-	void ToggleAttributeMenuRequested(); 
-
+	void ToggleAttributeMenuRequested();
 
 protected:
 	virtual void BeginPlay() override;
@@ -52,36 +51,40 @@ protected:
 	virtual void SetupInputComponent() override;
 
 private:
-	/*Movement Handlers Begins*/
-	/** WASD movement — computes camera-relative direction and applies AddMovementInput. */
-	void Move(const FInputActionValue& ActionValues);
+	/* Setup Helpers */
+	void InitializeInputContext() const;
+	void InitializeMouseCursorMode();
+	void BindNativeInputActions(class UAuraInputComponent* AuraEnhancedInputComponent);
 
-	/** Left-click movement — delegates to AutoMoveComponent for server-authoritative pathfinding. */
-	void OnClickMove(const FInputActionValue& ActionValues);
-	void OnMoveToCursor(const FInputActionValue& ActionValues);
-	/*Movement Handlers Ends*/
-
-	/** Enhanced Input callback for the "toggle attribute menu" action. */
+	/* UI */
+	AAuraHUD* GetAuraHUD() const;
 	void OnToggleAttributeMenu(const FInputActionValue& ActionValues);
 
-	/**
-	 * Runs every tick on the local client. Performs a line trace under the cursor to detect
-	 * IHighlightable actors, then manages highlight state transitions (see state table in .cpp).
-	 */
+	/* Movement */
+	void Move(const FInputActionValue& ActionValues);
+	void OnClickMove(const FInputActionValue& ActionValues);
+	void OnMoveToCursor(const FInputActionValue& ActionValues);
+	void OnAttackHelpPressed(const FInputActionValue& ActionValues);
+	void OnAttackHelpReleased(const FInputActionValue& ActionValues);
+	void CancelAutoMoveIfActive() const;
+	bool TryGetCachedMoveTargetLocation(FVector& OutMoveTargetLocation) const;
+
+	/* Cursor Trace + Highlight */
 	void CursorTrace();
+	void UpdateCachedCursorHitResult(const FHitResult& CursorHitResult);
+	void UpdateCurrentHighlightable(const FHitResult& CursorHitResult);
+	void ApplyHighlightStateTransition();
 
-	/**
-	 * placeholder
-	 */
-
+	/* Ability Input */
 	UAuraAbilitySystemComponent* GetAuraASC(); 
-
 	void AbilityInputTagPressed(FGameplayTag InputTag); 
 	void AbilityInputTagReleased(FGameplayTag InputTag);
 	void AbilityInputTagHeld(FGameplayTag InputTag);
+	void ForwardAbilityInputTag(FGameplayTag InputTag, void (UAuraAbilitySystemComponent::*InputHandler)(FGameplayTag));
+	bool CouldLaunchGameplayAbility() const;
 
 private:
-	/*Enhanced Input Assets Begins — set in the editor on the BP_AuraPlayerController*/
+	/* Enhanced Input Assets — set in BP_AuraPlayerController */
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputMappingContext> AuraContext;
 
@@ -94,30 +97,31 @@ private:
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputAction> MoveToCursorAction;
 
+	UPROPERTY(EditAnywhere, Category=Input)
+	TObjectPtr<UInputAction> AttackHelpAction;
+
 	/** Input Action asset bound to the keyboard shortcut that shows/hides the Attribute Menu. */
 	UPROPERTY(EditAnywhere, Category="Input")
 	TObjectPtr<UInputAction> ToggleAttributeMenuAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input | Data")
 	TObjectPtr<UAuraInputConfig> InputConfigs;
-	/*Enhanced Input Assets Ends*/
-
 
 	TObjectPtr<UAuraAbilitySystemComponent> CachedASC;
 
-	/** Component that handles click-to-move path finding via server RPC. */
 	UPROPERTY(VisibleAnywhere, Category="Movement")
 	TObjectPtr<class UAutoMoveComponent> AutoMoveComponent;
 
-	/*Click-to-Move State Begins*/
-	FVector CachedMoveTargetLocation = FVector::ZeroVector;
-	bool bHasCachedMoveTargetLocation = false;
-	/*Click-to-Move State Ends*/
+	/* Cursor / Movement Target Cache */
+	FHitResult CachedCursorHitResult;
 
-	/*Highlight Tracking Begins — tracks previous and current frame's highlighted actor*/
+	/* Ability Gating State */
+	bool bIsAttackHelpKeyPressed = false;
+	bool bIsTargeting = false;
+
+	/* Highlight Tracking */
 	UPROPERTY()
 	TScriptInterface<IHighlightable>  LastHighlightable;
 	UPROPERTY()
 	TScriptInterface<IHighlightable>  CurrentHighlightable;
-	/*Highlight Tracking Ends*/
 };

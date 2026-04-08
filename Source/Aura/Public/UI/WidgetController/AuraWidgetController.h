@@ -69,6 +69,13 @@ public:
 	/** Override to bind delegates to ASC attribute changes, GE events, etc. */
 	virtual void BindAllDependencies();;
 
+	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
+	AActor* GetAvatarActor() const;
+
+	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
+	AActor* GetOwningActor() const;
+
+
 protected:
 	/*Cached References ¡ª set once via SetWidgetControllerParams, read by derived classes*/
 	UPROPERTY(BlueprintReadOnly, Category = DataRef)

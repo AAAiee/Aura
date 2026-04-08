@@ -2,6 +2,7 @@
 
 
 #include "UI/WidgetController/AuraWidgetController.h"
+#include "AbilitySystemComponent.h"
 
 /**
  * Caches the four core references so derived controllers (e.g., OverlayWidgetController)
@@ -23,4 +24,24 @@ void UAuraWidgetController::SetWidgetControllerParams(const FWidgetControllerPar
 void UAuraWidgetController::BindAllDependencies()
 {
 
+}
+
+AActor* UAuraWidgetController::GetAvatarActor() const
+{
+	if (!CachedAbilitySystemComponent)
+	{
+		return nullptr;
+	}
+
+	return CachedAbilitySystemComponent->GetAvatarActor();
+}
+
+AActor* UAuraWidgetController::GetOwningActor() const
+{
+	if (!CachedAbilitySystemComponent)
+	{
+		return nullptr;
+	}
+
+	return CachedAbilitySystemComponent->GetOwner();
 }

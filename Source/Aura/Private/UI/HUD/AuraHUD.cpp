@@ -8,6 +8,7 @@
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 #include "UI/Widget/AuraAttributeMenuWidget.h"
 #include "UI/Widget/AuraOverlayRootWidget.h"
+#include "UI/AuraWidgetControllerBootstrap.h"
 
 /**
  * Lazy singleton — creates the widget controller on first request, then caches it.
@@ -18,11 +19,7 @@ UAuraOverlayWidgetController* AAuraHUD::GetOverlayWidgetController(const FWidget
 {
 	if (!OverlayWidgetController)
 	{
-		checkf(OverlayWidgetControllerClass, TEXT("OverlayWidgetControllerClass is not set in %s"), *GetName());
-
-		OverlayWidgetController = NewObject<UAuraOverlayWidgetController>(this, OverlayWidgetControllerClass);
-		OverlayWidgetController->SetWidgetControllerParams(Params);
-		OverlayWidgetController->BindAllDependencies();
+		OverlayWidgetController = CastChecked<UAuraOverlayWidgetController>(FAuraWidgetControllerBootstrap::CreateController(this, OverlayWidgetControllerClass, Params));
 
 	}
 	return OverlayWidgetController;
@@ -34,13 +31,10 @@ UAttributeMenuWidgetController* AAuraHUD::GetAttributeMenuWidgetController(const
 {
 	if (!AttributeMenuWidgetController)
 	{
-		checkf(AttributeMenuWidgetControllerClass, TEXT("AttributeMenuWidgetControllerClass is not set in %s"), *GetName());
-
-		AttributeMenuWidgetController = NewObject<UAttributeMenuWidgetController>(this, AttributeMenuWidgetControllerClass);
-		AttributeMenuWidgetController->SetWidgetControllerParams(Params);
-		AttributeMenuWidgetController->BindAllDependencies();
-
+		AttributeMenuWidgetController = CastChecked<UAttributeMenuWidgetController>(
+			FAuraWidgetControllerBootstrap::CreateController(this, AttributeMenuWidgetControllerClass, Params));
 	}
+
 	return AttributeMenuWidgetController;
 }
 
@@ -65,9 +59,7 @@ void AAuraHUD::InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbili
 	const FWidgetControllerParameters Params(PC, PS, ASC, AS);
 	UAuraOverlayWidgetController* WidgetController = GetOverlayWidgetController(Params);
 
-	OverlayWidget->SetWidgetController(WidgetController);
-
-	WidgetController->BroadcastInitialValues();
+	FAuraWidgetControllerBootstrap::AttachControllerToWidget(OverlayWidget, WidgetController);
 	OverlayWidget->AddToViewport();
 }
 

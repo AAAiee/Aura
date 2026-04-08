@@ -93,12 +93,30 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+		UE_LOG(LogTemp, Warning, TEXT("Change of Health on %s, Changed to %f"), *Props.TargetAvatarActor->GetName(), GetHealth());
 	}
 
 	if (Data.EvaluatedData.Attribute == GetManaAttribute())
 	{
 		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
 	}
+
+	/*If Imcoming attribute was affected, consume the current value, calculate damage, then affect the health attribute*/
+	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
+	{
+		const float DamageLocalCopy = GetIncomingDamage();
+		SetIncomingDamage(0.f);
+		if (DamageLocalCopy > 0.f)
+		{
+			const float NewHealth = GetHealth() - DamageLocalCopy;
+			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth())); 
+
+			const bool bFatal = NewHealth <= 0.f;
+			/*Additional Logic to come*/
+		}
+		
+	}
+
 
 }
 
