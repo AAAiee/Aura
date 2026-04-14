@@ -40,5 +40,15 @@ public:
 	 *     authoritative state. Clients should never create their own default stats locally.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|Attributes")
-	static void InitializeDefaultAttributes(UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level);
+	static void InitializeDefaultAttributes(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level);
+
+
+	// Grants the shared startup abilities declared on CharacterClassInfo (for example, generic combat responses).
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|CharacterClassDefaults")
+	static void InitialzeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC );
+
+	// Convenience accessor for systems that need the authoritative class-info asset without each
+	// caller repeating the GameMode lookup chain.
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|CharacterClassDefaults")
+	static UCharacterClassInfo* GetCharacterClassInfo(const UObject* WorldContextObject);
 };

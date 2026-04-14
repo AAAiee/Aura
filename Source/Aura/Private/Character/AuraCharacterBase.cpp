@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "../Aura.h"
+#include "Engine/EngineTypes.h"
 
 // Sets default values
 AAuraCharacterBase::AAuraCharacterBase()
@@ -46,6 +47,69 @@ FVector AAuraCharacterBase::GetCombatSocketLocation() const
 {
 	check(Weapon);
 	return Weapon->GetSocketLocation(WeaponTipSocketName);
+}
+
+void AAuraCharacterBase::Die()
+{
+	// The authority-side entry point detaches the weapon first so the upcoming death presentation
+	// is no longer driven by the living hand socket animation.
+	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
+	Weapon->DetachFromComponent(DetachmentRules);
+
+	MulticastHandleDeath();
+}
+
+void AAuraCharacterBase::MulticastHandleDeath_Implementation()
+{
+	/*
+	 * The multicast fans the visual death state out to every machine:
+	 *   1. Break the weapon's socket attachment.
+	 *   2. Turn on physics/gravity so the corpse settles naturally.
+	 *   3. Disable the capsule so gameplay collision no longer treats the actor as alive.
+	 *   4. Start the dissolve presentation used by the death cleanup flow.
+	 */
+	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
+	Weapon->DetachFromComponent(DetachmentRules);
+
+	Weapon->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly); // easiest test
+	Weapon->SetSimulatePhysics(true);
+	Weapon->SetEnableGravity(true);
+
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->SetEnableGravity(true);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+	GetMesh()->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Dissolve();
+}
+
+void AAuraCharacterBase::Dissolve()
+{
+	if (IsValid(CharacterDisolveMaterialInstance))
+	{
+		// Dynamic instances let the Blueprint timeline animate this specific actor's dissolve
+		// parameters without mutating the shared material asset used by other characters.
+		UMaterialInstanceDynamic* DynamicInstance  = UMaterialInstanceDynamic::Create(CharacterDisolveMaterialInstance, this);
+
+		GetMesh()->SetMaterial(0, DynamicInstance);
+		StartDissolveTimeline(DynamicInstance);
+	}
+
+	if (IsValid(WeaponDisolveMaterialInstance))
+	{
+		// The weapon dissolves independently so designers can author a slightly different material
+		// response while still keeping the same death flow entry point.
+		UMaterialInstanceDynamic* DynamicInstance = UMaterialInstanceDynamic::Create(WeaponDisolveMaterialInstance, this);
+
+		Weapon->SetMaterial(0, DynamicInstance);
+		StartWeaponDissolveTimeline(DynamicInstance);
+	}
+}
+
+UAnimMontage* AAuraCharacterBase::GetHitReactMontage_Implementation()
+{
+	return HitReactMontage;
 }
 
 void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const

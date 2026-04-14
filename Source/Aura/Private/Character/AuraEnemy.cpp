@@ -9,6 +9,8 @@
 #include "UI/WidgetController/AuraWidgetController.h"
 #include "UI/WidgetComponent/ActorStatusWidgetComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
+#include "AuraGameTagManager.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 
 AAuraEnemy::AAuraEnemy()
@@ -31,12 +33,12 @@ AAuraEnemy::AAuraEnemy()
 	 * Replication Mode: Minimal — no GE prediction needed for AI-controlled pawns.
 	 * Compare with player's Mixed mode in AuraPlayerState. */
 	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>("AbilitySystemComponent");
-	AbilitySystemComponent->SetIsReplicated(true); 
+	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>("AttributeSet");
 
 	HealthBarComponent = CreateDefaultSubobject<UActorStatusWidgetComponent>(TEXT("EnemyHealthBar"));
-	HealthBarComponent->SetupAttachment(GetRootComponent()); 
+	HealthBarComponent->SetupAttachment(GetRootComponent());
 }
 
 void AAuraEnemy::HighLightActor()
@@ -68,10 +70,18 @@ void AAuraEnemy::UnhighLightActor()
 	/*Also Disable highlight for weapon if any*/
 	if (Weapon)
 	{
-		Weapon->SetRenderCustomDepth(false); 
+		Weapon->SetRenderCustomDepth(false);
 	}
 }
 
+
+void AAuraEnemy::Die()
+{
+	// Lifespan cleanup is intentionally delayed so remote clients can still see the ragdoll and
+	// dissolve sequence kicked off by the shared base-character death flow.
+	SetLifeSpan(LifeSpan);
+	Super::Die();
+}
 
 void AAuraEnemy::Tick(float DeltaTime)
 {
@@ -83,6 +93,8 @@ void AAuraEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
+	GetCharacterMovement()->MaxWalkSpeed = BaseSpeed;
+
 	/*
 	 * Enemy startup flow:
 	 *   1. Build the ASC's ActorInfo so ability / attribute queries know Owner + Avatar.
@@ -93,6 +105,15 @@ void AAuraEnemy::BeginPlay()
 	 * while still allowing clients to render the enemy's health bar from replicated state.
 	 */
 	InitAbilityActorInfo();
+
+	// Combat.HitReact behaves like a small state machine tag: when it appears we freeze movement,
+	// and when it is removed we restore normal locomotion.
+	AbilitySystemComponent->RegisterGameplayTagEvent(FAuraGameTagManager::Get().Combat_HitReact, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AAuraEnemy::OnHitReactTagChanged);
+
+	// Shared common abilities (such as hit-react responses) come from the class-info asset so the
+	// player and enemies stay on the same data-driven combat setup path.
+	UAuraAbilitySystemLibrary::InitialzeDefaultAbilities(this, CharacterClass, AbilitySystemComponent);
+
 
 	// Enemy stats are authoritative gameplay state, so only the server should seed them.
 	if (HasAuthority())
@@ -134,6 +155,26 @@ void AAuraEnemy::InitializeStatusWidget()
 	 */
 	// Enemy does not have state /player controller references, so we pass in nullptr for those parameters. The widget controller should be designed to handle null references for non-player characters.
 	const FWidgetControllerParameters Parameters(nullptr, nullptr, AbilitySystemComponent, AttributeSet);
-	HealthBarComponent->InitializeWidgetController(Parameters); 
+	HealthBarComponent->InitializeWidgetController(Parameters);
 
+}
+
+void AAuraEnemy::OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewCount)
+{
+	(void)GameplayTag;
+
+	if (!HasAuthority()) return;
+
+	// The tag count is the gameplay truth. Movement simply mirrors it so abilities/GE logic remain
+	// the single authority for when an enemy should look staggered.
+	bHitReacting = NewCount > 0;
+	if (bHitReacting)
+	{
+		check(GetCharacterMovement());
+		GetCharacterMovement()->MaxWalkSpeed = 0.0;
+	}
+	else
+	{
+		GetCharacterMovement()->MaxWalkSpeed = BaseSpeed;
+	}
 }

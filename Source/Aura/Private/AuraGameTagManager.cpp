@@ -92,6 +92,8 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Input_AuraSpell3 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell3", "Input for Aura Spell 3");
 	Get().Input_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
 	Get().Input_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
+	Get().Combat_Damage = ADD_GAMETAG_CUSTOM("Combat.Damage", "Tag for damage dealt in combat");
+	Get().Combat_HitReact = ADD_GAMETAG_CUSTOM("Combat.HitReact", "Tag for hit reaction");
 
 	Get().bIsValid = true;
 }

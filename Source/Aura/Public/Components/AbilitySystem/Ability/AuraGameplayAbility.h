@@ -17,9 +17,7 @@ class AURA_API UAuraGameplayAbility : public UGameplayAbility
 
 public:
 
-
 	UPROPERTY(EditDefaultsOnly, Category=StartUpProperties)
 	FGameplayTag StartupGameTag;
-
 };
 

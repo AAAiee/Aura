@@ -75,7 +75,7 @@ UAttributeMenuWidgetController* UAuraAbilitySystemLibrary::GetAttributeMenuWidge
 	return AuraHUD->GetAttributeMenuWidgetController(Params);
 }
 
-void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level)
+void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level)
 {
 	check(ASC);
 
@@ -102,14 +102,9 @@ void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(UObject* WorldContex
 		return;
 	}
 
-	AAuraGameModeBase* AuraGameMode = Cast<AAuraGameModeBase>(UGameplayStatics::GetGameMode(WorldContextObject));
-	if (!ensureMsgf(AuraGameMode, TEXT("AuraAbilitySystemLibrary::InitializeDefaultAttributes could not resolve AuraGameMode from %s."), *GetNameSafe(WorldContextObject)))
-	{
-		return;
-	}
 
-	UCharacterClassInfo* ClassInfos = AuraGameMode->CharacterClassInfo;
-	if (!ensureMsgf(ClassInfos, TEXT("AuraAbilitySystemLibrary::InitializeDefaultAttributes requires CharacterClassInfo to be assigned on %s."), *GetNameSafe(AuraGameMode)))
+	UCharacterClassInfo* ClassInfos =  GetCharacterClassInfo(WorldContextObject);
+	if (!ensureMsgf(ClassInfos, TEXT("AuraAbilitySystemLibrary::InitializeDefaultAttributes requires CharacterClassInfo to be assigned on %s."), *GetNameSafe(WorldContextObject)))
 	{
 		return;
 	}
@@ -152,4 +147,46 @@ void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(UObject* WorldContex
 			ASC->ApplyGameplayEffectSpecToSelf(*VitalSpecHandle.Data.Get());
 		}
 	}
+}
+
+void UAuraAbilitySystemLibrary::InitialzeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC)
+{
+	check(ASC);
+	(void)CharacterClass; // CommonAbilities are currently shared across classes; keep the parameter for future per-class expansion.
+
+	AActor* AvatarActor = ASC->GetAvatarActor();
+	if (!ensureMsgf(AvatarActor, TEXT("AuraAbilitySystemLibrary::InitialzeDefaultAbilities requires ASC %s to have a valid avatar actor."), *GetNameSafe(ASC)))
+	{
+		return;
+	}
+
+	// Ability grants are authoritative gameplay state, so make the rule explicit instead of relying
+	// on the server-only GameMode lookup to fail on clients.
+	if (!AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	UCharacterClassInfo* CharacterClassInfo = GetCharacterClassInfo(WorldContextObject);
+	if (!CharacterClassInfo) return;
+
+	for (const TSubclassOf<UGameplayAbility> & AbilityClass : CharacterClassInfo->CommonAbilities)
+	{
+		// These are the shared "always available" combat abilities that every spawned combatant
+		// should own before moment-to-moment gameplay begins.
+		FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, 1);
+		ASC->GiveAbility(AbilitySpec);
+	}
+}
+
+UCharacterClassInfo* UAuraAbilitySystemLibrary::GetCharacterClassInfo(const UObject* WorldContextObject)
+{
+	// CharacterClassInfo lives on GameMode because it is server-authored setup data; callers that
+	// run on clients should expect this lookup to return nullptr.
+	AAuraGameModeBase* AuraGameMode = Cast<AAuraGameModeBase>(UGameplayStatics::GetGameMode(WorldContextObject));
+	if (!AuraGameMode) return nullptr;
+
+	UCharacterClassInfo* CharacterClassInfo = AuraGameMode->CharacterClassInfo;
+
+	return CharacterClassInfo;
 }

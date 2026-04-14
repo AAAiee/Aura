@@ -12,6 +12,9 @@ class UAbilitySystemComponent;
 class UAttributeSet;
 class UGameplayEffect;
 class UGameplayAbility;
+class UAnimMontage;
+class UMaterialInstance;
+class UMaterialInstanceDynamic;
 class USkeletalMeshComponent;
 
 /**
@@ -41,6 +44,29 @@ public:
 
 	void AddStartupGameAbilities();
 	virtual FVector GetCombatSocketLocation() const override;
+
+	/*
+	 * Shared combat hooks used by the damage pipeline:
+	 *   - non-fatal hits ask for a montage through GetHitReactMontage()
+	 *   - fatal hits funnel into Die()
+	 *   - Blueprint timelines finish the dissolve presentation once C++ swaps materials
+	 */
+	virtual UAnimMontage* GetHitReactMontage_Implementation() override;
+	virtual void Die() override;
+
+	UFUNCTION(NetMulticast, Reliable)
+	virtual void MulticastHandleDeath();
+
+	// Replaces the authored materials with dynamic instances so each dying actor can drive its own
+	// dissolve parameters without affecting shared asset instances.
+	void Dissolve();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void StartDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void StartWeaponDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -91,4 +117,20 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category= "Ability")
 	TArray < TSubclassOf<UGameplayAbility> > StartupAbilityClasses;
+
+	/*
+	* Montages
+	*/
+	// Montage chosen by this character for non-fatal hit-react feedback.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat)
+	TObjectPtr<UAnimMontage> HitReactMontage;
+
+
+	/*Materials*/
+	// Authored base materials that are swapped to dynamic instances during the death dissolve.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UMaterialInstance> CharacterDisolveMaterialInstance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UMaterialInstance> WeaponDisolveMaterialInstance;
 };

@@ -9,12 +9,14 @@
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
+class ACharacter;
 class IHighlightable;
 struct FHitResult;
 class UAuraInputConfig;
 class UAuraInputComponent;
 class UAuraAbilitySystemComponent;
 class AAuraHUD;
+class UDamageWidgetComponent;
 
 /**
  * Player Controller for the Aura project.
@@ -44,6 +46,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="UI")
 	void ToggleAttributeMenuRequested();
+
+	// Owning-client RPC that spawns a transient world-space widget near the damaged target.
+	UFUNCTION(Client,Reliable)
+	void Client_ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter);
 
 protected:
 	virtual void BeginPlay() override;
@@ -76,8 +82,8 @@ private:
 	void ApplyHighlightStateTransition();
 
 	/* Ability Input */
-	UAuraAbilitySystemComponent* GetAuraASC(); 
-	void AbilityInputTagPressed(FGameplayTag InputTag); 
+	UAuraAbilitySystemComponent* GetAuraASC();
+	void AbilityInputTagPressed(FGameplayTag InputTag);
 	void AbilityInputTagReleased(FGameplayTag InputTag);
 	void AbilityInputTagHeld(FGameplayTag InputTag);
 	void ForwardAbilityInputTag(FGameplayTag InputTag, void (UAuraAbilitySystemComponent::*InputHandler)(FGameplayTag));
@@ -124,4 +130,10 @@ private:
 	TScriptInterface<IHighlightable>  LastHighlightable;
 	UPROPERTY()
 	TScriptInterface<IHighlightable>  CurrentHighlightable;
+
+
+	/*UI*/
+	// Widget-component class used for floating combat text spawned by Client_ShowDamageNumber().
+	UPROPERTY(EditDefaultsOnly, Category="UI")
+	TSubclassOf<UDamageWidgetComponent> DamageTextComponentClass;
 };

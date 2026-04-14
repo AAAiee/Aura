@@ -4,6 +4,10 @@
 #include "Net/UnrealNetwork.h"
 #include "GameplayEffectExtension.h"
 #include "GameFramework/Character.h"
+#include "AuraGameTagManager.h"
+#include "Interaction/CombatInterface.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/AuraPlayerController.h"
 
 /**
  * Constructor ¡ª use Init<Attribute>() to set both the Base and Current value.
@@ -76,7 +80,7 @@ void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
  * The value is already committed at this point ¡ª this is the authoritative place to:
  *   - Re-clamp attributes (e.g., Health <= MaxHealth)
  *		- to bring all the base value of the attribute down to the clamped range as well
- *		  this fixes the bug where high health + health potion results in health base value 
+ *		  this fixes the bug where high health + health potion results in health base value
  *		  overflow
  *   - Check for death (Health <= 0)
  *   - Apply secondary effects (e.g., damage numbers, hit reactions)
@@ -101,7 +105,11 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
 	}
 
-	/*If Imcoming attribute was affected, consume the current value, calculate damage, then affect the health attribute*/
+	/*
+	 * IncomingDamage is a meta attribute populated by the damage ExecCalc. We consume it here so the
+	 * AttributeSet remains the single place that translates "damage landed" into health changes,
+	 * death, hit react, and UI feedback.
+	 */
 	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
 	{
 		const float DamageLocalCopy = GetIncomingDamage();
@@ -109,12 +117,42 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 		if (DamageLocalCopy > 0.f)
 		{
 			const float NewHealth = GetHealth() - DamageLocalCopy;
-			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth())); 
+			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
 
 			const bool bFatal = NewHealth <= 0.f;
-			/*Additional Logic to come*/
+
+			if (bFatal)
+			{
+				ICombatInterface* CombatInterface = Cast<ICombatInterface>(Props.TargetAvatarActor);
+
+				if (CombatInterface)
+				{
+					// Death stays polymorphic: the AttributeSet decides *that* the target died, while
+					// the concrete combatant decides how its death sequence should play out.
+					CombatInterface->Die();
+				}
+			}
+			else
+			{
+				// Non-fatal damage routes through the shared hit-react tag so movement, animation, and
+				// gameplay abilities can all observe the same temporary combat state.
+				FGameplayTagContainer Tags;
+				Tags.AddTag(FAuraGameTagManager::Get().Combat_HitReact);
+				Props.TargetASC->TryActivateAbilitiesByTag(Tags);
+			}
+
+			if (Props.SourceCharacter != Props.TargetAvatarActor)
+			{
+				if (AAuraPlayerController* PC = Cast<AAuraPlayerController>(UGameplayStatics::GetPlayerController(Props.SourceCharacter, 0)))
+				{
+					// Damage numbers are cosmetic attacker feedback, so we send them through the
+					// attacking player's controller instead of storing extra UI state on the target.
+					PC->Client_ShowDamageNumber(DamageLocalCopy, Props.TargetCharacter);
+				}
+			}
 		}
-		
+
+
 	}
 
 
@@ -130,12 +168,12 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 /* Primary Attributes*/
 void UAuraAttributeSet::OnRep_Health(const FGameplayAttributeData& OldHealth) const
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Health, OldHealth); 
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Health, OldHealth);
 }
 
 void UAuraAttributeSet::OnRep_Mana(const FGameplayAttributeData& OldMana) const
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Mana, OldMana); 
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Mana, OldMana);
 }
 
 
@@ -163,7 +201,7 @@ void UAuraAttributeSet::OnRep_Vigor(const FGameplayAttributeData& OldVigor) cons
 /* Secondary Attributes*/
 void UAuraAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth) const
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, MaxHealth, OldMaxHealth); 
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, MaxHealth, OldMaxHealth);
 }
 
 void UAuraAttributeSet::OnRep_MaxMana(const FGameplayAttributeData& OldMaxMana) const
@@ -225,10 +263,10 @@ void UAuraAttributeSet::OnRep_ManaRegeneration(const FGameplayAttributeData& Old
  * This is useful for damage numbers, kill credits, knockback direction, etc.
  */
 void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData& Data, FEffectProperties& Props)
-{ 
+{
 	// Source: the actor that caused/instigated this effect
 	Props.GameplayEffectContextHandle = Data.EffectSpec.GetContext();
-	Props.SourceASC = Props.GameplayEffectContextHandle.GetOriginalInstigatorAbilitySystemComponent(); 
+	Props.SourceASC = Props.GameplayEffectContextHandle.GetOriginalInstigatorAbilitySystemComponent();
 	if (Props.SourceASC)
 	{
 		auto& AIF = Props.SourceASC->AbilityActorInfo;
@@ -239,11 +277,11 @@ void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData
 
 			// If no PlayerController (e.g., AI-controlled pawn), fall back to GetController()
 			if (Props.SourceController == nullptr  && Props.SourceAvatarActor != nullptr)
-			{ 
+			{
 				Props.SourceController = (Cast<APawn>(Props.SourceAvatarActor))->GetController();
 			}
 		}
-		
+
 		if (Props.SourceController)
 		{
 			Props.SourceCharacter = Cast<ACharacter>(Props.SourceController->GetPawn());
@@ -252,9 +290,9 @@ void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData
 		// Target: the actor that received this effect (Data.Target is the target's ASC)
 		if (Data.Target.AbilityActorInfo.IsValid()  && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
 		{
-			Props.TargetAvatarActor = Data.Target.AbilityActorInfo->AvatarActor.Get(); 
+			Props.TargetAvatarActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
 			Props.TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-			ACharacter* TargetCharacter = Cast<ACharacter>(Props.TargetAvatarActor);
+			Props.TargetCharacter = Cast<ACharacter>(Props.TargetAvatarActor);
 			Props.TargetASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 		}
 	}

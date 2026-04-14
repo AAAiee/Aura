@@ -8,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "Interaction/CombatInterface.h"
 #include "ObjectPoolSubsystem.h"
+#include "AuraGameTagManager.h"
 
 void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation)
 {
@@ -64,8 +65,13 @@ void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocati
 
 		// Build the outgoing spec once here while we still know the owning ability level / source ASC.
 		// The projectile simply carries this spec until its overlap callback resolves the impact.
+		// The damage scalable-float lives on the base damage ability so designers can author one
+		// curve and let the spell read the correct amount for its current ability level.
+		const float ScaledDamage = Damage.GetValueAtLevel(GetAbilityLevel());
 		Projectile->DamageEffectHandle = AbilitySystemComponent->MakeOutgoingSpec(DamageEffect, GetAbilityLevel(), AbilitySystemComponent->MakeEffectContext());
+		UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(Projectile->DamageEffectHandle, FAuraGameTagManager::Get().Combat_Damage, ScaledDamage);
 	}
+
 
 	Projectile->SetOwner(AvatarActor);
 	Projectile->SetInstigator(Cast<APawn>(AvatarActor));

@@ -7,6 +7,7 @@
 #include "CharacterClassInfo.generated.h"
 
 class UGameplayEffect;
+class UGameplayAbility;
 
 
 UENUM(BlueprintType)
@@ -60,7 +61,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
 	TSubclassOf<UGameplayEffect> VitalAttributes;
 
+	// Shared startup abilities granted to every combatant that uses this data asset.
+	UPROPERTY(EditDefaultsOnly, Category  = "Common Class Defaults")
+	TArray<TSubclassOf<UGameplayAbility>> CommonAbilities;
+
+	// Curve table used by damage execution to convert raw attributes into level-scaled combat math.
+	UPROPERTY(EditDefaultsOnly, Category  = "Common Class Defaults | Combat")
+	TObjectPtr<UCurveTable> DefaultCalculationCoeffcient;
+
 	// FindChecked is intentional here: missing class entries are authoring errors we want to catch
 	// immediately during setup instead of silently creating partially initialized characters.
 	FCharacterClassDefaultInfo GetDefaultInfoForClass(ECharacterClass CharacterClass) const;
+
 };

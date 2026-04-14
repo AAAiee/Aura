@@ -10,6 +10,8 @@
 #include "Input/AuraInputComponent.h"
 #include "Interaction/Highlightable.h"
 #include "UI/HUD/AuraHUD.h"
+#include "GameFramework/Character.h"
+#include "UI/WidgetComponent/DamageWidgetComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
 {
@@ -113,6 +115,23 @@ void AAuraPlayerController::ToggleAttributeMenuRequested()
 void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& ActionValues)
 {
 	ToggleAttributeMenuRequested();
+}
+
+
+void AAuraPlayerController::Client_ShowDamageNumber_Implementation(float DamageAmount, ACharacter* TargetCharacter)
+{
+	if (IsValid(TargetCharacter) && IsValid(DamageTextComponentClass))
+	{
+		// We create a short-lived widget component per hit so combat text can exist in world space
+		// without adding a permanently attached component to every character blueprint.
+		UDamageWidgetComponent* DamageTextWidgetComponent = NewObject<UDamageWidgetComponent>(TargetCharacter, DamageTextComponentClass);
+		DamageTextWidgetComponent->RegisterComponent();
+		DamageTextWidgetComponent->AttachToComponent(TargetCharacter->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		// Detach immediately after placement so the text can animate independently instead of being
+		// dragged around by any later root-motion or ragdoll movement on the target.
+		DamageTextWidgetComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		DamageTextWidgetComponent->SetDamageText(DamageAmount);
+	}
 }
 
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)

@@ -110,9 +110,12 @@ public:
 	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell2)
 	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell3)
 
-	// replace with the real funciton instead of button
 	DECLARE_GAMETAG_CUSTOM(Input, AuraPrimaryClick)
 	DECLARE_GAMETAG_CUSTOM(Input, AuraSecondaryClick)
+
+	// Combat tags bridge authored GE data to runtime combat logic such as ExecCalcs and hit-react abilities.
+	DECLARE_GAMETAG_CUSTOM(Combat, Damage);
+	DECLARE_GAMETAG_CUSTOM(Combat, HitReact);
 
 private:
 	//Helper to register native Gameplay tag info while register native tag info

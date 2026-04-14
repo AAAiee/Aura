@@ -6,6 +6,7 @@
 #include "Character/AuraCharacterBase.h"
 #include "Interaction//Highlightable.h"
 #include "Components/AbilitySystem/Data/CharacterClassInfo.h"
+#include "GameplayTagContainer.h"
 #include "AuraEnemy.generated.h"
 
 class UActorStatusWidgetComponent;
@@ -39,6 +40,9 @@ public:
 	FORCEINLINE virtual int32 GetPlayerLevel() const override { return EnemyLevel; }
 	/* ends ICombatInterface*/
 
+	// Enemy death keeps the actor alive for a short window so ragdoll + dissolve can finish.
+	virtual void Die() override final;
+
 protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
@@ -48,22 +52,37 @@ protected:
 
 
 	virtual void InitDefaultAttributes() override;
-	
+
 
 private:
 	void InitializeStatusWidget();
 
+	// Watches the replicated Combat.HitReact tag count so movement can mirror the current stagger state.
+	void OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewCount);
 
-private:
+
 	/** Tracks highlight state to avoid redundant Custom Depth toggles. */
 	bool bIsHighlighted = false;
 
+	// Delay before the dead enemy is destroyed, giving the death visuals time to play out.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta=  (AllowPrivateAccess = true))
+	float LifeSpan = 5.0f;
+
 	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
-	int32 EnemyLevel; 
+	int32 EnemyLevel;
+
+	// Exposed for animation / Blueprint logic that wants to know whether a hit react is active.
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	bool bHitReacting = false;
+
+	// Cached "alive" walk speed so hit react can temporarily stop movement and then restore it.
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	float BaseSpeed = 250.f;
 
 	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UActorStatusWidgetComponent> HealthBarComponent;
+
 };
