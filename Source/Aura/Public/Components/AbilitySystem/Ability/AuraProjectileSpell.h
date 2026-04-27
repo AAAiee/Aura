@@ -7,8 +7,6 @@
 #include "AuraProjectileSpell.generated.h"
 
 class AAuraProjectile;
-class UObjectPoolSubsystem;
-class UGameplayEffect;
 
 /**
  * Base gameplay ability helper for spells that launch pooled Aura projectiles.
@@ -24,24 +22,21 @@ class AURA_API UAuraProjectileSpell : public UAuraDamageGameplayAbility
 	GENERATED_BODY()
 
 public:
+	/* Projectile Casting */
 	// Server-only helper that borrows a projectile from the pool, seeds its damage spec, and launches it.
 	UFUNCTION(BlueprintCallable, Category="Projectile")
 	void SpawnProjectile(const FVector& ProjectileTargetLocation);
 
 protected:
+	/* UGameplayAbility */
+	// Kept available for Blueprint child abilities that need normal GAS activation flow first.
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
 
-
-protected:
+	/* Projectile Authoring */
 	// Blueprint chooses which pooled projectile actor class this spell should launch.
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	TSubclassOf<AAuraProjectile> ProjectileClass;
-
-	// Gameplay Effect class used to build the outgoing damage spec carried by the projectile.
-	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	TSubclassOf<UGameplayEffect>  DamageEffect;
-
 };

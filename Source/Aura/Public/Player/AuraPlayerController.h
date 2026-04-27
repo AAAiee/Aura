@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 #pragma once
 #include "CoreMinimal.h"
@@ -47,9 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="UI")
 	void ToggleAttributeMenuRequested();
 
-	// Owning-client RPC that spawns a transient world-space widget near the damaged target.
+	// Owning-client RPC that spawns transient combat text near the damaged target.
+	// The hit flags are already server-resolved and only drive local presentation.
 	UFUNCTION(Client,Reliable)
-	void Client_ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter);
+	void Client_ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter, bool bIsBlockedHit, bool bIsCriticalHit);
 
 protected:
 	virtual void BeginPlay() override;
@@ -60,7 +61,7 @@ private:
 	/* Setup Helpers */
 	void InitializeInputContext() const;
 	void InitializeMouseCursorMode();
-	void BindNativeInputActions(class UAuraInputComponent* AuraEnhancedInputComponent);
+	void BindNativeInputActions(UAuraInputComponent* AuraEnhancedInputComponent);
 
 	/* UI */
 	AAuraHUD* GetAuraHUD() const;
@@ -90,7 +91,7 @@ private:
 	bool CouldLaunchGameplayAbility() const;
 
 private:
-	/* Enhanced Input Assets — set in BP_AuraPlayerController */
+	/* Enhanced Input Assets - set in BP_AuraPlayerController */
 	UPROPERTY(EditAnywhere, Category=Input)
 	TObjectPtr<UInputMappingContext> AuraContext;
 

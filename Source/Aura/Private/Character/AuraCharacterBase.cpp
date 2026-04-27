@@ -1,58 +1,79 @@
-﻿// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
-
+// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
 
 #include "Character/AuraCharacterBase.h"
+
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
+#include "Aura/Aura.h"
+#include "AuraGameTagManager.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "GameFramework/Character.h"
-#include "../Aura.h"
-#include "Engine/EngineTypes.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
-// Sets default values
 AAuraCharacterBase::AAuraCharacterBase()
 {
-	// Base characters don't need to tick — subclasses can enable it if needed (e.g., enemy AI)
+	// Base characters do not need ticking by default. Subclasses opt in only when they have
+	// per-frame responsibilities such as AI state updates.
 	PrimaryActorTick.bCanEverTick = false;
 
-	/*Ignore the Camera*/
+	// Camera collision is disabled so the spring arm and camera can move through friendly meshes
+	// without snapping or zooming when the player fights in close quarters.
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore); 
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-	/*Weapon Setup — attach a skeletal mesh to the hand socket defined on the character's skeleton*/
-	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>("Weapon");
+	// Weapon visuals live on a dedicated mesh component so combat sockets and dissolve materials can
+	// be authored independently from the main skeletal mesh.
+	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon"));
 	Weapon->SetupAttachment(GetMesh(), FName("WeaponHandSocket"));
-	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision); // Weapon visuals only; combat uses traces/overlaps
+	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AAuraCharacterBase::AddStartupGameAbilities()
 {
-	// Game Abilities should only being added to the server version
-	if (!HasAuthority()) return;
+	// Startup abilities are authoritative gameplay state, so only the server grants them.
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	UAuraAbilitySystemComponent* ASC = CastChecked<UAuraAbilitySystemComponent>(GetAbilitySystemComponent());
-
 	ASC->AddCharacterAbilities(StartupAbilityClasses);
 }
 
-// Called when the game starts or when spawned
-void AAuraCharacterBase::BeginPlay()
+FVector AAuraCharacterBase::GetCombatSocketLocation_Implementation(const FGameplayTag& MontageTag) const
 {
-	Super::BeginPlay();
+	const FName* SocketName = MontageTagToSocketLocation.Find(MontageTag);
+	check(SocketName);
+
+	if (MontageTag.MatchesTagExact(FAuraGameTagManager::Get().Montage_Attack_Weapon))
+	{
+		check(Weapon);
+		return Weapon->GetSocketLocation(*SocketName);
+	}
+
+	return GetMesh()->GetSocketLocation(*SocketName);
 }
 
-FVector AAuraCharacterBase::GetCombatSocketLocation() const
+UAnimMontage* AAuraCharacterBase::GetHitReactMontage_Implementation()
 {
-	check(Weapon);
-	return Weapon->GetSocketLocation(WeaponTipSocketName);
+	return HitReactMontage;
+}
+
+bool AAuraCharacterBase::IsDead_Implementation() const
+{
+	return bDead;
+}
+
+AActor* AAuraCharacterBase::GetAvatar_Implementation()
+{
+	return this;
 }
 
 void AAuraCharacterBase::Die()
 {
-	// The authority-side entry point detaches the weapon first so the upcoming death presentation
-	// is no longer driven by the living hand socket animation.
+	// The authority-side entry point detaches the weapon first so the death presentation is no
+	// longer driven by living hand-socket animation.
 	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
 	Weapon->DetachFromComponent(DetachmentRules);
 
@@ -64,14 +85,14 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 	/*
 	 * The multicast fans the visual death state out to every machine:
 	 *   1. Break the weapon's socket attachment.
-	 *   2. Turn on physics/gravity so the corpse settles naturally.
+	 *   2. Turn on physics and gravity so the corpse settles naturally.
 	 *   3. Disable the capsule so gameplay collision no longer treats the actor as alive.
 	 *   4. Start the dissolve presentation used by the death cleanup flow.
 	 */
 	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
 	Weapon->DetachFromComponent(DetachmentRules);
 
-	Weapon->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly); // easiest test
+	Weapon->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	Weapon->SetSimulatePhysics(true);
 	Weapon->SetEnableGravity(true);
 
@@ -82,6 +103,8 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Dissolve();
+
+	bDead = true;
 }
 
 void AAuraCharacterBase::Dissolve()
@@ -90,8 +113,7 @@ void AAuraCharacterBase::Dissolve()
 	{
 		// Dynamic instances let the Blueprint timeline animate this specific actor's dissolve
 		// parameters without mutating the shared material asset used by other characters.
-		UMaterialInstanceDynamic* DynamicInstance  = UMaterialInstanceDynamic::Create(CharacterDisolveMaterialInstance, this);
-
+		UMaterialInstanceDynamic* DynamicInstance = UMaterialInstanceDynamic::Create(CharacterDisolveMaterialInstance, this);
 		GetMesh()->SetMaterial(0, DynamicInstance);
 		StartDissolveTimeline(DynamicInstance);
 	}
@@ -99,23 +121,29 @@ void AAuraCharacterBase::Dissolve()
 	if (IsValid(WeaponDisolveMaterialInstance))
 	{
 		// The weapon dissolves independently so designers can author a slightly different material
-		// response while still keeping the same death flow entry point.
+		// response while still keeping the same death-flow entry point.
 		UMaterialInstanceDynamic* DynamicInstance = UMaterialInstanceDynamic::Create(WeaponDisolveMaterialInstance, this);
-
 		Weapon->SetMaterial(0, DynamicInstance);
 		StartWeaponDissolveTimeline(DynamicInstance);
 	}
 }
 
-UAnimMontage* AAuraCharacterBase::GetHitReactMontage_Implementation()
+void AAuraCharacterBase::BeginPlay()
 {
-	return HitReactMontage;
+	Super::BeginPlay();
+
+	// Combat socket selection stays data-driven through montage tags so melee traces and projectile
+	// casts can share the same authored montage metadata.
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_LeftHand, LeftHandTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_RightHand, RightHandTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_Weapon, WeaponTipSocketName);
 }
 
 void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const
 {
 	checkf(GameplayEffectClass, TEXT("GameplayEffectClass should be set in blueprint"));
 	check(AbilitySystemComponent);
+
 	FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
 	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(GameplayEffectClass, Level, ContextHandle);
 	if (SpecHandle.IsValid())
@@ -126,7 +154,7 @@ void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> Game
 
 void AAuraCharacterBase::InitDefaultAttributes()
 {
-	/* Follow the order, primary -> secondary -> vital */
+	// Default attribute effects are ordered so later sets can depend on values initialized earlier.
 	ApplyGameEffectToSelf(PrimaryAttributeInitGE, 1.0f);
 	ApplyGameEffectToSelf(SecondaryAttributeInitGE, 1.0f);
 	ApplyGameEffectToSelf(VitalAttributeInitGE, 1.0f);

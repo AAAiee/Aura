@@ -1,9 +1,9 @@
 // @Copyright HaolunYuan
 
-
 #include "AuraGameTagManager.h"
-#include "GameplayTagsManager.h"
+
 #include "Engine/Engine.h"
+#include "GameplayTagsManager.h"
 
 /**
  * These macros register a native GameplayTag with the engine AND return the FGameplayTag handle
@@ -11,7 +11,7 @@
  *
  * Why AddNativeGameplayTag instead of RequestGameplayTag?
  *   - Native tags are registered at startup and visible in the editor tag picker.
- *   - RequestGameplayTag only looks up existing tags ¡ª it doesn't create them.
+ *   - RequestGameplayTag only looks up existing tags; it does not create them.
  *
  * The comma operator is used to execute AddNativeGameplayTagInfo and return the Tag.
  */
@@ -44,7 +44,6 @@
 		FAuraGameTagManager::AddNativeGameplayTagInfo(ToAdd, ToAdd.GetTagName(), TEXT(Description)); \
 		return ToAdd; \
 	}())
-
 
 #define ADD_GAMETAG_CUSTOM(TagName, Description) \
 	([&]() -> FGameplayTag \
@@ -87,13 +86,48 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Attribute_Secondary_MaxHealth = ADD_SECONDARY_ATTRIBUTE("MaxHealth", "Maximum amount of Health obtainable");
 	Get().Attribute_Secondary_MaxMana = ADD_SECONDARY_ATTRIBUTE("MaxMana", "Maximum amount of Mana obtainable");
 
+	/*
+	 * Resistance attributes are normal secondary attributes, not special-case combat data.
+	 * Registering them here lets AttributeSets, UI data assets, and ExecCalcs all refer to the
+	 * same native tags instead of duplicating string names.
+	 */
+	Get().Attribute_Secondary_FireDamageResistance = ADD_SECONDARY_ATTRIBUTE("FireResistance", "Reduces incoming fire damage");
+	Get().Attribute_Secondary_LightningDamageResistance = ADD_SECONDARY_ATTRIBUTE("LightningResistance", "Reduces incoming lightning damage");
+	Get().Attribute_Secondary_ArcaneDamageResistance = ADD_SECONDARY_ATTRIBUTE("ArcaneResistance", "Reduces incoming arcane damage");
+	Get().Attribute_Secondary_PhysicalDamageResistance = ADD_SECONDARY_ATTRIBUTE("PhysicalResistance", "Reduces incoming physical damage");
+
+	/*Register input tags*/
 	Get().Input_AuraSpell1 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell1", "Input for Aura Spell 1");
 	Get().Input_AuraSpell2 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell2", "Input for Aura Spell 2");
 	Get().Input_AuraSpell3 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell3", "Input for Aura Spell 3");
 	Get().Input_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
 	Get().Input_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
+
+	/*Register combat state tags*/
 	Get().Combat_Damage = ADD_GAMETAG_CUSTOM("Combat.Damage", "Tag for damage dealt in combat");
 	Get().Combat_HitReact = ADD_GAMETAG_CUSTOM("Combat.HitReact", "Tag for hit reaction");
+
+	/*
+	 * Damage type tags are authored on abilities as set-by-caller keys. The resistance map below
+	 * lets damage execution stay data-oriented: adding a new type means registering one type tag,
+	 * one resistance attribute tag, and one map entry.
+	 */
+	Get().DamageType_Fire = ADD_GAMETAG_CUSTOM("DamageType.Fire", "Tag for fire damage type");
+	Get().DamageType_Lightning = ADD_GAMETAG_CUSTOM("DamageType.Lightning", "Tag for lightning damage type");
+	Get().DamageType_Arcane = ADD_GAMETAG_CUSTOM("DamageType.Arcane", "Tag for arcane damage type");
+	Get().DamageType_Physical = ADD_GAMETAG_CUSTOM("DamageType.Physical", "Tag for physical damage type");
+
+	Get().DamageTypesToResistance.Add(Get().DamageType_Fire, Get().Attribute_Secondary_FireDamageResistance);
+	Get().DamageTypesToResistance.Add(Get().DamageType_Lightning, Get().Attribute_Secondary_LightningDamageResistance);
+	Get().DamageTypesToResistance.Add(Get().DamageType_Arcane, Get().Attribute_Secondary_ArcaneDamageResistance);
+	Get().DamageTypesToResistance.Add(Get().DamageType_Physical, Get().Attribute_Secondary_PhysicalDamageResistance);
+
+	Get().Ability_MeleeAttack = ADD_GAMETAG_CUSTOM("Ability.MeleeAttack", "Tag for melee attack");
+	Get().Montage_Attack_Weapon = ADD_GAMETAG_CUSTOM("Montage.Attack_Weapon", "Tag for weapon attack montage");
+
+	Get().Montage_Attack_LeftHand = ADD_GAMETAG_CUSTOM("Montage.Attack_LeftHand", "Tag for left hand attack montage");
+
+	Get().Montage_Attack_RightHand = ADD_GAMETAG_CUSTOM("Montage.Attack_RightHand", "Tag for right hand attack montage");
 
 	Get().bIsValid = true;
 }
@@ -103,4 +137,3 @@ void FAuraGameTagManager::AddNativeGameplayTagInfo(FGameplayTag NativeTag, FName
 	FNativeGameplayTagInfo Info(MoveTemp(NativeTag), MoveTemp(TagName), MoveTemp(Description));
 	Get().NativeGameplayTagInfos.AddUnique(MoveTemp(Info));
 }
-

@@ -16,8 +16,7 @@ class AURA_API UDamageWidgetComponent : public UWidgetComponent
 
 
 public:
-	// Blueprint implements the presentation, while C++ owns when/where the transient widget component is spawned.
+	// Blueprint owns presentation variants; C++ passes the resolved combat result for styling.
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
-	void SetDamageText(float Damage);
-
+	void SetDamageText(float Damage, bool bIsBlockedHit, bool bIsCriticalHit);
 };

@@ -7,10 +7,10 @@
 #include "Components/Player/AutoMoveComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameFramework/Character.h"
 #include "Input/AuraInputComponent.h"
 #include "Interaction/Highlightable.h"
 #include "UI/HUD/AuraHUD.h"
-#include "GameFramework/Character.h"
 #include "UI/WidgetComponent/DamageWidgetComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
@@ -18,6 +18,44 @@ AAuraPlayerController::AAuraPlayerController()
 	// Replicate the controller so Server RPCs (e.g., AutoMoveComponent) can execute on the server.
 	bReplicates = true;
 	AutoMoveComponent = CreateDefaultSubobject<UAutoMoveComponent>(TEXT("AutoMoveComponent"));
+}
+
+void AAuraPlayerController::ToggleAttributeMenuRequested()
+{
+	AAuraHUD* AuraHUD = GetAuraHUD();
+	if (!AuraHUD)
+	{
+		return;
+	}
+
+	if (AuraHUD->IsAttributeMenuOnScreen())
+	{
+		AuraHUD->CloseAttributeMenu();
+	}
+	else
+	{
+		AuraHUD->ShowAttributeMenu();
+	}
+}
+
+void AAuraPlayerController::Client_ShowDamageNumber_Implementation(float DamageAmount, ACharacter* TargetCharacter, bool bIsBlockedHit, bool bIsCriticalHit)
+{
+	if (IsValid(TargetCharacter) && IsValid(DamageTextComponentClass) && IsLocalController())
+	{
+		// We create a short-lived widget component per hit so combat text can exist in world space
+		// without adding a permanently attached component to every character blueprint.
+		UDamageWidgetComponent* DamageTextWidgetComponent = NewObject<UDamageWidgetComponent>(TargetCharacter, DamageTextComponentClass);
+		DamageTextWidgetComponent->RegisterComponent();
+		DamageTextWidgetComponent->AttachToComponent(TargetCharacter->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+
+		// Detach immediately after placement so the text can animate independently instead of being
+		// dragged around by any later root-motion or ragdoll movement on the target.
+		DamageTextWidgetComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+
+		// Blocked/critical state is server-authored effect-context metadata; the widget only decides
+		// how to present those resolved combat facts.
+		DamageTextWidgetComponent->SetDamageText(DamageAmount, bIsBlockedHit, bIsCriticalHit);
+	}
 }
 
 void AAuraPlayerController::BeginPlay()
@@ -94,44 +132,9 @@ AAuraHUD* AAuraPlayerController::GetAuraHUD() const
 	return Cast<AAuraHUD>(GetHUD());
 }
 
-void AAuraPlayerController::ToggleAttributeMenuRequested()
-{
-	AAuraHUD* AuraHUD = GetAuraHUD();
-	if (!AuraHUD)
-	{
-		return;
-	}
-
-	if (AuraHUD->IsAttributeMenuOnScreen())
-	{
-		AuraHUD->CloseAttributeMenu();
-	}
-	else
-	{
-		AuraHUD->ShowAttributeMenu();
-	}
-}
-
 void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& ActionValues)
 {
 	ToggleAttributeMenuRequested();
-}
-
-
-void AAuraPlayerController::Client_ShowDamageNumber_Implementation(float DamageAmount, ACharacter* TargetCharacter)
-{
-	if (IsValid(TargetCharacter) && IsValid(DamageTextComponentClass))
-	{
-		// We create a short-lived widget component per hit so combat text can exist in world space
-		// without adding a permanently attached component to every character blueprint.
-		UDamageWidgetComponent* DamageTextWidgetComponent = NewObject<UDamageWidgetComponent>(TargetCharacter, DamageTextComponentClass);
-		DamageTextWidgetComponent->RegisterComponent();
-		DamageTextWidgetComponent->AttachToComponent(TargetCharacter->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-		// Detach immediately after placement so the text can animate independently instead of being
-		// dragged around by any later root-motion or ragdoll movement on the target.
-		DamageTextWidgetComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-		DamageTextWidgetComponent->SetDamageText(DamageAmount);
-	}
 }
 
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
@@ -191,6 +194,22 @@ void AAuraPlayerController::CancelAutoMoveIfActive() const
 	}
 }
 
+bool AAuraPlayerController::TryGetCachedMoveTargetLocation(FVector& OutMoveTargetLocation) const
+{
+	if (!CachedCursorHitResult.bBlockingHit)
+	{
+		return false;
+	}
+
+	if (bIsTargeting || bIsAttackHelpKeyPressed)
+	{
+		return false;
+	}
+
+	OutMoveTargetLocation = CachedCursorHitResult.ImpactPoint;
+	return true;
+}
+
 void AAuraPlayerController::CursorTrace()
 {
 	FHitResult CursorHitResult;
@@ -244,27 +263,6 @@ void AAuraPlayerController::ApplyHighlightStateTransition()
 	}
 }
 
-bool AAuraPlayerController::TryGetCachedMoveTargetLocation(FVector& OutMoveTargetLocation) const
-{
-	if (!CachedCursorHitResult.bBlockingHit)
-	{
-		return false;
-	}
-
-	if (bIsTargeting || bIsAttackHelpKeyPressed)
-	{
-		return false;
-	}
-
-	OutMoveTargetLocation = CachedCursorHitResult.ImpactPoint;
-	return true;
-}
-
-bool AAuraPlayerController::CouldLaunchGameplayAbility() const
-{
-	return bIsTargeting || bIsAttackHelpKeyPressed;
-}
-
 UAuraAbilitySystemComponent* AAuraPlayerController::GetAuraASC()
 {
 	if (CachedASC)
@@ -278,6 +276,21 @@ UAuraAbilitySystemComponent* AAuraPlayerController::GetAuraASC()
 	}
 
 	return CachedASC;
+}
+
+void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagPressed);
+}
+
+void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagReleased);
+}
+
+void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
+{
+	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagHeld);
 }
 
 void AAuraPlayerController::ForwardAbilityInputTag(FGameplayTag InputTag, void (UAuraAbilitySystemComponent::*InputHandler)(FGameplayTag))
@@ -295,17 +308,7 @@ void AAuraPlayerController::ForwardAbilityInputTag(FGameplayTag InputTag, void (
 	}
 }
 
-void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+bool AAuraPlayerController::CouldLaunchGameplayAbility() const
 {
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagPressed);
-}
-
-void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
-{
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagReleased);
-}
-
-void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
-{
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagHeld);
+	return bIsTargeting || bIsAttackHelpKeyPressed;
 }

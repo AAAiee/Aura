@@ -33,6 +33,10 @@ struct FCharacterClassDefaultInfo
 	// Primary attributes are class-specific (for example, warriors and rangers scale differently).
 	UPROPERTY(EditDefaultsOnly, Category = "Class Defaults")
 	TSubclassOf<UGameplayEffect>  PrimaryAttributeEffect;
+
+	// Start up abilities that are granted to every combatant of this class archetype. These are in addition to the shared startup abilities on the data asset itself.
+	UPROPERTY(EditDefaultsOnly, Category  = "Class Defaults")
+	TArray<TSubclassOf<UGameplayAbility>> ClassUniqueAbilities;
 };
 
 
@@ -49,6 +53,7 @@ class AURA_API UCharacterClassInfo : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	/* Startup Effect Data */
 	// Per-class startup effects keyed by the enum that gameplay code passes in at spawn time.
 	UPROPERTY(EditDefaultsOnly, Category = "Character Class Defaults")
 	TMap<ECharacterClass, FCharacterClassDefaultInfo> CharacterClassDefaultInfoMap;
@@ -69,6 +74,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category  = "Common Class Defaults | Combat")
 	TObjectPtr<UCurveTable> DefaultCalculationCoeffcient;
 
+	/* Queries */
 	// FindChecked is intentional here: missing class entries are authoring errors we want to catch
 	// immediately during setup instead of silently creating partially initialized characters.
 	FCharacterClassDefaultInfo GetDefaultInfoForClass(ECharacterClass CharacterClass) const;

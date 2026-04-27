@@ -1,41 +1,44 @@
 // @Copyright HaolunYuan
 
 #include "Character/AuraEnemy.h"
+
+#include "AI/AuraAIController.h"
 #include "Aura/Aura.h"
+#include "AuraGameTagManager.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/WidgetComponent.h"
-#include "UI/WidgetController/AuraWidgetController.h"
-#include "UI/WidgetComponent/ActorStatusWidgetComponent.h"
-#include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
-#include "AuraGameTagManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
-
+#include "UI/WidgetComponent/ActorStatusWidgetComponent.h"
+#include "UI/WidgetController/AuraWidgetController.h"
 
 AAuraEnemy::AAuraEnemy()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	/*Collision Setup — make the mesh block the Visibility channel so the player's
-	 * cursor trace (ECC_Visibility) can detect this enemy for highlighting.
-	 * Ignore Camera so the spring arm doesn't collide with enemy meshes. */
-	/*moved to base*/
-
-	/*use capsule to as it's more versatile in terms of heights*/
+	// Use the capsule as the primary gameplay collision representation so projectile filtering and
+	// overlap checks stay consistent across enemies with different skeletal mesh heights.
+	GetCapsuleComponent()->SetCollisionObjectType(ECC_EnemyCollision);
 	GetCapsuleComponent()->SetGenerateOverlapEvents(true);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Projectile, ECR_Overlap);
 
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationRoll = false;
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bUseControllerDesiredRotation = true;
+
+	// Visibility blocking on the mesh allows cursor traces to detect the enemy for highlighting.
 	GetMesh()->SetGenerateOverlapEvents(false);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
-	/*GAS Setup — enemy owns ASC and AttributeSet directly (no PlayerState).
-	 * Replication Mode: Minimal — no GE prediction needed for AI-controlled pawns.
-	 * Compare with player's Mixed mode in AuraPlayerState. */
-	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>("AbilitySystemComponent");
+	// Enemies own their ASC directly, so they do not need the PlayerState-driven setup used by the player.
+	AbilitySystemComponent = CreateDefaultSubobject<UAuraAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
-	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>("AttributeSet");
+	AttributeSet = CreateDefaultSubobject<UAuraAttributeSet>(TEXT("AttributeSet"));
 
 	HealthBarComponent = CreateDefaultSubobject<UActorStatusWidgetComponent>(TEXT("EnemyHealthBar"));
 	HealthBarComponent->SetupAttachment(GetRootComponent());
@@ -43,37 +46,39 @@ AAuraEnemy::AAuraEnemy()
 
 void AAuraEnemy::HighLightActor()
 {
-	if (bIsHighlighted) return;
+	if (bIsHighlighted)
+	{
+		return;
+	}
+
 	bIsHighlighted = true;
 
-	/*Enable Custom Depth Rendering for Highlighting Effect*/
 	GetMesh()->SetRenderCustomDepth(true);
 	GetMesh()->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
 
-	/*Also highlight the weapon if any*/
 	if (Weapon)
 	{
 		Weapon->SetRenderCustomDepth(true);
 		Weapon->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
 	}
-
 }
 
 void AAuraEnemy::UnhighLightActor()
 {
-	if (!bIsHighlighted) return;
+	if (!bIsHighlighted)
+	{
+		return;
+	}
+
 	bIsHighlighted = false;
 
-	/*Disable Custom Depth Rendering*/
 	GetMesh()->SetRenderCustomDepth(false);
 
-	/*Also Disable highlight for weapon if any*/
 	if (Weapon)
 	{
 		Weapon->SetRenderCustomDepth(false);
 	}
 }
-
 
 void AAuraEnemy::Die()
 {
@@ -83,11 +88,45 @@ void AAuraEnemy::Die()
 	Super::Die();
 }
 
+void AAuraEnemy::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	AuraAIController = Cast<AAuraAIController>(NewController);
+	UBlackboardComponent* Blackboard = AuraAIController ? AuraAIController->GetBlackboardComponent() : nullptr;
+	if (!Blackboard || !BehaviourTree)
+	{
+		return;
+	}
+
+	// Blackboard startup lives on the server because AI decision state is authoritative.
+	Blackboard->InitializeBlackboard(*BehaviourTree->BlackboardAsset);
+	AuraAIController->RunBehaviorTree(BehaviourTree);
+	Blackboard->SetValueAsBool(FName("HitReacting"), false);
+	Blackboard->SetValueAsBool(FName("IsRangeAttacker"), CharacterClass != ECharacterClass::ECC_Warrior);
+}
+
+void AAuraEnemy::SetCombatTarget_Implementation(AActor* InCombatTarget)
+{
+	check(InCombatTarget);
+	CombatTarget = InCombatTarget;
+}
+
+AActor* AAuraEnemy::GetCombatTarget_Implementation() const
+{
+	check(CombatTarget);
+	return CombatTarget;
+}
+
 void AAuraEnemy::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
-
 
 void AAuraEnemy::BeginPlay()
 {
@@ -97,50 +136,37 @@ void AAuraEnemy::BeginPlay()
 
 	/*
 	 * Enemy startup flow:
-	 *   1. Build the ASC's ActorInfo so ability / attribute queries know Owner + Avatar.
-	 *   2. On the server, apply the class-driven startup attributes.
-	 *   3. On every instance, initialize the status widget so the replicated AttributeSet can drive UI.
-	 *
-	 * The split between server-only stat setup and shared widget setup keeps authority rules clear
-	 * while still allowing clients to render the enemy's health bar from replicated state.
+	 *   1. Build the ASC ActorInfo so ability and attribute queries know owner and avatar.
+	 *   2. Register the hit-react tag listener used to drive movement state.
+	 *   3. On the server, grant startup abilities and apply class-driven default attributes.
+	 *   4. On every machine, initialize the status widget from replicated gameplay state.
 	 */
 	InitAbilityActorInfo();
 
-	// Combat.HitReact behaves like a small state machine tag: when it appears we freeze movement,
-	// and when it is removed we restore normal locomotion.
-	AbilitySystemComponent->RegisterGameplayTagEvent(FAuraGameTagManager::Get().Combat_HitReact, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AAuraEnemy::OnHitReactTagChanged);
+	AbilitySystemComponent->RegisterGameplayTagEvent(FAuraGameTagManager::Get().Combat_HitReact, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &AAuraEnemy::OnHitReactTagChanged);
 
-	// Shared common abilities (such as hit-react responses) come from the class-info asset so the
-	// player and enemies stay on the same data-driven combat setup path.
-	UAuraAbilitySystemLibrary::InitialzeDefaultAbilities(this, CharacterClass, AbilitySystemComponent);
-
-
-	// Enemy stats are authoritative gameplay state, so only the server should seed them.
 	if (HasAuthority())
 	{
+		UAuraAbilitySystemLibrary::InitializeDefaultAbilities(this, CharacterClass, AbilitySystemComponent);
 		InitDefaultAttributes();
 	}
 
 	InitializeStatusWidget();
-
 }
 
-/**
- * Enemy's ASC init — Owner and Avatar are both "this" (the enemy itself).
- * Compare with AAuraCharacter where Owner=PlayerState and Avatar=Pawn.
- * AbilityActorInfoSet() binds the OnGameplayEffectApplied delegate on the ASC.
- */
 void AAuraEnemy::InitAbilityActorInfo()
 {
 	check(AbilitySystemComponent);
+
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
 }
 
 void AAuraEnemy::InitDefaultAttributes()
 {
-	// Class-based defaults are now centralized in the ability-system library so both Aura and
-	// enemy archetypes can pull from the same data-driven startup pipeline.
+	// Class-based defaults are centralized in the ability-system library so players and enemies stay
+	// on the same data-driven startup pipeline.
 	UAuraAbilitySystemLibrary::InitializeDefaultAttributes(this, CharacterClass, AbilitySystemComponent, EnemyLevel);
 }
 
@@ -148,33 +174,31 @@ void AAuraEnemy::InitializeStatusWidget()
 {
 	check(HealthBarComponent);
 
-	/*
-	 * Enemy widgets do not have a player controller or player state like HUD widgets do.
-	 * Instead, we pass only the actor-facing ASC + AttributeSet references so the status bar
-	 * can subscribe directly to the replicated gameplay data it needs.
-	 */
-	// Enemy does not have state /player controller references, so we pass in nullptr for those parameters. The widget controller should be designed to handle null references for non-player characters.
+	// Enemy widgets do not have player-controller or player-state references, so they bind directly
+	// to the actor-facing ASC and AttributeSet that already replicate authoritative combat data.
 	const FWidgetControllerParameters Parameters(nullptr, nullptr, AbilitySystemComponent, AttributeSet);
 	HealthBarComponent->InitializeWidgetController(Parameters);
-
 }
 
 void AAuraEnemy::OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewCount)
 {
-	(void)GameplayTag;
+	if (!HasAuthority())
+	{
+		return;
+	}
 
-	if (!HasAuthority()) return;
-
-	// The tag count is the gameplay truth. Movement simply mirrors it so abilities/GE logic remain
-	// the single authority for when an enemy should look staggered.
+	// The tag count is the gameplay truth. Movement simply mirrors it so abilities and GE logic
+	// remain the single authority for when an enemy should appear staggered.
 	bHitReacting = NewCount > 0;
 	if (bHitReacting)
 	{
 		check(GetCharacterMovement());
-		GetCharacterMovement()->MaxWalkSpeed = 0.0;
+		GetCharacterMovement()->MaxWalkSpeed = 0.f;
 	}
 	else
 	{
 		GetCharacterMovement()->MaxWalkSpeed = BaseSpeed;
 	}
+
+	AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("HitReacting"), bHitReacting);
 }

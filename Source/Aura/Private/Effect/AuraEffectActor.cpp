@@ -5,6 +5,7 @@
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 
 AAuraEffectActor::AAuraEffectActor()
 {
@@ -45,7 +46,7 @@ void AAuraEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGam
 	// Effect Context ¡ª stores "source" info (this actor) so PostGameplayEffectExecute
 	// can trace back who caused the effect (useful for damage credits, VFX origin, etc.)
 	FGameplayEffectContextHandle EffectContextHandle = TargetAbilitySystemComponent->MakeEffectContext();
-	EffectContextHandle.AddSourceObject(this);
+	UAuraAbilitySystemLibrary::SetShouldHitReact(EffectContextHandle, false);
 
 	// Effect Spec ¡ª combines the GE class + level + context into an applicable package
 	FGameplayEffectSpecHandle EffectSpecHandle = TargetAbilitySystemComponent->MakeOutgoingSpec(GameplayEffectClass, Level, EffectContextHandle);

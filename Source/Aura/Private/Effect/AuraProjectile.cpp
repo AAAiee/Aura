@@ -102,6 +102,7 @@ void AAuraProjectile::SetCollisionComponent(UPrimitiveComponent* InCollisionComp
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_EnemyCollision, ECR_Overlap);
 
 	// Bind shared overlap logic once here
 	CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AAuraProjectile::OnProjectileOverlap);
@@ -234,6 +235,14 @@ void AAuraProjectile::OnProjectileOverlap(
 	 *   4. Multicast impact cosmetics so every relevant machine sees / hears the hit once.
 	 *   5. Return the projectile to the pool so the next cast can reuse it.
 	 */
+
+	// The server owns hit resolution. Clients keep their collision for local copies, but they do
+	// not decide projectile lifetime or trigger impact effects directly.
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	// Ignore overlaps from parked/inactive pooled actors and from projectiles that should not auto-return on hit.
 	if (!IsActiveInPool() || !bReturnToPoolOnAnyOverlap)
 	{
@@ -245,14 +254,6 @@ void AAuraProjectile::OnProjectileOverlap(
 	{
 		return;
 	}
-
-	// The server owns hit resolution. Clients keep their collision for local copies, but they do
-	// not decide projectile lifetime or trigger impact effects directly.
-	if (!HasAuthority())
-	{
-		return;
-	}
-
 	// Protect against duplicate overlap callbacks before collision is fully disabled/returned.
 	if (bHasResolvedImpact)
 	{

@@ -1,14 +1,44 @@
 // @Copyright HaolunYuan
 
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
-#include "UI/HUD/AuraHUD.h"
+#include "AbilitySystemComponent.h"
+#include "AuraAbilityTypes.h"
+#include "Game/AuraGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "Player/AuraPlayerState.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAttributeSet.h"
+#include "UI/HUD/AuraHUD.h"
 #include "UI/WidgetController/AuraWidgetController.h"
-#include "Game/AuraGameModeBase.h"
-#include "Kismet/GameplayStatics.h"
-#include "AbilitySystemComponent.h"
+#include "Interaction/CombatInterface.h"
+#include "CollisionQueryParams.h"
+
+namespace
+{
+	const FAuraGameplayEffectContext* GetAuraEffectContext(const FGameplayEffectContextHandle& EffectHandle, const TCHAR* CallerName)
+	{
+		const FGameplayEffectContext* Context = EffectHandle.Get();
+		if (Context && Context->GetScriptStruct()->IsChildOf(FAuraGameplayEffectContext::StaticStruct()))
+		{
+			return static_cast<const FAuraGameplayEffectContext*>(Context);
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("%s called without an Aura gameplay effect context."), CallerName);
+		return nullptr;
+	}
+
+	FAuraGameplayEffectContext* GetMutableAuraEffectContext(FGameplayEffectContextHandle& EffectHandle, const TCHAR* CallerName)
+	{
+		FGameplayEffectContext* Context = EffectHandle.Get();
+		if (Context && Context->GetScriptStruct()->IsChildOf(FAuraGameplayEffectContext::StaticStruct()))
+		{
+			return static_cast<FAuraGameplayEffectContext*>(Context);
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("%s called without an Aura gameplay effect context."), CallerName);
+		return nullptr;
+	}
+}
 
 UAuraOverlayWidgetController* UAuraAbilitySystemLibrary::GetOverlayWidgetController(const UObject* WorldContextObject)
 {
@@ -103,7 +133,7 @@ void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(const UObject* World
 	}
 
 
-	UCharacterClassInfo* ClassInfos =  GetCharacterClassInfo(WorldContextObject);
+	UCharacterClassInfo* ClassInfos = GetCharacterClassInfo(WorldContextObject);
 	if (!ensureMsgf(ClassInfos, TEXT("AuraAbilitySystemLibrary::InitializeDefaultAttributes requires CharacterClassInfo to be assigned on %s."), *GetNameSafe(WorldContextObject)))
 	{
 		return;
@@ -149,10 +179,9 @@ void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(const UObject* World
 	}
 }
 
-void UAuraAbilitySystemLibrary::InitialzeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC)
+void UAuraAbilitySystemLibrary::InitializeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC)
 {
 	check(ASC);
-	(void)CharacterClass; // CommonAbilities are currently shared across classes; keep the parameter for future per-class expansion.
 
 	AActor* AvatarActor = ASC->GetAvatarActor();
 	if (!ensureMsgf(AvatarActor, TEXT("AuraAbilitySystemLibrary::InitialzeDefaultAbilities requires ASC %s to have a valid avatar actor."), *GetNameSafe(ASC)))
@@ -168,15 +197,24 @@ void UAuraAbilitySystemLibrary::InitialzeDefaultAbilities(const UObject* WorldCo
 	}
 
 	UCharacterClassInfo* CharacterClassInfo = GetCharacterClassInfo(WorldContextObject);
-	if (!CharacterClassInfo) return;
-
-	for (const TSubclassOf<UGameplayAbility> & AbilityClass : CharacterClassInfo->CommonAbilities)
+	check(CharacterClassInfo);
+	for (TSubclassOf<UGameplayAbility> AbilityClass : CharacterClassInfo->CommonAbilities)
 	{
 		// These are the shared "always available" combat abilities that every spawned combatant
-		// should own before moment-to-moment gameplay begins.
+		// should own before moment-to-moment game play begins.
 		FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, 1);
 		ASC->GiveAbility(AbilitySpec);
 	}
+
+	const FCharacterClassDefaultInfo& DefaultInfo = CharacterClassInfo->GetDefaultInfoForClass(CharacterClass);
+	for (TSubclassOf <UGameplayAbility> AbilityClass : DefaultInfo.ClassUniqueAbilities)
+	{
+		ICombatInterface* CI = Cast<ICombatInterface>(AvatarActor);
+		check(CI);
+		FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, CI->GetPlayerLevel());
+		ASC->GiveAbility(AbilitySpec);
+	}
+
 }
 
 UCharacterClassInfo* UAuraAbilitySystemLibrary::GetCharacterClassInfo(const UObject* WorldContextObject)
@@ -189,4 +227,102 @@ UCharacterClassInfo* UAuraAbilitySystemLibrary::GetCharacterClassInfo(const UObj
 	UCharacterClassInfo* CharacterClassInfo = AuraGameMode->CharacterClassInfo;
 
 	return CharacterClassInfo;
+}
+
+bool UAuraAbilitySystemLibrary::IsBlockedHit(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsBlockedHit")))
+	{
+		return AuraContext->IsBlockedHit();
+	}
+
+	return false;
+}
+
+bool UAuraAbilitySystemLibrary::IsCriticalHit(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	{
+		return AuraContext->IsCriticalHit();
+	}
+
+	return false;
+}
+
+bool UAuraAbilitySystemLibrary::ShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::ShouldHitReact")))
+	{
+		return AuraContext->ShouldHitReact();
+	}
+
+	return false;
+}
+
+void UAuraAbilitySystemLibrary::SetIsBlockedHit(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInIsBlocked)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetIsBlockedHit")))
+	{
+		AuraContext->SetBlockedHit(bInIsBlocked);
+	}
+}
+
+void UAuraAbilitySystemLibrary::SetIsCriticalHit(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInIsCritical)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetIsCriticalHit")))
+	{
+		AuraContext->SetCriticalHit(bInIsCritical);
+	}
+}
+
+
+void UAuraAbilitySystemLibrary::SetShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInShouldHitReact)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetShouldHitReact")))
+	{
+		AuraContext->SetShouldHitReact(bInShouldHitReact);
+	}
+}
+
+void UAuraAbilitySystemLibrary::GetLivePlayersWithinRadius(const UObject* WorldContextObject, TArray<AActor*>& OutOverlapActors, const TArray<AActor*>& ActorToIgnore, float Radius, const FVector& SphereOrigin)
+{
+
+	FCollisionQueryParams SphereParams;
+	SphereParams.AddIgnoredActors(ActorToIgnore);
+
+	TArray<FOverlapResult> Overlaps;
+	if (const UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		World->OverlapMultiByObjectType(Overlaps, SphereOrigin, FQuat::Identity, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllDynamicObjects), FCollisionShape::MakeSphere(Radius), SphereParams);
+
+		for (FOverlapResult& Overlap : Overlaps)
+		{
+			AActor* OverlapActor = Overlap.GetActor();
+			const bool bImplementCombatInterface = OverlapActor->Implements<UCombatInterface>();
+
+			if (bImplementCombatInterface && !ICombatInterface::Execute_IsDead(OverlapActor))
+			{
+				OutOverlapActors.AddUnique(OverlapActor);
+			}
+		}
+	}
+}
+
+const FTaggedMontage& UAuraAbilitySystemLibrary::GetRandomMontageInArray(const TArray<FTaggedMontage>& MontageArray)
+{
+	check(MontageArray.Num() > 0);
+
+	const int32 RandomIndex = FMath::RandRange(0, MontageArray.Num() - 1);
+	return MontageArray[RandomIndex];
+}
+
+bool UAuraAbilitySystemLibrary::IsNotFriend(AActor* FirstActor, AActor* SecondActor)
+{
+	check(FirstActor && SecondActor);
+	const bool bFirstIsPlayer = FirstActor->ActorHasTag("Player");
+	const bool bSecondIsPlayer = SecondActor->ActorHasTag("Player");
+
+	const bool bIsFriend = (bFirstIsPlayer && bSecondIsPlayer) || (!bFirstIsPlayer && !bSecondIsPlayer);
+
+	return !bIsFriend;
 }

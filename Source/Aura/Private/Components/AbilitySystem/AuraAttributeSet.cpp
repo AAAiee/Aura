@@ -1,28 +1,29 @@
 // @Copyright HaolunYuan
 
 #include "Components/AbilitySystem/AuraAttributeSet.h"
-#include "Net/UnrealNetwork.h"
-#include "GameplayEffectExtension.h"
-#include "GameFramework/Character.h"
+
 #include "AuraGameTagManager.h"
+#include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
+#include "GameplayEffectExtension.h"
 #include "Interaction/CombatInterface.h"
-#include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/AuraPlayerController.h"
 
 /**
- * Constructor ¡ª use Init<Attribute>() to set both the Base and Current value.
+ * Constructor - use Init<Attribute>() to set both the Base and Current value.
  * Init functions should ONLY be called here; use Set<Attribute>() at runtime.
  */
 UAuraAttributeSet::UAuraAttributeSet()
 {
-
 }
 
 /**
  * PreAttributeChange is called BEFORE the attribute value is modified.
  * It receives a mutable reference to the new value, so we can clamp it.
  *
- * IMPORTANT: This only clamps the "proposed" value. If a Gameplay Effect uses an
+ * IMPORTANT: This only clamps the proposed value. If a Gameplay Effect uses an
  * Override modifier (sets the value directly), it bypasses this clamp.
  * Always re-clamp in PostGameplayEffectExecute for safety.
  */
@@ -33,7 +34,6 @@ void UAuraAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 	if (Attribute == GetHealthAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxHealth());
-
 	}
 
 	if (Attribute == GetManaAttribute())
@@ -45,45 +45,50 @@ void UAuraAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 /**
  * Registers each attribute for network replication.
  * - COND_None: replicate to all clients (no condition).
- * - REPNOTIFY_Always: fire OnRep even if the value hasn't changed.
- *   This is important because GAS may set the same value during a prediction correction,
- *   and we still want the client to process the update.
+ * - REPNOTIFY_Always: fire OnRep even if the value has not changed.
+ *
+ * The order mirrors the header groups so future attributes can be added in one predictable
+ * place: vital, primary, secondary core stats, then secondary resistances.
  */
 void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
 	/*Vital Attributes OnRep*/
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Mana, COND_None, REPNOTIFY_Always);
 
 	/*Primary Attributes OnRep*/
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Strength, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Intelligence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Resilience, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Vigor, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Strength, COND_None, REPNOTIFY_Always);
 
 	/*Secondary Attributes OnRep*/
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxMana, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Armor, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, ArmorPenetration, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, BlockChance, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, CriticalHitChance, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, CriticalHitDamage, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, CriticalHitResilience, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, HealthRegeneration, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Intelligence, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Vigor, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxMana, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, ManaRegeneration, COND_None, REPNOTIFY_Always);
 
+	/*Secondary Resistance Attributes OnRep*/
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, FireResistance, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, LightningResistance, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, ArcaneResistance, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, PhysicalResistance, COND_None, REPNOTIFY_Always);
 }
 
 /**
  * PostGameplayEffectExecute runs AFTER a GameplayEffect has modified an attribute.
- * The value is already committed at this point ¡ª this is the authoritative place to:
+ * The value is already committed at this point. This is the authoritative place to:
  *   - Re-clamp attributes (e.g., Health <= MaxHealth)
- *		- to bring all the base value of the attribute down to the clamped range as well
- *		  this fixes the bug where high health + health potion results in health base value
- *		  overflow
  *   - Check for death (Health <= 0)
- *   - Apply secondary effects (e.g., damage numbers, hit reactions)
+ *   - Apply secondary effects (damage text, hit reactions, combat-result UI flags)
  *
  * We extract Source/Target info into FEffectProperties for easy access.
  */
@@ -97,7 +102,7 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
-		UE_LOG(LogTemp, Warning, TEXT("Change of Health on %s, Changed to %f"), *Props.TargetAvatarActor->GetName(), GetHealth());
+		UE_LOG(LogTemp, Warning, TEXT("Change of Health on %s, Changed to %f"), *GetNameSafe(Props.TargetAvatarActor), GetHealth());
 	}
 
 	if (Data.EvaluatedData.Attribute == GetManaAttribute())
@@ -114,6 +119,7 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 	{
 		const float DamageLocalCopy = GetIncomingDamage();
 		SetIncomingDamage(0.f);
+
 		if (DamageLocalCopy > 0.f)
 		{
 			const float NewHealth = GetHealth() - DamageLocalCopy;
@@ -124,15 +130,14 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 			if (bFatal)
 			{
 				ICombatInterface* CombatInterface = Cast<ICombatInterface>(Props.TargetAvatarActor);
-
 				if (CombatInterface)
 				{
-					// Death stays polymorphic: the AttributeSet decides *that* the target died, while
+					// Death stays polymorphic: the AttributeSet decides that the target died, while
 					// the concrete combatant decides how its death sequence should play out.
 					CombatInterface->Die();
 				}
 			}
-			else
+			else if (UAuraAbilitySystemLibrary::ShouldHitReact(Props.GameplayEffectContextHandle))
 			{
 				// Non-fatal damage routes through the shared hit-react tag so movement, animation, and
 				// gameplay abilities can all observe the same temporary combat state.
@@ -141,31 +146,23 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 				Props.TargetASC->TryActivateAbilitiesByTag(Tags);
 			}
 
-			if (Props.SourceCharacter != Props.TargetAvatarActor)
-			{
-				if (AAuraPlayerController* PC = Cast<AAuraPlayerController>(UGameplayStatics::GetPlayerController(Props.SourceCharacter, 0)))
-				{
-					// Damage numbers are cosmetic attacker feedback, so we send them through the
-					// attacking player's controller instead of storing extra UI state on the target.
-					PC->Client_ShowDamageNumber(DamageLocalCopy, Props.TargetCharacter);
-				}
-			}
+			// The ExecCalc writes these booleans onto the custom effect context before outputting
+			// IncomingDamage, so the AttributeSet can forward accurate result styling to the UI.
+			const bool bBlockedHit = UAuraAbilitySystemLibrary::IsBlockedHit(Props.GameplayEffectContextHandle);
+			const bool bCriticalHit = UAuraAbilitySystemLibrary::IsCriticalHit(Props.GameplayEffectContextHandle);
+			ShowFloatingText(Props, DamageLocalCopy, bBlockedHit, bCriticalHit);
 		}
-
-
 	}
-
-
 }
 
 /*
  * Rep Notify Callbacks
- * Called on the CLIENT when the server replicates a new attribute value.
+ * Called on the client when the server replicates a new attribute value.
  * GAMEPLAYATTRIBUTE_REPNOTIFY tells GAS to update its internal state so that
  * GetHealth() returns the replicated value and attribute-change delegates fire.
  */
 
-/* Primary Attributes*/
+/* Vital Attributes */
 void UAuraAttributeSet::OnRep_Health(const FGameplayAttributeData& OldHealth) const
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Health, OldHealth);
@@ -176,8 +173,7 @@ void UAuraAttributeSet::OnRep_Mana(const FGameplayAttributeData& OldMana) const
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Mana, OldMana);
 }
 
-
-/* Primary Attributes*/
+/* Primary Attributes */
 void UAuraAttributeSet::OnRep_Strength(const FGameplayAttributeData& OldStrength) const
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Strength, OldStrength);
@@ -198,7 +194,7 @@ void UAuraAttributeSet::OnRep_Vigor(const FGameplayAttributeData& OldVigor) cons
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, Vigor, OldVigor);
 }
 
-/* Secondary Attributes*/
+/* Secondary Attributes */
 void UAuraAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth) const
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, MaxHealth, OldMaxHealth);
@@ -244,10 +240,58 @@ void UAuraAttributeSet::OnRep_HealthRegeneration(const FGameplayAttributeData& O
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, HealthRegeneration, OldHealthRegeneration);
 }
 
-
 void UAuraAttributeSet::OnRep_ManaRegeneration(const FGameplayAttributeData& OldManaRegeneration) const
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, ManaRegeneration, OldManaRegeneration);
+}
+
+/* Secondary Resistance Attributes */
+void UAuraAttributeSet::OnRep_FireResistance(const FGameplayAttributeData& OldFireResistance) const
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, FireResistance, OldFireResistance);
+}
+
+void UAuraAttributeSet::OnRep_LightningResistance(const FGameplayAttributeData& OldLightningResistance) const
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, LightningResistance, OldLightningResistance);
+}
+
+void UAuraAttributeSet::OnRep_ArcaneResistance(const FGameplayAttributeData& OldArcaneResistance) const
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, ArcaneResistance, OldArcaneResistance);
+}
+
+void UAuraAttributeSet::OnRep_PhysicalResistance(const FGameplayAttributeData& OldPhysicalResistance) const
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UAuraAttributeSet, PhysicalResistance, OldPhysicalResistance);
+}
+
+void UAuraAttributeSet::ShowFloatingText(const FEffectProperties& Props, const float Damage, const bool bBlockedHit, const bool bCriticalHit)
+{
+	if (!Props.SourceAvatarActor || !Props.TargetAvatarActor || Props.SourceAvatarActor == Props.TargetAvatarActor)
+	{
+		return;
+	}
+
+	if (!Props.TargetCharacter )
+	{
+		return;
+	}
+
+	if (AAuraPlayerController* PC = Cast<AAuraPlayerController>(Props.SourceController))
+	{
+		// Damage numbers are cosmetic attacker feedback, so we send them through the
+		// attacking player's controller instead of storing extra UI state on the target.
+		PC->Client_ShowDamageNumber(Damage, Props.TargetCharacter, bBlockedHit, bCriticalHit);
+		return;
+	}
+	if (AAuraPlayerController* PC = Cast<AAuraPlayerController>(Props.TargetController))
+	{
+		// Damage numbers are cosmetic attacker feedback, so we send them through the
+		// attacking player's controller instead of storing extra UI state on the target.
+		PC->Client_ShowDamageNumber(Damage, Props.TargetCharacter, bBlockedHit, bCriticalHit);
+	}
+
 }
 
 /**
@@ -255,7 +299,7 @@ void UAuraAttributeSet::OnRep_ManaRegeneration(const FGameplayAttributeData& Old
  *
  * The Data parameter contains everything about the effect that just executed.
  * We walk the chain:
- *   EffectSpec ¡ú Context ¡ú OriginalInstigator ASC ¡ú AbilityActorInfo ¡ú AvatarActor/Controller/Character
+ *   EffectSpec -> Context -> OriginalInstigator ASC -> AbilityActorInfo -> AvatarActor/Controller/Character
  *
  * Source = who applied the effect (e.g., the enemy that dealt damage)
  * Target = who received the effect (e.g., the player taking damage)
@@ -264,21 +308,24 @@ void UAuraAttributeSet::OnRep_ManaRegeneration(const FGameplayAttributeData& Old
  */
 void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData& Data, FEffectProperties& Props)
 {
-	// Source: the actor that caused/instigated this effect
+	// Source: the actor that caused/instigated this effect.
 	Props.GameplayEffectContextHandle = Data.EffectSpec.GetContext();
 	Props.SourceASC = Props.GameplayEffectContextHandle.GetOriginalInstigatorAbilitySystemComponent();
 	if (Props.SourceASC)
 	{
-		auto& AIF = Props.SourceASC->AbilityActorInfo;
-		if (AIF.IsValid() && AIF->AvatarActor.IsValid())
+		const TSharedPtr<FGameplayAbilityActorInfo>& SourceActorInfo = Props.SourceASC->AbilityActorInfo;
+		if (SourceActorInfo.IsValid() && SourceActorInfo->AvatarActor.IsValid())
 		{
-			Props.SourceAvatarActor = AIF->AvatarActor.Get();
-			Props.SourceController = AIF->PlayerController.Get();
+			Props.SourceAvatarActor = SourceActorInfo->AvatarActor.Get();
+			Props.SourceController = SourceActorInfo->PlayerController.Get();
 
-			// If no PlayerController (e.g., AI-controlled pawn), fall back to GetController()
-			if (Props.SourceController == nullptr  && Props.SourceAvatarActor != nullptr)
+			// If no PlayerController exists (for example, AI-controlled pawns), fall back to the pawn controller.
+			if (!Props.SourceController)
 			{
-				Props.SourceController = (Cast<APawn>(Props.SourceAvatarActor))->GetController();
+				if (APawn* SourcePawn = Cast<APawn>(Props.SourceAvatarActor))
+				{
+					Props.SourceController = SourcePawn->GetController();
+				}
 			}
 		}
 
@@ -286,14 +333,14 @@ void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData
 		{
 			Props.SourceCharacter = Cast<ACharacter>(Props.SourceController->GetPawn());
 		}
+	}
 
-		// Target: the actor that received this effect (Data.Target is the target's ASC)
-		if (Data.Target.AbilityActorInfo.IsValid()  && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
-		{
-			Props.TargetAvatarActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
-			Props.TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-			Props.TargetCharacter = Cast<ACharacter>(Props.TargetAvatarActor);
-			Props.TargetASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
-		}
+	// Target: the actor that received this effect (Data.Target is the target's ASC).
+	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
+	{
+		Props.TargetAvatarActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
+		Props.TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
+		Props.TargetCharacter = Cast<ACharacter>(Props.TargetAvatarActor);
+		Props.TargetASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 	}
 }

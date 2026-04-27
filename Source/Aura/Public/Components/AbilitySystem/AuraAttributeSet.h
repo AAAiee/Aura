@@ -10,10 +10,10 @@
 /**
  * ATTRIBUTE_ACCESSORS is a convenience macro provided by GAS.
  * For each attribute (e.g. Health), it generates four helper functions:
- *   - GetHealthAttribute()  ！ returns the FGameplayAttribute handle (used to bind delegates)
- *   - GetHealth()           ！ returns the current float value
- *   - SetHealth(float)      ！ sets the value directly (server-only, skips clamping)
- *   - InitHealth(float)     ！ sets the base AND current value (used in constructors)
+ *   - GetHealthAttribute()  - returns the FGameplayAttribute handle (used to bind delegates)
+ *   - GetHealth()           - returns the current float value
+ *   - SetHealth(float)      - sets the value directly (server-only, skips clamping)
+ *   - InitHealth(float)     - sets the base AND current value (used in constructors)
  */
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
@@ -34,16 +34,16 @@ struct FEffectProperties
 
 	FEffectProperties() = default;
 
-	/*Target ！ the actor receiving the effect*/
+	/*Target - the actor receiving the effect*/
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> TargetASC;
 
-	/*Source ！ the actor that caused/applied the effect*/
+	/*Source - the actor that caused/applied the effect*/
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> SourceASC;
 
 	UPROPERTY()
-    TObjectPtr<AActor> SourceAvatarActor; 
+	TObjectPtr<AActor> SourceAvatarActor;
 
 	UPROPERTY()
 	TObjectPtr<AActor> TargetAvatarActor;
@@ -61,7 +61,7 @@ struct FEffectProperties
 	TObjectPtr<ACharacter> TargetCharacter;
 
 	UPROPERTY()
-    FGameplayEffectContextHandle  GameplayEffectContextHandle;
+	FGameplayEffectContextHandle GameplayEffectContextHandle;
 };
 
 
@@ -69,9 +69,9 @@ struct FEffectProperties
  * Defines the gameplay attributes (Health, Mana, etc.) for Aura characters.
  *
  * Key GAS lifecycle callbacks used here:
- *   - PreAttributeChange  ！ clamp values BEFORE they are applied (preview only, can be overridden)
- *   - PostGameplayEffectExecute ！ runs AFTER an effect modifies an attribute (final, authoritative)
- *   - OnRep_<Attribute>   ！ client-side replication callback, keeps client in sync with server
+ *   - PreAttributeChange - clamp values BEFORE they are applied (preview only, can be overridden)
+ *   - PostGameplayEffectExecute - runs AFTER an effect modifies an attribute (final, authoritative)
+ *   - OnRep_<Attribute> - client-side replication callback, keeps client in sync with server
  *
  * Replication: each attribute uses REPNOTIFY_Always so the client is notified even if the
  * new value equals the old value (important for UI refresh on respawn/reset).
@@ -84,18 +84,18 @@ class AURA_API UAuraAttributeSet : public UAttributeSet
 public:
 	UAuraAttributeSet();
 
-	/*Attribute Accessors ！ generated getters, setters, and initializers for each attribute*/
-	/*Vital Attributes*/
+	/* Attribute Accessors */
+	// Generated helpers for vital attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Health);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Mana); 
 
-	/*Primary Attributes*/
+	// Generated helpers for primary attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Strength); 
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Intelligence); 
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Resilience); 
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Vigor); 
 
-	/*Secondary Attributes*/
+	// Generated helpers for secondary attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Armor);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, ArmorPenetration);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, BlockChance);
@@ -106,16 +106,23 @@ public:
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, ManaRegeneration);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxHealth); 
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxMana); 
+
+	// Generated helpers for resistance attributes.
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, FireResistance);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, LightningResistance);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, ArcaneResistance);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, PhysicalResistance);
+
+	// Generated helpers for transient meta attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, IncomingDamage);
 
-
-public:
+	/* UAttributeSet Overrides */
 	/**
 	 * Called before an attribute value is changed. Use this to clamp incoming values.
-	 * NOTE: This only clamps the "proposed" value ！ if a GE overrides the attribute,
+	 * NOTE: This only clamps the "proposed" value - if a GE overrides the attribute,
 	 * you must re-clamp in PostGameplayEffectExecute as well.
 	 */
-	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue);
+	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 
 	/** Registers all attributes for replication. Required for any replicated UPROPERTY in an AttributeSet. */
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
@@ -123,19 +130,18 @@ public:
 	 * Called after a GameplayEffect has been executed and the attribute value has been committed.
 	 * This is the authoritative place to react to attribute changes (e.g., death check, final clamping).
 	 */
-	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data);
+	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data) override;
 
 private:
-	/*Rep Notify Callbacks ！ called on the client when the server replicates a new value*/
-
-	/*Vital Attributes*/
+	/* Replication Callbacks */
+	// Vital attributes.
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldHealth) const;
 
 	UFUNCTION()
 	void OnRep_Mana(const FGameplayAttributeData& OldMana) const;
 
-	/*Primary Attributes*/ 
+	// Primary attributes.
 	UFUNCTION()
 	void OnRep_Strength(const FGameplayAttributeData& OldStrength) const;
 
@@ -148,7 +154,7 @@ private:
 	UFUNCTION()
 	void OnRep_Vigor(const FGameplayAttributeData& OldVigor) const;
 
-	/*Secondary Attributes*/
+	// Secondary attributes.
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth) const;
 
@@ -179,12 +185,29 @@ private:
 	UFUNCTION()
 	void OnRep_ManaRegeneration(const FGameplayAttributeData& OldManaRegeneration) const;
 
-private:
+	// Resistance attributes.
+	UFUNCTION()
+	void OnRep_FireResistance(const FGameplayAttributeData& OldFireResistance) const;
+
+	UFUNCTION()
+	void OnRep_LightningResistance(const FGameplayAttributeData& OldLightningResistance) const;
+
+	UFUNCTION()
+	void OnRep_ArcaneResistance(const FGameplayAttributeData& OldArcaneResistance) const;
+
+	UFUNCTION()
+	void OnRep_PhysicalResistance(const FGameplayAttributeData& OldPhysicalResistance) const;
+
+	// Damage text is local UI feedback, but the result flags come from server-authored effect context.
+	void ShowFloatingText(const FEffectProperties& Props, float Damage, bool bBlockedHit = false, bool bCriticalHit = false);
+
+	/* Internal Helpers */
 	/** Extracts Source/Target actor info from a GE execution into an FEffectProperties struct. */
 	void SetEffectProperties(const FGameplayEffectModCallbackData& Data, FEffectProperties& Props);
 
 public:
-	/*Vital Attributes ！ replicated with REPNOTIFY_Always so the client UI always refreshes*/
+	/* Vital Attributes */
+	// Replicated with REPNOTIFY_Always so the client UI always refreshes.
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Vital Attributes")
 	FGameplayAttributeData Health;
 
@@ -192,13 +215,13 @@ public:
 	FGameplayAttributeData Mana;
 
 
-	/*Meta Attributes*/
+	/* Meta Attributes */
 	// Meta attribute written by the damage ExecCalc and consumed immediately in PostGameplayEffectExecute.
 	UPROPERTY(BlueprintReadOnly, Category = "Meta Attributes")
 	FGameplayAttributeData IncomingDamage;
 
-
-	/*Primary Attributes - Replicated with REPNOTIFY_Always*/
+	/* Primary Attributes */
+	// Replicated with REPNOTIFY_Always so client-side delegates always receive refreshes.
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Strength, Category = "Primary Attributes" )
 	FGameplayAttributeData Strength;
 
@@ -211,11 +234,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Vigor, Category = "Primary Attributes")
 	FGameplayAttributeData Vigor;
 
-	/**
-	* Secondary Attributes - Replicated with REPNOTIFY_Always
-	* Secondary attributes are derived from primary attributes (e.g. Health = Strength * 10), so they need to be replicated with REPNOTIFY_Always to ensure the client receives updates even if the value doesn't change (e.g. due to clamping or a GE override).
-	*/
-	
+	/* Secondary Attributes */
+	// Derived combat stats also use REPNOTIFY_Always so UI refresh stays deterministic after clamping.
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Secondary Attributes")
 	FGameplayAttributeData MaxHealth;
 
@@ -246,5 +266,17 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ManaRegeneration, Category = "Secondary Attributes")
 	FGameplayAttributeData ManaRegeneration;
 
+	/* Resistance Attributes */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_FireResistance, Category = "Secondary Attributes")
+	FGameplayAttributeData FireResistance;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LightningResistance, Category = "Secondary Attributes")
+	FGameplayAttributeData LightningResistance;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ArcaneResistance, Category = "Secondary Attributes")
+	FGameplayAttributeData ArcaneResistance;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PhysicalResistance, Category = "Secondary Attributes")
+	FGameplayAttributeData PhysicalResistance;
 };
 

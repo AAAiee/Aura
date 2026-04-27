@@ -1,17 +1,9 @@
-﻿// @Copyright HaolunYuan
-
+// @Copyright HaolunYuan
 
 #include "Interaction/CombatInterface.h"
 
-// Add default functionality here for any ICombatInterface functions that are not pure virtual.
-
 int32 ICombatInterface::GetPlayerLevel() const
 {
-
+	// Default zero keeps lightweight test actors safe if they opt into the interface incrementally.
 	return 0;
-}
-
-FVector ICombatInterface::GetCombatSocketLocation() const
-{
-	return FVector::ZeroVector;
 }

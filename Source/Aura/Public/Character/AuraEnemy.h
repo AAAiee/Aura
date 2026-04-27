@@ -4,74 +4,78 @@
 
 #include "CoreMinimal.h"
 #include "Character/AuraCharacterBase.h"
-#include "Interaction//Highlightable.h"
+#include "Interaction/Highlightable.h"
 #include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "GameplayTagContainer.h"
+#include "Interaction/EnemyInterface.h"
 #include "AuraEnemy.generated.h"
 
 class UActorStatusWidgetComponent;
+class UBehaviorTree;
+class AAuraAIController;
 
 /**
  * Base class for AI-controlled enemies in Aura.
  *
- * ASC Ownership: Unlike the player character, the enemy OWNS its own ASC and AttributeSet
- * directly (created in the constructor). There is no PlayerState involved because enemies
- * are AI-controlled and don't need to persist attributes across respawns.
- *
- * Replication Mode: Minimal — enemies don't need GE prediction (no local player controls them).
- *
- * Implements IHighlightable so the player's cursor trace can highlight/unhighlight enemies
- * via Custom Depth rendering (post-process outline effect).
+ * Unlike the player character, enemies own their ASC and AttributeSet directly because they do
+ * not rely on PlayerState persistence. They also use Minimal replication because no local player
+ * ever predicts their Gameplay Effects.
  */
 UCLASS()
-class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable
+class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable, public IEnemyInterface
 {
 	GENERATED_BODY()
 
 public:
 	AAuraEnemy();
 
-	/* IHighlightable Interface — toggles Custom Depth for post-process outline*/
+	/* IHighlightable */
+	// Toggles Custom Depth on the mesh (and weapon, when present) for the post-process outline.
 	virtual void HighLightActor() override;
 	virtual void UnhighLightActor() override;
-	/* ends IHighlightable Interface*/
 
-	/* ICombatInterface*/
+	/* ICombatInterface */
 	FORCEINLINE virtual int32 GetPlayerLevel() const override { return EnemyLevel; }
-	/* ends ICombatInterface*/
-
-	// Enemy death keeps the actor alive for a short window so ragdoll + dissolve can finish.
 	virtual void Die() override final;
 
+	/* APawn / AActor */
+	virtual void PossessedBy(AController* NewController) override;
+
+	/* IEnemyInterface */
+	virtual void SetCombatTarget_Implementation(AActor* InCombatTarget) override;
+	virtual AActor* GetCombatTarget_Implementation() const override;
+
 protected:
+	/* AActor Overrides */
 	virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
 
-	/** Enemy owns ASC directly, so Owner=this, Avatar=this. */
+	/* Ability System Setup */
+	/** Enemy owns ASC directly, so Owner=this and Avatar=this. */
 	virtual void InitAbilityActorInfo() override;
-
-
 	virtual void InitDefaultAttributes() override;
 
-
 private:
+	/* Internal Helpers */
 	void InitializeStatusWidget();
 
 	// Watches the replicated Combat.HitReact tag count so movement can mirror the current stagger state.
 	void OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewCount);
 
-
+private:
+	/* Highlight State */
 	/** Tracks highlight state to avoid redundant Custom Depth toggles. */
 	bool bIsHighlighted = false;
 
+	/* Combat State */
 	// Delay before the dead enemy is destroyed, giving the death visuals time to play out.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta=  (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = true))
 	float LifeSpan = 5.0f;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	int32 EnemyLevel;
 
-	// Exposed for animation / Blueprint logic that wants to know whether a hit react is active.
+	// Exposed for animation and Blueprint logic that wants to know whether a hit react is active.
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	bool bHitReacting = false;
 
@@ -79,10 +83,22 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	float BaseSpeed = 250.f;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
+	// Current combat target exposed to AI and Blueprint combat logic through IEnemyInterface.
+	UPROPERTY(BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
+	TObjectPtr<AActor> CombatTarget;
+
+	/* Class Data */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
 
+	/* UI */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UActorStatusWidgetComponent> HealthBarComponent;
 
+	/* AI */
+	UPROPERTY(EditAnywhere, Category = AI)
+	TObjectPtr<UBehaviorTree> BehaviourTree;
+
+	UPROPERTY()
+	TObjectPtr<AAuraAIController> AuraAIController;
 };

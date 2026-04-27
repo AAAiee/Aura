@@ -9,6 +9,11 @@
  * Put project-wide constants and macros here so every file can access them via #include "Aura/Aura.h".
  */
 
-/** Stencil value used with Custom Depth to render a red outline (post-process highlight). */
+/** Stencil value used with Custom Depth to render a red outline for highlightable targets. */
 #define CUSTOM_DEPTH_RED 250
+
+/** Collision channel reserved for Aura projectile actors and traces. */
 #define ECC_Projectile ECollisionChannel::ECC_GameTraceChannel1
+
+/** Object channel assigned to enemy capsules for gameplay-specific filtering. */
+#define ECC_EnemyCollision ECollisionChannel::ECC_GameTraceChannel2
