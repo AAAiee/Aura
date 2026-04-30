@@ -3,12 +3,13 @@
 #include "Character/AuraCharacterBase.h"
 
 #include "AbilitySystemComponent.h"
-#include "GameplayEffect.h"
 #include "Aura/Aura.h"
 #include "AuraGameTagManager.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 AAuraCharacterBase::AAuraCharacterBase()
@@ -46,7 +47,7 @@ FVector AAuraCharacterBase::GetCombatSocketLocation_Implementation(const FGamepl
 	const FName* SocketName = MontageTagToSocketLocation.Find(MontageTag);
 	check(SocketName);
 
-	if (MontageTag.MatchesTagExact(FAuraGameTagManager::Get().Montage_Attack_Weapon))
+	if (MontageTag.MatchesTagExact(FAuraGameTagManager::Get().CombatSocket_Weapon))
 	{
 		check(Weapon);
 		return Weapon->GetSocketLocation(*SocketName);
@@ -70,6 +71,20 @@ AActor* AAuraCharacterBase::GetAvatar_Implementation()
 	return this;
 }
 
+FTaggedMontage AAuraCharacterBase::GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const
+{
+	for (const FTaggedMontage& TaggedMontage : AttackMontages)
+	{
+		if (TaggedMontage.MontageTag.MatchesTagExact(MontageTag))
+		{
+			return TaggedMontage;
+		}
+	}
+
+	checkf(false, TEXT("No tagged montage found for tag: %s"), *MontageTag.ToString());
+	return FTaggedMontage();
+}
+
 void AAuraCharacterBase::Die()
 {
 	// The authority-side entry point detaches the weapon first so the death presentation is no
@@ -89,6 +104,9 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 	 *   3. Disable the capsule so gameplay collision no longer treats the actor as alive.
 	 *   4. Start the dissolve presentation used by the death cleanup flow.
 	 */
+
+	UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation(), GetActorRotation());
+
 	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
 	Weapon->DetachFromComponent(DetachmentRules);
 
@@ -101,7 +119,9 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	GetMesh()->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// Keep the capsule blocking world static for attached client UI while ignoring gameplay collision.
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	Dissolve();
 
 	bDead = true;
@@ -134,9 +154,10 @@ void AAuraCharacterBase::BeginPlay()
 
 	// Combat socket selection stays data-driven through montage tags so melee traces and projectile
 	// casts can share the same authored montage metadata.
-	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_LeftHand, LeftHandTipSocketName);
-	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_RightHand, RightHandTipSocketName);
-	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().Montage_Attack_Weapon, WeaponTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().CombatSocket_Weapon, WeaponTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().CombatSocket_RightHand, RightHandTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().CombatSocket_LeftHand, LeftHandTipSocketName);
+	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().CombatSocket_TailTip, TailTipSocketName);
 }
 
 void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const

@@ -1,16 +1,15 @@
 // @Copyright HaolunYuan
 
-
 #include "Components/AbilitySystem/Ability/AuraProjectileSpell.h"
+
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Effect/AuraProjectile.h"
 #include "GameFramework/Pawn.h"
 #include "Interaction/CombatInterface.h"
 #include "ObjectPoolSubsystem.h"
-#include "AuraGameTagManager.h"
 
-void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation)
+void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation, const FGameplayTag& CombatSocket)
 {
 	/*
 	 * Projectile spawn flow:
@@ -43,14 +42,13 @@ void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocati
 
 	// CombatInterface abstracts "where should projectiles originate?" so both player and enemy
 	// casters can reuse the same spawn logic without hard-coding socket lookups here.
-	const FVector SocketLocation = ICombatInterface::Execute_GetCombatSocketLocation(AvatarActor, FAuraGameTagManager::Get().Montage_Attack_Weapon);
+	const FVector SocketLocation = ICombatInterface::Execute_GetCombatSocketLocation(AvatarActor, CombatSocket);
 	const FVector AvatarPosition = AvatarActor->GetActorLocation();
 	FRotator TargetRotation = (ProjectileTargetLocation - AvatarPosition).Rotation();
 
 	FTransform SpawnTransform;
 	SpawnTransform.SetLocation(SocketLocation);
-	TargetRotation.Pitch = 0.0;
-	SpawnTransform.SetRotation(TargetRotation.Quaternion()); 
+	SpawnTransform.SetRotation(TargetRotation.Quaternion());
 
 	AAuraProjectile* Projectile = PoolSubsystem->GetPooledActorTyped<AAuraProjectile>(
 		ProjectileClass,
@@ -82,12 +80,9 @@ void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocati
 	Projectile->SetOwner(AvatarActor);
 	Projectile->SetInstigator(Cast<APawn>(AvatarActor));
 	Projectile->LaunchInDirection(SpawnTransform.GetRotation().GetForwardVector());
-
 }
 
 void UAuraProjectileSpell::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-
 }

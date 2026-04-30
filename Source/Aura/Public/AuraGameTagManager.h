@@ -139,11 +139,21 @@ public:
 	DECLARE_GAMETAG_CUSTOM(DamageType, Arcane)
 	DECLARE_GAMETAG_CUSTOM(DamageType, Physical)
 
-	/* Ability And Montage Tags */
-	DECLARE_GAMETAG_CUSTOM(Ability, MeleeAttack)
-	DECLARE_GAMETAG_CUSTOM(Montage, Attack_Weapon)
-	DECLARE_GAMETAG_CUSTOM(Montage, Attack_LeftHand)
-	DECLARE_GAMETAG_CUSTOM(Montage, Attack_RightHand)
+	/* Ability Tags */
+	DECLARE_GAMETAG_CUSTOM(Ability, Attack)
+	DECLARE_GAMETAG_CUSTOM(Ability, Summon)
+
+	/* Combat Socket Tags */
+	DECLARE_GAMETAG_CUSTOM(CombatSocket, Weapon)
+	DECLARE_GAMETAG_CUSTOM(CombatSocket, LeftHand)
+	DECLARE_GAMETAG_CUSTOM(CombatSocket, RightHand)
+	DECLARE_GAMETAG_CUSTOM(CombatSocket, TailTip)
+
+	/* Attack Montage Tags */
+	DECLARE_GAMETAG_CUSTOM(Montage, Attack_1)
+	DECLARE_GAMETAG_CUSTOM(Montage, Attack_2)
+	DECLARE_GAMETAG_CUSTOM(Montage, Attack_3)
+	DECLARE_GAMETAG_CUSTOM(Montage, Attack_4)
 
 	// Central lookup that keeps typed damage extensible without hard-coding a switch per ability.
 	TMap<FGameplayTag, FGameplayTag> DamageTypesToResistance;

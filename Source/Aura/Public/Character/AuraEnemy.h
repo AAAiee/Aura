@@ -8,6 +8,7 @@
 #include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "GameplayTagContainer.h"
 #include "Interaction/EnemyInterface.h"
+#include "Interaction/Summonable.h"
 #include "AuraEnemy.generated.h"
 
 class UActorStatusWidgetComponent;
@@ -22,7 +23,7 @@ class AAuraAIController;
  * ever predicts their Gameplay Effects.
  */
 UCLASS()
-class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable, public IEnemyInterface
+class AURA_API AAuraEnemy : public AAuraCharacterBase, public IHighlightable, public IEnemyInterface, public ISummonable
 {
 	GENERATED_BODY()
 
@@ -44,6 +45,10 @@ public:
 	/* IEnemyInterface */
 	virtual void SetCombatTarget_Implementation(AActor* InCombatTarget) override;
 	virtual AActor* GetCombatTarget_Implementation() const override;
+
+	/* ISummonable */
+	// Provides the vertical placement offset used when this enemy is spawned as a summon.
+	virtual float GetZOffset() const override;
 
 protected:
 	/* AActor Overrides */
@@ -80,7 +85,7 @@ private:
 	bool bHitReacting = false;
 
 	// Cached "alive" walk speed so hit react can temporarily stop movement and then restore it.
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	float BaseSpeed = 250.f;
 
 	// Current combat target exposed to AI and Blueprint combat logic through IEnemyInterface.

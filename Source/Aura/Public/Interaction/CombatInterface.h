@@ -8,7 +8,12 @@
 #include "CombatInterface.generated.h"
 
 class UAnimMontage;
+class UNiagaraSystem;
+class USoundBase;
 
+/**
+ * Data-driven attack entry shared by melee, projectile, and summon-facing combat code.
+ */
 USTRUCT(BlueprintType)
 struct FTaggedMontage
 {
@@ -21,9 +26,17 @@ struct FTaggedMontage
 	/** Tag that identifies which combat socket this montage should use. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag MontageTag;
+
+	/** Tag that identifies the combat socket used by the selected montage. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FGameplayTag SocketTag;
+
+	/** Optional one-shot impact sound associated with this montage entry. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TObjectPtr<USoundBase> ImpactSound = nullptr;
 };
 
-// This class does not need to be modified.
+// Reflection shell for the Blueprint-visible combat interface.
 UINTERFACE(MinimalAPI, BlueprintType)
 class UCombatInterface : public UInterface
 {
@@ -71,5 +84,20 @@ public:
 
 	/* Attack Presentation */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	TArray<FTaggedMontage> GetTaggedMontages() const;
+	TArray<FTaggedMontage> GetAttackMontages() const;
+
+	// Cosmetic effect used when combat code needs target blood feedback without knowing the class.
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	UNiagaraSystem* GetBloodEffect() const;
+
+	// Looks up the authored attack entry for a specific montage tag.
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	FTaggedMontage GetTaggedMontageForTag(const FGameplayTag& MontageTag) const;
+
+	// Tracks summoned minions owned by this combatant so summon abilities can enforce limits.
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	int32 GetMinionCount() const;
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void IncrementMinionCount(int32 IncrementBy);
 };

@@ -85,6 +85,10 @@ void AAuraEnemy::Die()
 	// Lifespan cleanup is intentionally delayed so remote clients can still see the ragdoll and
 	// dissolve sequence kicked off by the shared base-character death flow.
 	SetLifeSpan(LifeSpan);
+
+	// Mirror death into the blackboard so active behavior-tree tasks stop treating this pawn as alive.
+	AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("Dead"), true);
+
 	Super::Die();
 }
 
@@ -121,6 +125,11 @@ AActor* AAuraEnemy::GetCombatTarget_Implementation() const
 {
 	check(CombatTarget);
 	return CombatTarget;
+}
+
+float AAuraEnemy::GetZOffset() const
+{
+	return GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 }
 
 void AAuraEnemy::Tick(float DeltaTime)

@@ -64,17 +64,17 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 {
 	check(GEngine);
 
-	/*Register Vital Attributes' Tag*/
+	/* Vital Attribute Tags */
 	Get().Attribute_Vital_Health = ADD_VITAL_ATTRIBUTE("Health", "Current health of the character");
 	Get().Attribute_Vital_Mana = ADD_VITAL_ATTRIBUTE("Mana", "Current mana of the character, used for casting spells");
 
-	/*Register Primary Attributes' Tag*/
+	/* Primary Attribute Tags */
 	Get().Attribute_Primary_Strength = ADD_PRIMARY_ATTRIBUTE("Strength", "Increases physical damage");
 	Get().Attribute_Primary_Intelligence = ADD_PRIMARY_ATTRIBUTE("Intelligence", "Increases magical damage and max mana");
 	Get().Attribute_Primary_Resilience = ADD_PRIMARY_ATTRIBUTE("Resilience", "Increases Armor and Armor Penetration");
 	Get().Attribute_Primary_Vigor = ADD_PRIMARY_ATTRIBUTE("Vigor", "Increases max health");
 
-	/*Register Secondary Attributes' Tag*/
+	/* Secondary Attribute Tags */
 	Get().Attribute_Secondary_Armor = ADD_SECONDARY_ATTRIBUTE("Armor", "Reduces damage taken, improves Block Chance");
 	Get().Attribute_Secondary_ArmorPenetration = ADD_SECONDARY_ATTRIBUTE("ArmorPenetration", "Ignores percentage of enemy Armor, increases Critical Hit Chance");
 	Get().Attribute_Secondary_BlockChance = ADD_SECONDARY_ATTRIBUTE("BlockChance", "Chance to cut incoming damage in half");
@@ -96,14 +96,14 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Attribute_Secondary_ArcaneDamageResistance = ADD_SECONDARY_ATTRIBUTE("ArcaneResistance", "Reduces incoming arcane damage");
 	Get().Attribute_Secondary_PhysicalDamageResistance = ADD_SECONDARY_ATTRIBUTE("PhysicalResistance", "Reduces incoming physical damage");
 
-	/*Register input tags*/
+	/* Input Tags */
 	Get().Input_AuraSpell1 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell1", "Input for Aura Spell 1");
 	Get().Input_AuraSpell2 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell2", "Input for Aura Spell 2");
 	Get().Input_AuraSpell3 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell3", "Input for Aura Spell 3");
 	Get().Input_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
 	Get().Input_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
 
-	/*Register combat state tags*/
+	/* Combat State Tags */
 	Get().Combat_Damage = ADD_GAMETAG_CUSTOM("Combat.Damage", "Tag for damage dealt in combat");
 	Get().Combat_HitReact = ADD_GAMETAG_CUSTOM("Combat.HitReact", "Tag for hit reaction");
 
@@ -122,12 +122,21 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().DamageTypesToResistance.Add(Get().DamageType_Arcane, Get().Attribute_Secondary_ArcaneDamageResistance);
 	Get().DamageTypesToResistance.Add(Get().DamageType_Physical, Get().Attribute_Secondary_PhysicalDamageResistance);
 
-	Get().Ability_MeleeAttack = ADD_GAMETAG_CUSTOM("Ability.MeleeAttack", "Tag for melee attack");
-	Get().Montage_Attack_Weapon = ADD_GAMETAG_CUSTOM("Montage.Attack_Weapon", "Tag for weapon attack montage");
+	/* Ability Tags */
+	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Attack", "Tag for attack abilities");
+	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
 
-	Get().Montage_Attack_LeftHand = ADD_GAMETAG_CUSTOM("Montage.Attack_LeftHand", "Tag for left hand attack montage");
+	/* Combat Socket Tags */
+	Get().CombatSocket_Weapon = ADD_GAMETAG_CUSTOM("CombatSocket.Weapon", "Tag for identifying combat weapon socket");
+	Get().CombatSocket_LeftHand = ADD_GAMETAG_CUSTOM("CombatSocket.LeftHand", "Tag for identifying left hand combat socket");
+	Get().CombatSocket_RightHand = ADD_GAMETAG_CUSTOM("CombatSocket.RightHand", "Tag for identifying right hand combat socket");
+	Get().CombatSocket_TailTip = ADD_GAMETAG_CUSTOM("CombatSocket.TailTip", "Tag for identifying tail tip combat socket");
 
-	Get().Montage_Attack_RightHand = ADD_GAMETAG_CUSTOM("Montage.Attack_RightHand", "Tag for right hand attack montage");
+	/* Attack Montage Tags */
+	Get().Montage_Attack_1 = ADD_GAMETAG_CUSTOM("Montage.Attack_1", "Tag for attack montage_1");
+	Get().Montage_Attack_2 = ADD_GAMETAG_CUSTOM("Montage.Attack_2", "Tag for attack montage_2");
+	Get().Montage_Attack_3 = ADD_GAMETAG_CUSTOM("Montage.Attack_3", "Tag for attack montage_3");
+	Get().Montage_Attack_4 = ADD_GAMETAG_CUSTOM("Montage.Attack_4", "Tag for attack montage_4");
 
 	Get().bIsValid = true;
 }

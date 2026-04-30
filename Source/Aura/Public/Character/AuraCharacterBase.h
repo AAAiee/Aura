@@ -16,6 +16,8 @@ class UAnimMontage;
 class UMaterialInstance;
 class UMaterialInstanceDynamic;
 class USkeletalMeshComponent;
+class UNiagaraSystem;
+class USoundBase;
 
 /**
  * Abstract base class for all Aura characters (player and enemies).
@@ -52,7 +54,11 @@ public:
 	virtual UAnimMontage* GetHitReactMontage_Implementation() override;
 	virtual bool IsDead_Implementation() const override;
 	virtual AActor* GetAvatar_Implementation() override;
-	virtual TArray<FTaggedMontage> GetTaggedMontages_Implementation() const override { return AttackMontages; }
+	virtual TArray<FTaggedMontage> GetAttackMontages_Implementation() const override { return AttackMontages; }
+	virtual UNiagaraSystem* GetBloodEffect_Implementation() const override { return BloodEffect; }
+	virtual FTaggedMontage GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const override;
+	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; };
+	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override { MinionCount += IncrementBy; }
 	virtual void Die() override;
 
 	/* Death Presentation */
@@ -62,10 +68,8 @@ public:
 	// Replaces authored materials with per-instance dynamics so each dead character can drive its
 	// own dissolve timeline without mutating the shared material asset.
 	void Dissolve();
-
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
-
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartWeaponDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
 
@@ -98,7 +102,7 @@ protected:
 	TMap<FGameplayTag, FName> MontageTagToSocketLocation;
 
 	/** Weapon mesh attached to the character's hand socket. TObjectPtr provides lazy loading & tracking. */
-	UPROPERTY(EditAnywhere, Category = Combat)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat)
 	TObjectPtr<USkeletalMeshComponent> Weapon;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
@@ -109,6 +113,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	FName RightHandTipSocketName;
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	FName TailTipSocketName;
 
 	/* Ability System State */
 	// Created by subclasses, but cached here so shared character code can use the same access path.
@@ -140,7 +147,7 @@ protected:
 
 	/* Animation */
 	// Montage chosen by this character for non-fatal hit-react feedback.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Effect")
 	TObjectPtr<UAnimMontage> HitReactMontage;
 
 	/* Death Presentation Materials */
@@ -153,4 +160,15 @@ protected:
 
 	/* Runtime State */
 	bool bDead = false;
+
+	// Cosmetic effect spawned when combat damage asks this character to show blood feedback.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Effect")
+	TObjectPtr<UNiagaraSystem> BloodEffect;
+
+	// One-shot sound used by the replicated death presentation.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Effect")
+	TObjectPtr<USoundBase> DeathSound;
+
+	// Number of active minions owned by this combatant, exposed through ICombatInterface.
+	int32 MinionCount = 0;
 };

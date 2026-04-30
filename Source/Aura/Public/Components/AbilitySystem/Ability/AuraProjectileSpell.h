@@ -7,6 +7,7 @@
 #include "AuraProjectileSpell.generated.h"
 
 class AAuraProjectile;
+struct FGameplayTag;
 
 /**
  * Base gameplay ability helper for spells that launch pooled Aura projectiles.
@@ -24,8 +25,8 @@ class AURA_API UAuraProjectileSpell : public UAuraDamageGameplayAbility
 public:
 	/* Projectile Casting */
 	// Server-only helper that borrows a projectile from the pool, seeds its damage spec, and launches it.
-	UFUNCTION(BlueprintCallable, Category="Projectile")
-	void SpawnProjectile(const FVector& ProjectileTargetLocation);
+	UFUNCTION(BlueprintCallable, Category = "Projectile")
+	void SpawnProjectile(const FVector& ProjectileTargetLocation, const FGameplayTag& CombatSocket);
 
 protected:
 	/* UGameplayAbility */
