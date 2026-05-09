@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
+#include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "CombatInterface.generated.h"
 
 class UAnimMontage;
@@ -55,7 +56,8 @@ class AURA_API ICombatInterface
 
 public:
 	// Returns the level used by startup ability grants and damage-scaling curves.
-	virtual int32 GetPlayerLevel() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	int32 GetPlayerLevel() const;
 
 	/* Combat Socket Queries */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
@@ -100,4 +102,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void IncrementMinionCount(int32 IncrementBy);
+
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	ECharacterClass GetCharacterClass() const;
+	
 };

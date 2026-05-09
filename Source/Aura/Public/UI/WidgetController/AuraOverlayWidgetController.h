@@ -11,6 +11,8 @@
 
 struct FOnAttributeChangeData;
 class UAuraUserWidget;
+class UAbilityInfo;
+class UAuraAbilitySystemComponent;
 
 /**
  * Data Table row struct for message widgets.
@@ -39,6 +41,8 @@ struct FUIWidgetRow : public FTableRowBase
 
 /*Dynamic Multicast Delegates ¡ª Blueprint widgets bind to these to receive attribute updates*/
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, const FUIWidgetRow&, Row);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAbilityInfoSignature, const FAuraAbilityInfo&, AbilityInfo);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateStatChanged, const float, NewStatValue);
 
 
 /**
@@ -83,25 +87,45 @@ public:
 	virtual void BindAllDependencies() override;
 
 private:
+	void OnInitializeStartupAbilities(UAuraAbilitySystemComponent* AuraASC);
+	void OnXpChanged(const int32 NewXP) const ;
+	void OnLevelChanged(const int32 NewLevel) const;
+
+
 	/*Blueprint-Assignable Delegates ¡ª Blueprint widgets bind to these in WidgetControllerSet*/
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnHealthChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnMaxHealthChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnManaChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnMaxManaChanged;
 
 	/** Fires when a GE with a "Message.*" tag is applied ¡ª Blueprint shows a popup widget. */
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Message", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnMessageWidgetRowSignature OnSendMessageWidgetRow;
 
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
+	FAbilityInfoSignature AbilityInfoDelegate;
+
+	/* this might not be attributes, but they also broadcast a float, that's why it just uses the existing signature*/
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnAttributeChangeSignature OnPlayerXPChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnPlayerStatChangedSignature OnPlayerLevelChanged;
+
 	/** DataTable mapping GameplayTags to message text, widget class, and icon. Set in Blueprint. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Widget Data", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Data", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDataTable> MessageWidgetDataTable;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Data", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAbilityInfo> AbilityInfoDataAsset;
+
+
 
 };

@@ -15,6 +15,7 @@
  * so a native multicast is simpler and faster than a Dynamic (Blueprint-capable) one.
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(OnGatherEffectAssetTag, const FGameplayTagContainer& /*AssetTags*/)
+DECLARE_MULTICAST_DELEGATE_OneParam(FAbilityGiven, UAuraAbilitySystemComponent*)
 
 
 /**
@@ -42,15 +43,29 @@ public:
 	 */
 	void AbilityActorInfoSet();
 	void AddCharacterAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InAbilitiesClasses);
+	void AddCharacterPassiveAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InPassiveAbilitiesClasses);
+
 
 	void AbilityInputTagPressed(FGameplayTag InputTag);
 	void AbilityInputTagReleased(FGameplayTag InputTag);
 	void AbilityInputTagHeld(FGameplayTag InputTag);
 
+	void ForEachAbility(const TFunction<void(const FGameplayAbilitySpec&)>& Predicate);
+
+	static FGameplayTag GetAbilityTagFromSpec(const FGameplayAbilitySpec& Spec);
+	static FGameplayTag GetInputTagFromSpec(const FGameplayAbilitySpec& Spec);
+
+	UFUNCTION(BlueprintCallable)
+	void UpgradeAttribute(const FGameplayTag& AttributeTag);
+
+protected:
+	void virtual OnRep_ActivateAbilities() override;
 
 public:
 	/** Public delegate ¡ª UI layer (OverlayWidgetController) subscribes to this. */
 	OnGatherEffectAssetTag OnGatherEffectAssetTags;
+	FAbilityGiven AbilityGivenDelegate;
+	bool bStartUpAbilitiesGiven = false;
 
 
 private:
@@ -62,4 +77,7 @@ private:
 	UFUNCTION(Client, Reliable)
 	void Client_OnEffectAppliedToSelf(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayEffectSpec& GameEffectSpec, FActiveGameplayEffectHandle ActiveGameEffectHandle);
 
+
+	UFUNCTION(Server, Reliable)
+	void Server_UpgradeAttribute(const FGameplayTag& AttributeTag);
 };

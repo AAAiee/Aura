@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "Interaction/CombatInterface.h"
+#include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "AuraCharacterBase.generated.h"
 
 class UAbilitySystemComponent;
@@ -60,6 +61,8 @@ public:
 	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; };
 	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override { MinionCount += IncrementBy; }
 	virtual void Die() override;
+	virtual ECharacterClass GetCharacterClass_Implementation() const override { return CharacterClass; }
+
 
 	/* Death Presentation */
 	UFUNCTION(NetMulticast, Reliable)
@@ -145,6 +148,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Ability")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilityClasses;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Ability")
+	TArray<TSubclassOf<UGameplayAbility>> StartupPassiveAbilityClasses;
+
 	/* Animation */
 	// Montage chosen by this character for non-fatal hit-react feedback.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Effect")
@@ -171,4 +177,9 @@ protected:
 
 	// Number of active minions owned by this combatant, exposed through ICombatInterface.
 	int32 MinionCount = 0;
+
+	/* Class Data */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
+	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
+
 };

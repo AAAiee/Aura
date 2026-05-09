@@ -5,9 +5,11 @@
 #include "CoreMinimal.h"
 #include "UI/WidgetController/AuraWidgetController.h"
 #include "Components/AbilitySystem/Data/AttributeDataAsset.h"
+#include "ControllerDelegates.h"
 #include "AttributeMenuWidgetController.generated.h"
 
 struct FAuraAttributeTagMetadatas;
+struct FGameplayTag;
 
 /**
  * Broadcasts one row update to the Attribute Menu UI.
@@ -40,13 +42,19 @@ public:
 	/** Subscribes to ASC attribute-value-change delegates for live UI updates. */
 	virtual void BindAllDependencies() override;
 
+	UFUNCTION(BlueprintCallable)
+	void UpgradeAttribute(const FGameplayTag& AttributeTag);
+
 private:
 	/** Helper used by both initial push and live updates to avoid duplicate logic. */
 	void BroadcastAttributeDataEntry(const FAuraAttributeTagMetadatas& AttributeTagInfo);
 
 	/** Blueprint binds to this to update each row in the attribute menu. */
-	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeMenuChangeSignature OnAttributeMenuChange;
+
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnPlayerStatChangedSignature OnAttributePointsChanged;
 
 	/**
 	 * DataAsset listing all attributes shown in the menu.

@@ -12,6 +12,8 @@
 #include "Interaction/Highlightable.h"
 #include "UI/HUD/AuraHUD.h"
 #include "UI/WidgetComponent/DamageWidgetComponent.h"
+#include "Character/AuraCharacter.h"
+#include "GameFramework/SpringArmComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
 {
@@ -64,6 +66,29 @@ void AAuraPlayerController::BeginPlay()
 
 	InitializeInputContext();
 	InitializeMouseCursorMode();
+
+
+	if (AAuraCharacter* AuraCharacter = Cast<AAuraCharacter>(GetPawn()))
+	{
+		USpringArmComponent* SpringArm = AuraCharacter->FindComponentByClass<USpringArmComponent>();
+		if (!SpringArm) return;
+
+		const float CameraPitch = -40.f;
+		const float SpawnYaw = AuraCharacter->GetActorRotation().Yaw;
+
+		const FRotator CameraRot(CameraPitch, SpawnYaw, 0.f);
+
+		SetControlRotation(CameraRot);
+
+		SpringArm->bUsePawnControlRotation = false;
+		SpringArm->bInheritPitch = false;
+		SpringArm->bInheritYaw = false;
+		SpringArm->bInheritRoll = false;
+
+		SpringArm->SetUsingAbsoluteRotation(true);
+		SpringArm->SetWorldRotation(CameraRot);
+	}
+
 }
 
 void AAuraPlayerController::PlayerTick(float DeltaTime)
@@ -87,6 +112,13 @@ void AAuraPlayerController::SetupInputComponent()
 
 	check(InputConfigs);
 	AuraEnhancedInputComponent->BindAbilityActions(InputConfigs, this, &AAuraPlayerController::AbilityInputTagPressed, &AAuraPlayerController::AbilityInputTagReleased, &AAuraPlayerController::AbilityInputTagHeld);
+}
+
+
+void AAuraPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
 }
 
 void AAuraPlayerController::InitializeInputContext() const

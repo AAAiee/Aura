@@ -4,6 +4,10 @@
 #include "UI/WidgetController/AuraOverlayWidgetController.h"
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/Data/AbilityInfo.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/AuraPlayerState.h"
+#include "Components/AbilitySystem/Data/LevelUpInfo.h"
 
 /**
  * Pushes current attribute values to the UI so widgets display correct data on startup.
@@ -68,24 +72,86 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 		}
 	);
 
-	// Pathway 2: GE applied ¡ú extract asset tags ¡ú filter "Message.*" ¡ú DataTable lookup ¡ú UI
-	Cast<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent)->OnGatherEffectAssetTags.AddLambda(
-		[this](const FGameplayTagContainer& TagContainer)
+	UAuraAbilitySystemComponent* AuraASC = Cast<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent);
+
+	if (AuraASC)
+	{
+		// Startup abilities may be given before or after the widget controller initializes, depending on the character blueprint setup. Handle both cases:
+		if (AuraASC->bStartUpAbilitiesGiven)
 		{
-			for (const FGameplayTag& Tag : TagContainer)
+			this->OnInitializeStartupAbilities(AuraASC);
+		}
+		else
+		{
+			AuraASC->AbilityGivenDelegate.AddUObject(this, &UAuraOverlayWidgetController::OnInitializeStartupAbilities);
+		}
+
+		// Pathway 2: GE applied ¡ú extract asset tags ¡ú filter "Message.*" ¡ú DataTable lookup ¡ú UI
+		AuraASC->OnGatherEffectAssetTags.AddLambda(
+			[this](const FGameplayTagContainer& TagContainer)
 			{
-				// MatchesTag checks if Tag is a child of "Message" (e.g., "Message.HealthPotion")
-				FGameplayTag MessageTag = FGameplayTag::RequestGameplayTag(FName("Message"));
-				if (Tag.MatchesTag(MessageTag))
+				for (const FGameplayTag& Tag : TagContainer)
 				{
-					const FUIWidgetRow* Row = GetDataTableRowFromTag<FUIWidgetRow>(this->MessageWidgetDataTable, Tag);
-					if (Row)
+					// MatchesTag checks if Tag is a child of "Message" (e.g., "Message.HealthPotion")
+					FGameplayTag MessageTag = FGameplayTag::RequestGameplayTag(FName("Message"));
+					if (Tag.MatchesTag(MessageTag))
 					{
-						OnSendMessageWidgetRow.Broadcast(*Row);
+						const FUIWidgetRow* Row = GetDataTableRowFromTag<FUIWidgetRow>(this->MessageWidgetDataTable, Tag);
+						if (Row)
+						{
+							OnSendMessageWidgetRow.Broadcast(*Row);
+						}
 					}
 				}
 			}
-		}
-	);
+		);
+	}
+
+	if (AAuraPlayerState* AuraPlayerState = Cast<AAuraPlayerState>(CachedPlayerState))
+	{
+		AuraPlayerState->OnXPChanged.AddUObject(this, &UAuraOverlayWidgetController::OnXpChanged);
+		AuraPlayerState->OnLevelChanged.AddUObject(this, &UAuraOverlayWidgetController::OnLevelChanged);
+	}
 }
 
+void UAuraOverlayWidgetController::OnInitializeStartupAbilities(UAuraAbilitySystemComponent* AuraASC)
+{
+	auto Lambda = [this](const FGameplayAbilitySpec& Spec)
+		{
+			FAuraAbilityInfo* AbilityInfo = AbilityInfoDataAsset->FindAbilityInfoByTag(UAuraAbilitySystemComponent::GetAbilityTagFromSpec(Spec));
+			AbilityInfo->InputTag = UAuraAbilitySystemComponent::GetInputTagFromSpec(Spec);
+			AbilityInfoDelegate.Broadcast(*AbilityInfo);
+		}; 
+
+	AuraASC->ForEachAbility(Lambda); 
+}
+
+void UAuraOverlayWidgetController::OnXpChanged(const int32 NewXP) const 
+{
+	const AAuraPlayerState* AuraPlayerState = Cast<AAuraPlayerState>(CachedPlayerState);
+	ULevelUpInfo* LevelUpInfoInstance = AuraPlayerState->LevelUpInfo;
+	check(LevelUpInfoInstance);
+	const TArray<FAuraLevelUpInfo>& LevelUpInfoArray = LevelUpInfoInstance->LevelUpInfos;
+
+	const float CurrentLevel = LevelUpInfoInstance->FindLevelForXP(NewXP);
+	const FAuraLevelUpInfo CurrentLevelData = LevelUpInfoArray[CurrentLevel];
+
+	const int32 MaxLevel = LevelUpInfoArray.Num() - 1;
+
+	float BarPercentage = 0.f; 
+	if (CurrentLevel <= MaxLevel && CurrentLevel > 0)
+	{
+		const int32 RequiredXpToLevelUp = CurrentLevelData.LevelUpRequirement;
+		const int32 PreviousRequiredXPToThisLevel = LevelUpInfoArray[CurrentLevel - 1].LevelUpRequirement; 
+
+		const int32 LevelGap = RequiredXpToLevelUp - PreviousRequiredXPToThisLevel;
+		BarPercentage = (NewXP - PreviousRequiredXPToThisLevel) / static_cast<float>(LevelGap);
+		OnPlayerXPChanged.Broadcast(BarPercentage);
+	}
+}
+
+void UAuraOverlayWidgetController::OnLevelChanged(const int32 NewLevel) const 
+{
+
+	OnPlayerLevelChanged.Broadcast(NewLevel); 
+}

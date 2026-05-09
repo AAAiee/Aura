@@ -115,13 +115,15 @@ public:
 	DECLARE_SECONDARY_GAME_TAG(LightningDamageResistance)
 	DECLARE_SECONDARY_GAME_TAG(ArcaneDamageResistance)
 	DECLARE_SECONDARY_GAME_TAG(PhysicalDamageResistance)
+	DECLARE_GAMETAG_CUSTOM(Attributes, Meta_XP)
 
 	/* Input Tags */
-	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell1)
-	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell2)
-	DECLARE_GAMETAG_CUSTOM(Input, AuraSpell3)
-	DECLARE_GAMETAG_CUSTOM(Input, AuraPrimaryClick)
-	DECLARE_GAMETAG_CUSTOM(Input, AuraSecondaryClick)
+	DECLARE_GAMETAG_CUSTOM(InputTag, 1)
+	DECLARE_GAMETAG_CUSTOM(InputTag, 2)
+	DECLARE_GAMETAG_CUSTOM(InputTag, 3)
+	DECLARE_GAMETAG_CUSTOM(InputTag, 4)
+	DECLARE_GAMETAG_CUSTOM(InputTag, AuraPrimaryClick)
+	DECLARE_GAMETAG_CUSTOM(InputTag, AuraSecondaryClick)
 
 	/* Combat State Tags */
 	// Combat tags bridge authored GE data to runtime combat logic such as ExecCalcs and hit-react abilities.
@@ -142,6 +144,9 @@ public:
 	/* Ability Tags */
 	DECLARE_GAMETAG_CUSTOM(Ability, Attack)
 	DECLARE_GAMETAG_CUSTOM(Ability, Summon)
+
+	DECLARE_GAMETAG_CUSTOM(Ability, FireBolt)
+	DECLARE_GAMETAG_CUSTOM(Cooldown,FireBolt)
 
 	/* Combat Socket Tags */
 	DECLARE_GAMETAG_CUSTOM(CombatSocket, Weapon)

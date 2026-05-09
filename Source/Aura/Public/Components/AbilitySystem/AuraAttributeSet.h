@@ -115,6 +115,7 @@ public:
 
 	// Generated helpers for transient meta attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, IncomingDamage);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, InComingXPReward);
 
 	/* UAttributeSet Overrides */
 	/**
@@ -131,6 +132,8 @@ public:
 	 * This is the authoritative place to react to attribute changes (e.g., death check, final clamping).
 	 */
 	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data) override;
+
+	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue);
 
 private:
 	/* Replication Callbacks */
@@ -204,6 +207,9 @@ private:
 	/* Internal Helpers */
 	/** Extracts Source/Target actor info from a GE execution into an FEffectProperties struct. */
 	void SetEffectProperties(const FGameplayEffectModCallbackData& Data, FEffectProperties& Props);
+private:
+
+	void SendXPEvent(const FEffectProperties& Props);
 
 public:
 	/* Vital Attributes */
@@ -214,11 +220,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Mana, Category = "Vital Attributes")
 	FGameplayAttributeData Mana;
 
+	bool bTopOffHealth = false;
+	bool bTopoffMana = false;
+
 
 	/* Meta Attributes */
 	// Meta attribute written by the damage ExecCalc and consumed immediately in PostGameplayEffectExecute.
 	UPROPERTY(BlueprintReadOnly, Category = "Meta Attributes")
 	FGameplayAttributeData IncomingDamage;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Meta Attributes")
+	FGameplayAttributeData InComingXPReward;
+
 
 	/* Primary Attributes */
 	// Replicated with REPNOTIFY_Always so client-side delegates always receive refreshes.

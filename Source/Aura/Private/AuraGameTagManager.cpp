@@ -97,11 +97,12 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Attribute_Secondary_PhysicalDamageResistance = ADD_SECONDARY_ATTRIBUTE("PhysicalResistance", "Reduces incoming physical damage");
 
 	/* Input Tags */
-	Get().Input_AuraSpell1 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell1", "Input for Aura Spell 1");
-	Get().Input_AuraSpell2 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell2", "Input for Aura Spell 2");
-	Get().Input_AuraSpell3 = ADD_GAMETAG_CUSTOM("InputTag.AuraSpell3", "Input for Aura Spell 3");
-	Get().Input_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
-	Get().Input_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
+	Get().InputTag_1 = ADD_GAMETAG_CUSTOM("InputTag.1", "Input for input key 1");
+	Get().InputTag_2 = ADD_GAMETAG_CUSTOM("InputTag.2", "Input for input key 2");
+	Get().InputTag_3 = ADD_GAMETAG_CUSTOM("InputTag.3", "Input for input key 3");
+	Get().InputTag_4 = ADD_GAMETAG_CUSTOM("InputTag.4", "Input for input key 4");
+	Get().InputTag_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
+	Get().InputTag_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
 
 	/* Combat State Tags */
 	Get().Combat_Damage = ADD_GAMETAG_CUSTOM("Combat.Damage", "Tag for damage dealt in combat");
@@ -121,10 +122,15 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().DamageTypesToResistance.Add(Get().DamageType_Lightning, Get().Attribute_Secondary_LightningDamageResistance);
 	Get().DamageTypesToResistance.Add(Get().DamageType_Arcane, Get().Attribute_Secondary_ArcaneDamageResistance);
 	Get().DamageTypesToResistance.Add(Get().DamageType_Physical, Get().Attribute_Secondary_PhysicalDamageResistance);
+	Get().Attributes_Meta_XP= ADD_GAMETAG_CUSTOM("Attributes.Meta.XP", "Tag for meta XP attribute");
 
 	/* Ability Tags */
 	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Attack", "Tag for attack abilities");
-	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
+	Get().Ability_Summon = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
+	Get().Ability_FireBolt = ADD_GAMETAG_CUSTOM("Ability.FireBolt", "Tag for fire bolt ability");
+
+	/*Cooldown*/
+	Get().Cooldown_FireBolt = ADD_GAMETAG_CUSTOM("Cooldown.FireBolt", "Tag for fire bolt cooldown");
 
 	/* Combat Socket Tags */
 	Get().CombatSocket_Weapon = ADD_GAMETAG_CUSTOM("CombatSocket.Weapon", "Tag for identifying combat weapon socket");

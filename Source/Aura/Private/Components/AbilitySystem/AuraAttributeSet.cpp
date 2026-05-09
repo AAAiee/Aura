@@ -10,6 +10,9 @@
 #include "Interaction/CombatInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/AuraPlayerController.h"
+#include "AuraLogCategory.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "Interaction/PlayerInterface.h"
 
 /**
  * Constructor - use Init<Attribute>() to set both the Base and Current value.
@@ -136,6 +139,8 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 					// the concrete combatant decides how its death sequence should play out.
 					CombatInterface->Die();
 				}
+
+				SendXPEvent(Props); 
 			}
 			else if (UAuraAbilitySystemLibrary::ShouldHitReact(Props.GameplayEffectContextHandle))
 			{
@@ -152,6 +157,60 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 			const bool bCriticalHit = UAuraAbilitySystemLibrary::IsCriticalHit(Props.GameplayEffectContextHandle);
 			ShowFloatingText(Props, DamageLocalCopy, bBlockedHit, bCriticalHit);
 		}
+	}
+
+	if (Data.EvaluatedData.Attribute == GetInComingXPRewardAttribute())
+	{
+		const float LocalIncomingXPRewardCopy = GetInComingXPReward();
+		SetInComingXPReward(0);
+
+		//TODO::See If we shoud level up
+		if (Props.SourceCharacter && Props.SourceCharacter->Implements<UPlayerInterface>())
+		{
+
+			const int32 CurrentPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(Props.SourceCharacter); 
+			const int32 CurrentXP = IPlayerInterface::Execute_GetXP(Props.SourceCharacter);
+			const int32 PLayerLevel_Updated = IPlayerInterface::Execute_FindLevelForXP(Props.SourceCharacter, CurrentXP + LocalIncomingXPRewardCopy);
+			const int32 NumLevelsUp = PLayerLevel_Updated - CurrentPlayerLevel;
+			if (NumLevelsUp > 0)
+			{
+				const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, PLayerLevel_Updated);
+				const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, PLayerLevel_Updated);	
+
+
+				IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp); 
+				IPlayerInterface::Execute_AddToAttributePoint(Props.SourceCharacter, AttributePointsReward);
+				IPlayerInterface::Execute_AddToSpellPoint(Props.SourceCharacter, SpellPointsReward);
+				
+
+				/*Can't just topup the max health and mana here, level just changed + max health/mana depends on it*/
+				bTopOffHealth = true;
+				bTopoffMana = true;
+
+				IPlayerInterface::Execute_LevelUp(Props.SourceCharacter);
+			}
+			IPlayerInterface::Execute_AddToXP(Props.SourceCharacter, LocalIncomingXPRewardCopy);
+		}
+
+	}
+
+}
+
+
+void UAuraAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
+{
+	Super::PostAttributeChange(Attribute, OldValue, NewValue);
+
+	if (Attribute == GetMaxHealthAttribute() && bTopOffHealth)
+	{
+		SetHealth(GetMaxHealth());
+		bTopOffHealth = false;
+	}
+
+	if (Attribute == GetMaxManaAttribute() && bTopoffMana)
+	{
+		SetMana(GetMaxMana());
+		bTopoffMana = false; 
 	}
 }
 
@@ -343,4 +402,24 @@ void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData
 		Props.TargetCharacter = Cast<ACharacter>(Props.TargetAvatarActor);
 		Props.TargetASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 	}
+}
+
+void UAuraAttributeSet::SendXPEvent(const FEffectProperties& Props)
+{
+	if (Props.TargetCharacter->Implements<UCombatInterface>())
+	{
+		const int32 TargetLevel = ICombatInterface::Execute_GetPlayerLevel(Props.TargetCharacter);
+		const ECharacterClass TargetClass = ICombatInterface::Execute_GetCharacterClass(Props.TargetCharacter); 
+		const int32 XPReward = UAuraAbilitySystemLibrary::GetXPRewardForClassAndLevel(Props.TargetCharacter,TargetClass, TargetLevel);	
+			
+
+		const FAuraGameTagManager& AuraGameplayTags = FAuraGameTagManager::Get();
+		FGameplayEventData PayLoad;
+		PayLoad.EventTag = AuraGameplayTags.Attributes_Meta_XP;
+		PayLoad.EventMagnitude = XPReward; 
+
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Props.SourceCharacter, AuraGameplayTags.Attributes_Meta_XP, PayLoad);
+	}
+ 
+
 }

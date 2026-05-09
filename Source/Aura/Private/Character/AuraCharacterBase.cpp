@@ -40,6 +40,7 @@ void AAuraCharacterBase::AddStartupGameAbilities()
 
 	UAuraAbilitySystemComponent* ASC = CastChecked<UAuraAbilitySystemComponent>(GetAbilitySystemComponent());
 	ASC->AddCharacterAbilities(StartupAbilityClasses);
+	ASC->AddCharacterPassiveAbilities(StartupPassiveAbilityClasses); 
 }
 
 FVector AAuraCharacterBase::GetCombatSocketLocation_Implementation(const FGameplayTag& MontageTag) const

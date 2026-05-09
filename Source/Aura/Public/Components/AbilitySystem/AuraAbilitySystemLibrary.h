@@ -91,4 +91,9 @@ public:
 	// Lightweight team check used by projectiles and AoE utilities to ignore friendly targets.
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category ="AuraAbilitySystem|GameplayUtilities")
 	static bool  IsNotFriend(AActor* FirstActor, AActor* SecondActor);
+
+
+
+	/*XP*/
+	static int32 GetXPRewardForClassAndLevel(const UObject* WorldContextObject, ECharacterClass CharacterClass, int32 CharacterLevel);
 };

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Character/AuraCharacterBase.h"
 #include "Interaction/Highlightable.h"
-#include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "GameplayTagContainer.h"
 #include "Interaction/EnemyInterface.h"
 #include "Interaction/Summonable.h"
@@ -36,7 +35,7 @@ public:
 	virtual void UnhighLightActor() override;
 
 	/* ICombatInterface */
-	FORCEINLINE virtual int32 GetPlayerLevel() const override { return EnemyLevel; }
+	FORCEINLINE virtual int32 GetPlayerLevel_Implementation() const override { return EnemyLevel; }
 	virtual void Die() override final;
 
 	/* APawn / AActor */
@@ -91,10 +90,6 @@ private:
 	// Current combat target exposed to AI and Blueprint combat logic through IEnemyInterface.
 	UPROPERTY(BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
 	TObjectPtr<AActor> CombatTarget;
-
-	/* Class Data */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
-	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
 
 	/* UI */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = true))

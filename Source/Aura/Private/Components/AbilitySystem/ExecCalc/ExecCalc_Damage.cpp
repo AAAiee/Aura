@@ -100,14 +100,21 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 	const UAbilitySystemComponent* TargetAbilityComponent = ExecutionParams.GetTargetAbilitySystemComponent();
 	const UAbilitySystemComponent* SourceAbilityComponent = ExecutionParams.GetSourceAbilitySystemComponent();
 
-	const AActor* SourceAvatar = SourceAbilityComponent ? SourceAbilityComponent->GetAvatarActor() : nullptr;
-	const AActor* TargetAvatar = TargetAbilityComponent ? TargetAbilityComponent->GetAvatarActor() : nullptr;
+	AActor* SourceAvatar = SourceAbilityComponent ? SourceAbilityComponent->GetAvatarActor() : nullptr;
+	AActor* TargetAvatar = TargetAbilityComponent ? TargetAbilityComponent->GetAvatarActor() : nullptr;
 
-	const ICombatInterface* SourceCombatInterface = Cast<ICombatInterface>(SourceAvatar);
-	const ICombatInterface* TargetCombatInterface = Cast<ICombatInterface>(TargetAvatar);
-	if (!ensureMsgf(SourceCombatInterface && TargetCombatInterface, TEXT("ExecCalc_Damage requires source and target avatars to implement ICombatInterface.")))
+
+	int32 SourcePlayerLevel = 1;
+	if (SourceAvatar && SourceAvatar->Implements<UCombatInterface>())
 	{
-		return;
+		SourcePlayerLevel = ICombatInterface::Execute_GetPlayerLevel(SourceAvatar);
+
+	}
+
+	int32 TargetPlayerLevel = 1; 
+	if (TargetAvatar && TargetAvatar->Implements<UCombatInterface>())
+	{
+		TargetPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(TargetAvatar);
 	}
 
 	const UCharacterClassInfo* ClassInfo = UAuraAbilitySystemLibrary::GetCharacterClassInfo(SourceAvatar);
@@ -169,7 +176,7 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// constants directly into the execution logic.
 	const FRealCurve* CriticalHitResilienceCurve = ClassInfo->DefaultCalculationCoeffcient->FindCurve("CriticalHitResilience", FString());
 	check(CriticalHitResilienceCurve);
-	const float CriticalHitResilienceScalingFactor = CriticalHitResilienceCurve->Eval(TargetCombatInterface->GetPlayerLevel());
+	const float CriticalHitResilienceScalingFactor = CriticalHitResilienceCurve->Eval(TargetPlayerLevel);
 
 	const float AdjustedCriticalHitChance = SourceCriticalHitChance - TargetCriticalHitResilience * CriticalHitResilienceScalingFactor;
 	const bool bCriticalHit = FMath::FRandRange(1.0f, 100.f) < AdjustedCriticalHitChance;
@@ -194,11 +201,11 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	const FRealCurve* ArmorPenetrationCurve = ClassInfo->DefaultCalculationCoeffcient->FindCurve("ArmorPenetration", FString());
 	check(ArmorPenetrationCurve);
-	const float ArmorPenetrationScalingValue = ArmorPenetrationCurve->Eval(SourceCombatInterface->GetPlayerLevel());
+	const float ArmorPenetrationScalingValue = ArmorPenetrationCurve->Eval(SourcePlayerLevel);
 
 	const FRealCurve* ArmorCurve = ClassInfo->DefaultCalculationCoeffcient->FindCurve("EffectiveArmor", FString());
 	check(ArmorCurve);
-	const float ArmorScalingValue = ArmorCurve->Eval(TargetCombatInterface->GetPlayerLevel());
+	const float ArmorScalingValue = ArmorCurve->Eval(TargetPlayerLevel);
 
 	// Armor is intentionally the last mitigation layer: elemental resistance answers "what kind of
 	// damage was this?", while armor answers "how well did the defender absorb the remaining hit?".

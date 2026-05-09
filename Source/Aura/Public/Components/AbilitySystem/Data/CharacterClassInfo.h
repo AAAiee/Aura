@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "ScalableFloat.h"
 #include "CharacterClassInfo.generated.h"
 
 class UGameplayEffect;
@@ -37,6 +38,9 @@ struct FCharacterClassDefaultInfo
 	// Start up abilities that are granted to every combatant of this class archetype. These are in addition to the shared startup abilities on the data asset itself.
 	UPROPERTY(EditDefaultsOnly, Category  = "Class Defaults")
 	TArray<TSubclassOf<UGameplayAbility>> ClassUniqueAbilities;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Class Defaults")
+	FScalableFloat XPReward = FScalableFloat(); 
 };
 
 
