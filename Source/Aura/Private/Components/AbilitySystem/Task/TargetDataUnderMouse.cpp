@@ -2,13 +2,13 @@
 
 
 #include "Components/AbilitySystem/Task/TargetDataUnderMouse.h"
+
 #include "AbilitySystemComponent.h"
+#include "GameFramework/PlayerController.h"
 
 UTargetDataUnderMouse* UTargetDataUnderMouse::GetTargetDataUnderMouse(UGameplayAbility* OwningAbility)
 {
-	UTargetDataUnderMouse* MyObj = NewAbilityTask<UTargetDataUnderMouse>(OwningAbility); 
-	return MyObj;
-
+	return NewAbilityTask<UTargetDataUnderMouse>(OwningAbility);
 }
 
 void UTargetDataUnderMouse::Activate()
@@ -37,18 +37,17 @@ void UTargetDataUnderMouse::Activate()
 	else
 	{
 		// Remote path: the server waits for the owning client to send its predicted cursor hit.
-		const FGameplayAbilitySpecHandle SpecHandle = GetAbilitySpecHandle() ;
+		const FGameplayAbilitySpecHandle SpecHandle = GetAbilitySpecHandle();
 		const FPredictionKey PredictionKey = GetActivationPredictionKey();
 		AbilitySystemComponent.Get()->AbilityTargetDataSetDelegate(SpecHandle, PredictionKey).AddUObject(this, &UTargetDataUnderMouse::OnTargetDataReplicatedCallback);
 
-		const bool bCalledReplicated = AbilitySystemComponent.Get()->CallReplicatedTargetDataDelegatesIfSet(SpecHandle, PredictionKey); 
+		const bool bCalledReplicated = AbilitySystemComponent.Get()->CallReplicatedTargetDataDelegatesIfSet(SpecHandle, PredictionKey);
 
 		if (!bCalledReplicated)
 		{
 			SetWaitingOnRemotePlayerData();
 		}
 	}
-
 }
 
 void UTargetDataUnderMouse::SendMouseCursorData()
@@ -65,14 +64,14 @@ void UTargetDataUnderMouse::SendMouseCursorData()
 	FHitResult CursorHitResult;
 	PC->GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
 
-	FGameplayAbilityTargetData_SingleTargetHit* Data =  new FGameplayAbilityTargetData_SingleTargetHit();
+	FGameplayAbilityTargetData_SingleTargetHit* Data = new FGameplayAbilityTargetData_SingleTargetHit();
 	Data->HitResult = CursorHitResult;
 	FGameplayAbilityTargetDataHandle DataHandle;
-	DataHandle.Add(Data); 
+	DataHandle.Add(Data);
 
 	// The spec handle + prediction key pair is what lets the server match this cursor hit to the
 	// exact ability activation that requested it.
-	AbilitySystemComponent->ServerSetReplicatedTargetData(GetAbilitySpecHandle(),GetActivationPredictionKey(), DataHandle,FGameplayTag(), AbilitySystemComponent->ScopedPredictionKey);
+	AbilitySystemComponent->ServerSetReplicatedTargetData(GetAbilitySpecHandle(), GetActivationPredictionKey(), DataHandle, FGameplayTag(), AbilitySystemComponent->ScopedPredictionKey);
 
 	if (ShouldBroadcastAbilityTaskDelegates())
 	{

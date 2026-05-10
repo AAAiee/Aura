@@ -14,7 +14,6 @@ class AURA_API UDamageWidgetComponent : public UWidgetComponent
 {
 	GENERATED_BODY()
 
-
 public:
 	// Blueprint owns presentation variants; C++ passes the resolved combat result for styling.
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)

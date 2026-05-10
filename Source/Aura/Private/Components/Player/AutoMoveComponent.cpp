@@ -1,5 +1,7 @@
 // @Copyright HaolunYuan
+
 #include "Components/Player/AutoMoveComponent.h"
+
 #include "Components/SplineComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "NavigationPath.h"
@@ -7,12 +9,12 @@
 
 UAutoMoveComponent::UAutoMoveComponent()
 {
-	// Enable ticking but default it to disabled until auto-move starts
+	// Ticking is enabled only while a spline path is actively being followed.
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
-	
+
 	SetIsReplicatedByDefault(true);
-	
+
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("AutoMoveSpline"));
 }
 
@@ -24,18 +26,17 @@ void UAutoMoveComponent::RequestToMoveToLocation(const FVector& InTargetPosition
 		return;
 	}
 
-	// Incrementing the move request ID helps us discard outdated responses/commands
+	// Incrementing the move request ID lets both sides discard stale network responses.
 	const int32 MoveRequestId = ++LatestMoveRequestId;
 	bHasPendingPathRequest = true;
 
-	// If calculating locally, we are either autonomous or server, so if we aren't the server, ask the server
+	// Clients request the path from the server so navigation remains authoritative.
 	if (!Owner->HasAuthority())
 	{
 		Server_RequestMoveToLocation(FVector_NetQuantize(InTargetPosition), MoveRequestId);
 		return;
 	}
 
-	// If we are the server, calculate it now
 	BuildAndSendPathToClient(InTargetPosition, MoveRequestId);
 }
 
@@ -47,7 +48,7 @@ void UAutoMoveComponent::MoveDirectlyToLocation(const FVector& InTargetPosition)
 		return;
 	}
 
-	// Any manual input cancels an existing auto-move
+	// Direct movement is player intent, so it cancels any queued or active click-to-move path.
 	if (bIsAutoMoving || bHasPendingPathRequest)
 	{
 		RequestCancelAutoMove();
@@ -100,7 +101,7 @@ void UAutoMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 APawn* UAutoMoveComponent::GetOwnerPawn()
 {
-	// Handle cases where the component may live on either the pawn or the controller
+	// This component can live on either the pawn or controller depending on the Blueprint setup.
 	if (APawn* PawnOwner = Cast<APawn>(GetOwner()))
 	{
 		return PawnOwner;
@@ -123,7 +124,7 @@ void UAutoMoveComponent::BuildAndSendPathToClient(const FVector& InTargetPositio
 		return;
 	}
 
-	// The server asks the navigation system for a path synchronously
+	// The server asks the navigation system for a path synchronously.
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 	if (!NavSys)
 	{
@@ -138,7 +139,7 @@ void UAutoMoveComponent::BuildAndSendPathToClient(const FVector& InTargetPositio
 		return;
 	}
 
-	// NetQuantize truncates precision slightly to save network bandwidth
+	// NetQuantize trims precision slightly to reduce path replication bandwidth.
 	TArray<FVector_NetQuantize> NetPoints;
 	NetPoints.Reserve(NavPath->PathPoints.Num());
 
@@ -152,7 +153,7 @@ void UAutoMoveComponent::BuildAndSendPathToClient(const FVector& InTargetPositio
 
 void UAutoMoveComponent::Server_RequestMoveToLocation_Implementation(const FVector_NetQuantize InTargetPosition, const int32 MoveRequestId)
 {
-	// Discard out-of-order responses from the network using standard monotonically increasing IDs
+	// Discard out-of-order responses from the network using monotonically increasing IDs.
 	if (MoveRequestId <= LatestMoveRequestId)
 	{
 		return;
@@ -213,7 +214,7 @@ void UAutoMoveComponent::StartFollowingPath(const TArray<FVector_NetQuantize>& I
 
 	SplineComponent->ClearSplinePoints(false);
 
-	// Convert navigation points to spline segments
+	// Convert navigation points to spline segments.
 	for (const FVector_NetQuantize& Point : InPathPoints)
 	{
 		SplineComponent->AddSplinePoint(FVector(Point), ESplineCoordinateSpace::World, false);
@@ -224,7 +225,7 @@ void UAutoMoveComponent::StartFollowingPath(const TArray<FVector_NetQuantize>& I
 	CachedDestination = FVector(InPathPoints.Last());
 	bIsAutoMoving = true;
 
-	// Turn ticking on so the FollowSpline logic runs frame-by-frame
+	// Turn ticking on so FollowSpline can advance movement frame by frame.
 	SetComponentTickEnabled(true);
 }
 
@@ -238,7 +239,7 @@ void UAutoMoveComponent::StopAutoMove()
 		SplineComponent->ClearSplinePoints();
 	}
 
-	// Disable ticking entirely when idle as an optimization
+	// Disable ticking entirely when idle as an optimization.
 	SetComponentTickEnabled(false);
 }
 
@@ -253,17 +254,17 @@ void UAutoMoveComponent::FollowSpline()
 
 	const FVector PawnLocation = OwnerPawn->GetActorLocation();
 
-	// Finding the mathematically closest point and direction ensures robust recovery if Pawn gets bumped offtrack
+	// Closest-point recovery keeps the pawn moving even if collision nudges it off the spline.
 	const FVector LocationOnSpline = SplineComponent->FindLocationClosestToWorldLocation(PawnLocation, ESplineCoordinateSpace::World);
 	const FVector Direction = SplineComponent->FindDirectionClosestToWorldLocation(PawnLocation, ESplineCoordinateSpace::World).GetSafeNormal2D();
 
-	// Use standard movement input framework allowing the Pawn's character component to do the math (e.g., collisions/acceleration)
+	// Standard movement input lets the pawn's movement component handle acceleration and collision.
 	if (!Direction.IsNearlyZero())
 	{
 		OwnerPawn->AddMovementInput(Direction, 1.f);
 	}
 
-	// Compute proximity ignoring Z height
+	// Compute proximity ignoring Z height.
 	const float DistanceToDestination = FVector::Dist2D(LocationOnSpline, CachedDestination);
 	if (DistanceToDestination <= AcceptanceRadius)
 	{

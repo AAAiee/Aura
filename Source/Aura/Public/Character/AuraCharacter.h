@@ -7,10 +7,9 @@
 #include "Interaction/PlayerInterface.h"
 #include "AuraCharacter.generated.h"
 
-class UNiagaraComponent;
 class UCameraComponent;
+class UNiagaraComponent;
 class USpringArmComponent;
-
 
 /**
  * The player-controlled character in Aura.
@@ -21,7 +20,7 @@ class USpringArmComponent;
  *   - Multiple pawns can share the same ASC if the player changes characters.
  *
  * Initialization flow (ORDER MATTERS):
- *   1. PossessedBy / OnRep_PlayerState ¡ú InitAbilityActorInfo()
+ *   1. PossessedBy / OnRep_PlayerState -> InitAbilityActorInfo()
  *   2. InitAbilityActorInfo() caches ASC/AS from PlayerState
  *   3. HUD creates the Overlay Widget and its Controller, which subscribes to ASC delegates
  *   4. AbilityActorInfoSet() binds the ASC's OnGameplayEffectApplied delegate
@@ -33,7 +32,7 @@ class AURA_API AAuraCharacter : public AAuraCharacterBase, public IPlayerInterfa
 	GENERATED_BODY()
 
 public:
-	AAuraCharacter(); 
+	AAuraCharacter();
 
 	/** Called on the SERVER when this pawn is possessed. Initializes ASC for the server. */
 	virtual void PossessedBy(AController* NewController) override;
@@ -41,11 +40,10 @@ public:
 	/** Called on the CLIENT when PlayerState replicates. Initializes ASC for the client. */
 	virtual void OnRep_PlayerState() override;
 
-	/*ICombatInterface*/
+	/* ICombatInterface */
 	virtual int32 GetPlayerLevel_Implementation() const override;
-	/*ends ICombatInterface*/
 
-	/*Player Interface*/
+	/* IPlayerInterface */
 	virtual int32 GetXP_Implementation() const override;
 	virtual int32 GetAttributePointsReward_Implementation(int32 Level) const override;
 	virtual int32 GetSpellPointsReward_Implementation(int32 Level) const override;
@@ -58,8 +56,6 @@ public:
 	virtual int32 FindLevelForXP_Implementation(int32 InXP) const override;
 	virtual void LevelUp_Implementation() override;
 
-
-
 protected:
 	/**
 	 * Wires up ASC, AttributeSet, HUD, and ASC delegates.
@@ -67,15 +63,14 @@ protected:
 	 */
 	virtual void InitAbilityActorInfo() override;
 
-
-	UPROPERTY(VisibleAnywhere) 
+	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UNiagaraComponent> LevelUpNiagaraComponent;
 
-	UPROPERTY(VisibleAnywhere) 
+	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCameraComponent> TopDownCameraComponent;
 
-	UPROPERTY(VisibleAnywhere) 
-	TObjectPtr<USpringArmComponent>  CameraBoom;
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USpringArmComponent> CameraBoom;
 
 private:
 	UFUNCTION(NetMulticast, Reliable)

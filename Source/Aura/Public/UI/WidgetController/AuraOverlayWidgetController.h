@@ -3,15 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/WidgetController/AuraWidgetController.h"
 #include "ControllerDelegates.h"
+#include "Components/AbilitySystem/Data/AbilityInfo.h"
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
+#include "UI/WidgetController/AuraWidgetController.h"
 #include "AuraOverlayWidgetController.generated.h"
 
-struct FOnAttributeChangeData;
 class UAuraUserWidget;
-class UAbilityInfo;
 class UAuraAbilitySystemComponent;
 
 /**
@@ -25,28 +24,28 @@ struct FUIWidgetRow : public FTableRowBase
 	GENERATED_BODY()
 
 	/** Tag that identifies this message (must be a child of "Message" tag). */
-	UPROPERTY(EditAnywhere,  BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTag MessageTag = FGameplayTag();
 
-	UPROPERTY(EditAnywhere,  BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Message = FText();
 
 	/** Optional: a specific widget class to display for this message. */
-	UPROPERTY(EditAnywhere,  BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UAuraUserWidget> MessageWidgetClass = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UTexture2D* Image = nullptr;
 };
 
-/*Dynamic Multicast Delegates ¡ª Blueprint widgets bind to these to receive attribute updates*/
+/* Dynamic multicast delegates that Blueprint widgets bind to for overlay updates. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, const FUIWidgetRow&, Row);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAbilityInfoSignature, const FAuraAbilityInfo&, AbilityInfo);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateStatChanged, const float, NewStatValue);
 
 
 /**
- * Helper template ¡ª looks up a DataTable row by GameplayTag name.
+ * Helper template - looks up a DataTable row by GameplayTag name.
  * Returns nullptr if the tag has no matching row (always null-check the result!).
  */
 template<typename T>
@@ -62,11 +61,11 @@ T* GetDataTableRowFromTag(const UDataTable* DataTable, const FGameplayTag& Tag)
  * Two data pathways:
  *
  *   1. Attribute Changes (Health, Mana):
- *      ASC attribute change delegate ¡ú C++ callback ¡ú Dynamic delegate ¡ú Blueprint widget
+ *      ASC attribute change delegate -> C++ callback -> Dynamic delegate -> Blueprint widget
  *
  *   2. Effect Messages (e.g., "Health Potion Collected"):
- *      GE applied ¡ú ASC fires OnGatherEffectAssetTags ¡ú lambda filters for "Message.*" tags
- *      ¡ú DataTable lookup ¡ú OnSendMessageWidgetRow ¡ú Blueprint widget
+ *      GE applied -> ASC fires OnGatherEffectAssetTags -> lambda filters for "Message.*" tags
+ *      -> DataTable lookup -> OnSendMessageWidgetRow -> Blueprint widget
  *
  * BlueprintType + Blueprintable: can be subclassed in Blueprint for additional customization.
  */
@@ -88,11 +87,10 @@ public:
 
 private:
 	void OnInitializeStartupAbilities(UAuraAbilitySystemComponent* AuraASC);
-	void OnXpChanged(const int32 NewXP) const ;
+	void OnXpChanged(const int32 NewXP) const;
 	void OnLevelChanged(const int32 NewLevel) const;
 
-
-	/*Blueprint-Assignable Delegates ¡ª Blueprint widgets bind to these in WidgetControllerSet*/
+	/* Blueprint-assignable delegates: Blueprint widgets bind to these in WidgetControllerSet. */
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnHealthChanged;
 
@@ -105,14 +103,14 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnMaxManaChanged;
 
-	/** Fires when a GE with a "Message.*" tag is applied ¡ª Blueprint shows a popup widget. */
+	/** Fires when a GE with a "Message.*" tag is applied - Blueprint shows a popup widget. */
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnMessageWidgetRowSignature OnSendMessageWidgetRow;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FAbilityInfoSignature AbilityInfoDelegate;
 
-	/* this might not be attributes, but they also broadcast a float, that's why it just uses the existing signature*/
+	// XP is not a GAS attribute, but the overlay only needs the same float broadcast shape.
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnPlayerXPChanged;
 
@@ -120,12 +118,9 @@ private:
 	FOnPlayerStatChangedSignature OnPlayerLevelChanged;
 
 	/** DataTable mapping GameplayTags to message text, widget class, and icon. Set in Blueprint. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Data", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDataTable> MessageWidgetDataTable;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Data", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAbilityInfo> AbilityInfoDataAsset;
-
-
-
 };

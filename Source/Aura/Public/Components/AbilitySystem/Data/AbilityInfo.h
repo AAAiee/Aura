@@ -22,28 +22,25 @@ struct FAuraAbilityInfo
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag CooldownTag;
 
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TObjectPtr<const UTexture2D> IconImage;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	TObjectPtr<const UMaterialInterface>  BackgroundImage;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	TObjectPtr<const UMaterialInterface> BackgroundImage;
 };
 
 /**
- * 
+ * Data asset that maps ability tags to UI presentation and input/cooldown metadata.
  */
 UCLASS()
 class AURA_API UAbilityInfo : public UDataAsset
 {
 	GENERATED_BODY()
 
-	
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FAuraAbilityInfo> AbilitiesInfo;
 
-	FAuraAbilityInfo* FindAbilityInfoByTag(const FGameplayTag& InAbilityTag, bool LogOnNotFound=false);
-	
+	FAuraAbilityInfo* FindAbilityInfoByTag(const FGameplayTag& InAbilityTag, bool LogOnNotFound = false);
+
 };

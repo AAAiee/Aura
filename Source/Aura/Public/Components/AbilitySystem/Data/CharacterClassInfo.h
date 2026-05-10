@@ -7,15 +7,15 @@
 #include "ScalableFloat.h"
 #include "CharacterClassInfo.generated.h"
 
-class UGameplayEffect;
+class UCurveTable;
 class UGameplayAbility;
-
+class UGameplayEffect;
 
 UENUM(BlueprintType)
 enum class ECharacterClass : uint8
 {
 	ECC_Elementalist UMETA(DisplayName = "Elementalist"),
-	ECC_Warrior UMETA(DisplayName = "Warrior"), 
+	ECC_Warrior UMETA(DisplayName = "Warrior"),
 	ECC_Ranger UMETA(DisplayName = "Ranger")
 };
 
@@ -33,14 +33,14 @@ struct FCharacterClassDefaultInfo
 
 	// Primary attributes are class-specific (for example, warriors and rangers scale differently).
 	UPROPERTY(EditDefaultsOnly, Category = "Class Defaults")
-	TSubclassOf<UGameplayEffect>  PrimaryAttributeEffect;
+	TSubclassOf<UGameplayEffect> PrimaryAttributeEffect;
 
-	// Start up abilities that are granted to every combatant of this class archetype. These are in addition to the shared startup abilities on the data asset itself.
-	UPROPERTY(EditDefaultsOnly, Category  = "Class Defaults")
-	TArray<TSubclassOf<UGameplayAbility>> ClassUniqueAbilities;
-	
+	// Startup abilities granted to this class in addition to the shared common abilities.
 	UPROPERTY(EditDefaultsOnly, Category = "Class Defaults")
-	FScalableFloat XPReward = FScalableFloat(); 
+	TArray<TSubclassOf<UGameplayAbility>> ClassUniqueAbilities;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Class Defaults")
+	FScalableFloat XPReward = FScalableFloat();
 };
 
 
@@ -64,23 +64,22 @@ public:
 
 	// Shared secondary stats (armor, crit, regen, etc.) that every class receives.
 	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
-	TSubclassOf<UGameplayEffect>  SecondaryAttributes;
+	TSubclassOf<UGameplayEffect> SecondaryAttributes;
 
 	// Shared vital stats (health / mana style values) that every class receives.
 	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
 	TSubclassOf<UGameplayEffect> VitalAttributes;
 
 	// Shared startup abilities granted to every combatant that uses this data asset.
-	UPROPERTY(EditDefaultsOnly, Category  = "Common Class Defaults")
+	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
 	TArray<TSubclassOf<UGameplayAbility>> CommonAbilities;
 
 	// Curve table used by damage execution to convert raw attributes into level-scaled combat math.
-	UPROPERTY(EditDefaultsOnly, Category  = "Common Class Defaults | Combat")
+	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults | Combat")
 	TObjectPtr<UCurveTable> DefaultCalculationCoeffcient;
 
 	/* Queries */
 	// FindChecked is intentional here: missing class entries are authoring errors we want to catch
 	// immediately during setup instead of silently creating partially initialized characters.
 	FCharacterClassDefaultInfo GetDefaultInfoForClass(ECharacterClass CharacterClass) const;
-
 };

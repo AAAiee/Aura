@@ -7,7 +7,7 @@
 #include "Highlightable.generated.h"
 
 /**
- * UInterface boilerplate ¡ª UHighlightable is the UObject half required by Unreal's
+ * UInterface boilerplate - UHighlightable is the UObject half required by Unreal's
  * interface system. You never modify this class directly.
  * MinimalAPI: no DLL export needed since the interface is header-only.
  */
@@ -26,7 +26,7 @@ class UHighlightable : public UInterface
  *   3. When the cursor leaves, UnhighLightActor() is called.
  *
  * Implementors (e.g., AAuraEnemy) toggle Custom Depth rendering to trigger
- * a post-process outline effect. Both methods are pure virtual ¡ª every implementor
+ * a post-process outline effect. Both methods are pure virtual - every implementor
  * must provide its own highlight/unhighlight logic.
  */
 class AURA_API IHighlightable

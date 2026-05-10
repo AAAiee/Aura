@@ -1,22 +1,23 @@
 // @Copyright HaolunYuan
 
 #pragma once
+
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "AuraPlayerController.generated.h"
 
-class UInputMappingContext;
-class UInputAction;
-struct FInputActionValue;
+class AAuraHUD;
 class ACharacter;
 class IHighlightable;
-struct FHitResult;
-class UAuraInputConfig;
-class UAuraInputComponent;
 class UAuraAbilitySystemComponent;
-class AAuraHUD;
+class UAuraInputComponent;
+class UAuraInputConfig;
 class UDamageWidgetComponent;
+class UInputAction;
+class UInputMappingContext;
+struct FInputActionValue;
+struct FHitResult;
 
 /**
  * Player Controller for the Aura project.
@@ -44,12 +45,12 @@ class AURA_API AAuraPlayerController : public APlayerController
 public:
 	AAuraPlayerController();
 
-	UFUNCTION(BlueprintCallable, Category="UI")
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ToggleAttributeMenuRequested();
 
 	// Owning-client RPC that spawns transient combat text near the damaged target.
 	// The hit flags are already server-resolved and only drive local presentation.
-	UFUNCTION(Client,Reliable)
+	UFUNCTION(Client, Reliable)
 	void Client_ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter, bool bIsBlockedHit, bool bIsCriticalHit);
 
 protected:
@@ -65,7 +66,6 @@ private:
 	void BindNativeInputActions(UAuraInputComponent* AuraEnhancedInputComponent);
 
 	/* UI */
-	AAuraHUD* GetAuraHUD() const;
 	void OnToggleAttributeMenu(const FInputActionValue& ActionValues);
 
 	/* Movement */
@@ -93,23 +93,23 @@ private:
 
 private:
 	/* Enhanced Input Assets - set in BP_AuraPlayerController */
-	UPROPERTY(EditAnywhere, Category=Input)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UInputMappingContext> AuraContext;
 
-	UPROPERTY(EditAnywhere, Category=Input)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UInputAction> KeyboardMovementAction;
 
-	UPROPERTY(EditAnywhere, Category=Input)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UInputAction> ClickToMoveAction;
 
-	UPROPERTY(EditAnywhere, Category=Input)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UInputAction> MoveToCursorAction;
 
-	UPROPERTY(EditAnywhere, Category=Input)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UInputAction> AttackHelpAction;
 
 	/** Input Action asset bound to the keyboard shortcut that shows/hides the Attribute Menu. */
-	UPROPERTY(EditAnywhere, Category="Input")
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> ToggleAttributeMenuAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input | Data")
@@ -117,7 +117,7 @@ private:
 
 	TObjectPtr<UAuraAbilitySystemComponent> CachedASC;
 
-	UPROPERTY(VisibleAnywhere, Category="Movement")
+	UPROPERTY(VisibleAnywhere, Category = "Movement")
 	TObjectPtr<class UAutoMoveComponent> AutoMoveComponent;
 
 	/* Cursor / Movement Target Cache */
@@ -129,13 +129,15 @@ private:
 
 	/* Highlight Tracking */
 	UPROPERTY()
-	TScriptInterface<IHighlightable>  LastHighlightable;
+	TScriptInterface<IHighlightable> LastHighlightable;
+
 	UPROPERTY()
-	TScriptInterface<IHighlightable>  CurrentHighlightable;
+	TScriptInterface<IHighlightable> CurrentHighlightable;
 
-
-	/*UI*/
+	/* UI */
 	// Widget-component class used for floating combat text spawned by Client_ShowDamageNumber().
-	UPROPERTY(EditDefaultsOnly, Category="UI")
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UDamageWidgetComponent> DamageTextComponentClass;
+
+	TObjectPtr<AAuraHUD> CachedAuraHUD;
 };

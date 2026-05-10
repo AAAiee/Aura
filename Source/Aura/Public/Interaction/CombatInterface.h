@@ -106,5 +106,5 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	ECharacterClass GetCharacterClass() const;
-	
+
 };

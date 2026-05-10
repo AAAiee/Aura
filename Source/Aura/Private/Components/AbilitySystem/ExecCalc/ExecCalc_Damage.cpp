@@ -103,15 +103,13 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 	AActor* SourceAvatar = SourceAbilityComponent ? SourceAbilityComponent->GetAvatarActor() : nullptr;
 	AActor* TargetAvatar = TargetAbilityComponent ? TargetAbilityComponent->GetAvatarActor() : nullptr;
 
-
 	int32 SourcePlayerLevel = 1;
 	if (SourceAvatar && SourceAvatar->Implements<UCombatInterface>())
 	{
 		SourcePlayerLevel = ICombatInterface::Execute_GetPlayerLevel(SourceAvatar);
-
 	}
 
-	int32 TargetPlayerLevel = 1; 
+	int32 TargetPlayerLevel = 1;
 	if (TargetAvatar && TargetAvatar->Implements<UCombatInterface>())
 	{
 		TargetPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(TargetAvatar);

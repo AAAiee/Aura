@@ -144,9 +144,10 @@ public:
 	/* Ability Tags */
 	DECLARE_GAMETAG_CUSTOM(Ability, Attack)
 	DECLARE_GAMETAG_CUSTOM(Ability, Summon)
-
 	DECLARE_GAMETAG_CUSTOM(Ability, FireBolt)
-	DECLARE_GAMETAG_CUSTOM(Cooldown,FireBolt)
+
+	/* Cooldown Tags */
+	DECLARE_GAMETAG_CUSTOM(Cooldown, FireBolt)
 
 	/* Combat Socket Tags */
 	DECLARE_GAMETAG_CUSTOM(CombatSocket, Weapon)
@@ -162,6 +163,8 @@ public:
 
 	// Central lookup that keeps typed damage extensible without hard-coding a switch per ability.
 	TMap<FGameplayTag, FGameplayTag> DamageTypesToResistance;
+
+	TArray<FGameplayTag> PrimaryAttributeTags;
 
 private:
 	// Caches metadata for each native tag alongside the engine registration step.

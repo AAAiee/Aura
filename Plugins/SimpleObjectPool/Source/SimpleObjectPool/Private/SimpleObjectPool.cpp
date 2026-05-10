@@ -6,17 +6,15 @@
 
 void FSimpleObjectPoolModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-
+	// Module startup is intentionally lightweight; the world subsystem owns runtime pool state.
 	UE_LOG(LogTemp, Warning, TEXT("SimpleObjectPool module has started!"));
 }
 
 void FSimpleObjectPoolModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	// Runtime pool cleanup is handled by UObjectPoolSubsystem::Deinitialize for each world.
 }
 
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FSimpleObjectPoolModule, SimpleObjectPool)

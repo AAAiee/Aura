@@ -2,23 +2,25 @@
 
 
 #include "Components/AbilitySystem/ModMagCalc/MMC_MaxMana.h"
+
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Interaction/CombatInterface.h"
 
 UMMC_MaxMana::UMMC_MaxMana()
 {
+	// MaxMana scales from the target's Intelligence so runtime stat changes affect the result.
 	IntelligenceDef.AttributeToCapture = UAuraAttributeSet::GetIntelligenceAttribute();
 	IntelligenceDef.AttributeSource = EGameplayEffectAttributeCaptureSource::Target;
 
-	/* Snapshot: get the attribute at when the effect spec was created vs at applying time*/
+	// Evaluate at application time instead of snapshotting when the GE spec was created.
 	IntelligenceDef.bSnapshot = false;
 
 	RelevantAttributesToCapture.Add(IntelligenceDef);
 }
-float UMMC_MaxMana::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec)  const
+
+float UMMC_MaxMana::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const
 {
-	//TODO:: These steps can be in Utili
-// Gather tags from source and target
+	// Aggregated tags let captured attributes respect conditional modifiers from source or target.
 	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 
@@ -26,12 +28,11 @@ float UMMC_MaxMana::CalculateBaseMagnitude_Implementation(const FGameplayEffectS
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 
-	// Get Intelligence
 	float IntelligenceMag = 0.0f;
 	GetCapturedAttributeMagnitude(IntelligenceDef, Spec, EvaluationParameters, IntelligenceMag);
 	IntelligenceMag = FMath::Max<float>(IntelligenceMag, 0.0f);
 
-	//Get PlayerLevel
+	// Level comes from the source object because this MMC is used by character-authored startup GEs.
 	float Level = 1.0f;
 	UObject* SourceCharacterObject = Spec.GetContext().GetSourceObject();
 	if (SourceCharacterObject && SourceCharacterObject->Implements<UCombatInterface>())

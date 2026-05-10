@@ -2,12 +2,13 @@
 
 
 #include "UI/WidgetController/AuraOverlayWidgetController.h"
-#include "Components/AbilitySystem/AuraAttributeSet.h"
+
+#include "AbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Components/AbilitySystem/Data/AbilityInfo.h"
-#include "Kismet/GameplayStatics.h"
-#include "Player/AuraPlayerState.h"
 #include "Components/AbilitySystem/Data/LevelUpInfo.h"
+#include "Player/AuraPlayerState.h"
 
 /**
  * Pushes current attribute values to the UI so widgets display correct data on startup.
@@ -35,40 +36,39 @@ void UAuraOverlayWidgetController::BroadcastInitialValues()
  * 2. Effect asset tag delegate (via AuraASC::OnGatherEffectAssetTags):
  *    Fires whenever a GE is applied to self. The lambda filters for tags under "Message",
  *    looks up the matching DataTable row, and broadcasts FUIWidgetRow to the UI.
- *    Example: a health potion GE has tag "Message.HealthPotion" ¡ú DataTable row defines
- *    the popup text, icon, and widget class ¡ú Blueprint shows the popup.
+ *    Example: a health potion GE has tag "Message.HealthPotion" -> DataTable row defines
+ *    the popup text, icon, and widget class -> Blueprint shows the popup.
  */
 void UAuraOverlayWidgetController::BindAllDependencies()
 {
 	const UAuraAttributeSet* AuraAttribute = Cast<UAuraAttributeSet>(CachedAttributeSet);
 
-	// Pathway 1: Attribute value changes ¡ú C++ callback ¡ú Dynamic delegate ¡ú Blueprint
+	// Pathway 1: Attribute value changes -> C++ callback -> Dynamic delegate -> Blueprint
 	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetHealthAttribute()).AddLambda(
 		[this](const FOnAttributeChangeData& ChangedData)
 		{
-			this->OnHealthChanged.Broadcast(ChangedData.NewValue);
+			OnHealthChanged.Broadcast(ChangedData.NewValue);
 		}
 	);
-		
 
-	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxHealthAttribute()).AddLambda( 
+	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxHealthAttribute()).AddLambda(
 		[this](const FOnAttributeChangeData& ChangedData)
 		{
-			this->OnMaxHealthChanged.Broadcast(ChangedData.NewValue);
+			OnMaxHealthChanged.Broadcast(ChangedData.NewValue);
 		}
 	);
 
 	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetManaAttribute()).AddLambda(
 		[this](const FOnAttributeChangeData& ChangedData)
 		{
-			this->OnManaChanged.Broadcast(ChangedData.NewValue);
+			OnManaChanged.Broadcast(ChangedData.NewValue);
 		}
 	);
 
 	CachedAbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AuraAttribute->GetMaxManaAttribute()).AddLambda(
 		[this](const FOnAttributeChangeData& ChangedData)
 		{
-			this->OnMaxManaChanged.Broadcast(ChangedData.NewValue);
+			OnMaxManaChanged.Broadcast(ChangedData.NewValue);
 		}
 	);
 
@@ -76,17 +76,17 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 
 	if (AuraASC)
 	{
-		// Startup abilities may be given before or after the widget controller initializes, depending on the character blueprint setup. Handle both cases:
+		// Startup abilities may be given before or after this controller initializes; handle both orders.
 		if (AuraASC->bStartUpAbilitiesGiven)
 		{
-			this->OnInitializeStartupAbilities(AuraASC);
+			OnInitializeStartupAbilities(AuraASC);
 		}
 		else
 		{
 			AuraASC->AbilityGivenDelegate.AddUObject(this, &UAuraOverlayWidgetController::OnInitializeStartupAbilities);
 		}
 
-		// Pathway 2: GE applied ¡ú extract asset tags ¡ú filter "Message.*" ¡ú DataTable lookup ¡ú UI
+		// Pathway 2: GE applied -> extract asset tags -> filter "Message.*" -> DataTable lookup -> UI
 		AuraASC->OnGatherEffectAssetTags.AddLambda(
 			[this](const FGameplayTagContainer& TagContainer)
 			{
@@ -116,17 +116,17 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 
 void UAuraOverlayWidgetController::OnInitializeStartupAbilities(UAuraAbilitySystemComponent* AuraASC)
 {
-	auto Lambda = [this](const FGameplayAbilitySpec& Spec)
+	const auto BroadcastAbilityInfo = [this](const FGameplayAbilitySpec& Spec)
 		{
 			FAuraAbilityInfo* AbilityInfo = AbilityInfoDataAsset->FindAbilityInfoByTag(UAuraAbilitySystemComponent::GetAbilityTagFromSpec(Spec));
 			AbilityInfo->InputTag = UAuraAbilitySystemComponent::GetInputTagFromSpec(Spec);
 			AbilityInfoDelegate.Broadcast(*AbilityInfo);
-		}; 
+		};
 
-	AuraASC->ForEachAbility(Lambda); 
+	AuraASC->ForEachAbility(BroadcastAbilityInfo);
 }
 
-void UAuraOverlayWidgetController::OnXpChanged(const int32 NewXP) const 
+void UAuraOverlayWidgetController::OnXpChanged(const int32 NewXP) const
 {
 	const AAuraPlayerState* AuraPlayerState = Cast<AAuraPlayerState>(CachedPlayerState);
 	ULevelUpInfo* LevelUpInfoInstance = AuraPlayerState->LevelUpInfo;
@@ -138,11 +138,11 @@ void UAuraOverlayWidgetController::OnXpChanged(const int32 NewXP) const
 
 	const int32 MaxLevel = LevelUpInfoArray.Num() - 1;
 
-	float BarPercentage = 0.f; 
+	float BarPercentage = 0.f;
 	if (CurrentLevel <= MaxLevel && CurrentLevel > 0)
 	{
 		const int32 RequiredXpToLevelUp = CurrentLevelData.LevelUpRequirement;
-		const int32 PreviousRequiredXPToThisLevel = LevelUpInfoArray[CurrentLevel - 1].LevelUpRequirement; 
+		const int32 PreviousRequiredXPToThisLevel = LevelUpInfoArray[CurrentLevel - 1].LevelUpRequirement;
 
 		const int32 LevelGap = RequiredXpToLevelUp - PreviousRequiredXPToThisLevel;
 		BarPercentage = (NewXP - PreviousRequiredXPToThisLevel) / static_cast<float>(LevelGap);
@@ -150,8 +150,7 @@ void UAuraOverlayWidgetController::OnXpChanged(const int32 NewXP) const
 	}
 }
 
-void UAuraOverlayWidgetController::OnLevelChanged(const int32 NewLevel) const 
+void UAuraOverlayWidgetController::OnLevelChanged(const int32 NewLevel) const
 {
-
-	OnPlayerLevelChanged.Broadcast(NewLevel); 
+	OnPlayerLevelChanged.Broadcast(NewLevel);
 }

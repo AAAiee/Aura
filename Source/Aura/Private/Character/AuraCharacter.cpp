@@ -3,31 +3,27 @@
 
 #include "Character/AuraCharacter.h"
 
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Player/AuraPlayerState.h"
-
-#include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
-#include "Components/AbilitySystem/AuraAttributeSet.h"
-
-#include "Player/AuraPlayerController.h"
-#include "UI/HUD/AuraHUD.h"
-#include "../Aura.h"
-#include "Components/CapsuleComponent.h"
-#include "GameFramework/Pawn.h"
-#include "Components/AbilitySystem/Data/LevelUpInfo.h"
-#include "NiagaraComponent.h"
-#include "GameFramework/SpringArmComponent.h"
+#include "Aura/Aura.h"
 #include "Camera/CameraComponent.h"
+#include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/Data/LevelUpInfo.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "NiagaraComponent.h"
+#include "Player/AuraPlayerController.h"
+#include "Player/AuraPlayerState.h"
+#include "UI/HUD/AuraHUD.h"
 
 AAuraCharacter::AAuraCharacter()
 {
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom")); 
-	CameraBoom->SetupAttachment(RootComponent); 
-	CameraBoom->bDoCollisionTest = false; 
+	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->bDoCollisionTest = false;
 	CameraBoom->SetUsingAbsoluteRotation(true);
 
 	TopDownCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
-	TopDownCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
+	TopDownCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCameraComponent->bUsePawnControlRotation = false;
 
 	LevelUpNiagaraComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("LevelUpNiagaraComponent"));
@@ -38,23 +34,21 @@ AAuraCharacter::AAuraCharacter()
 	GetMesh()->SetGenerateOverlapEvents(true);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Projectile, ECR_Overlap);
 
-
-	/*Movement Configuration ¡ª top-down ARPG style:
+	/* Movement Configuration - top-down ARPG style:
 	 * bOrientRotationToMovement: character faces the direction of movement automatically.
 	 * bConstrainToPlane + bSnapToPlaneAtStart: keeps movement on a flat plane (no flying). */
 	UCharacterMovementComponent* AuraMovementComponent = GetCharacterMovement();
 	check(AuraMovementComponent);
 	AuraMovementComponent->bOrientRotationToMovement = true;
 	AuraMovementComponent->RotationRate = FRotator(0.0f, 400.f, 0.f);
-	AuraMovementComponent->bConstrainToPlane = true; 
-	AuraMovementComponent->bSnapToPlaneAtStart = true; 
+	AuraMovementComponent->bConstrainToPlane = true;
+	AuraMovementComponent->bSnapToPlaneAtStart = true;
 
-	/*Fixed Camera ¡ª disable controller rotation so the camera stays fixed (top-down view).
+	/* Fixed Camera - disable controller rotation so the camera stays fixed (top-down view).
 	 * The character rotates via bOrientRotationToMovement instead. */
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 	bUseControllerRotationYaw = false;
-
 
 	CharacterClass = ECharacterClass::ECC_Elementalist;
 }
@@ -79,20 +73,6 @@ void AAuraCharacter::OnRep_PlayerState()
 
 	// Client-side: PlayerState just replicated, safe to read ASC/AS from it now
 	InitAbilityActorInfo();
-}
-
-int32 AAuraCharacter::GetSpellPoints_Implementation() const
-{
-	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
-	check(AuraPlayerState);
-	return AuraPlayerState->GetSpellPoints();
-}
-
-int32 AAuraCharacter::GetAttributePoints_Implementation() const
-{
-	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
-	check(AuraPlayerState);
-	return AuraPlayerState->GetAttributePoints();
 }
 
 int32 AAuraCharacter::GetPlayerLevel_Implementation() const
@@ -129,11 +109,24 @@ int32 AAuraCharacter::GetSpellPointsReward_Implementation(int32 Level) const
 	return AuraLevelUpInfo->LevelUpInfos[Level].SpellPointsGranted;
 }
 
+int32 AAuraCharacter::GetAttributePoints_Implementation() const
+{
+	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
+	check(AuraPlayerState);
+	return AuraPlayerState->GetAttributePoints();
+}
+
+int32 AAuraCharacter::GetSpellPoints_Implementation() const
+{
+	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
+	check(AuraPlayerState);
+	return AuraPlayerState->GetSpellPoints();
+}
 
 void AAuraCharacter::AddToXP_Implementation(int32 InXP)
 {
 	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
-	check(AuraPlayerState); 
+	check(AuraPlayerState);
 	AuraPlayerState->AddPlayerXP(InXP);
 }
 
@@ -158,29 +151,28 @@ void AAuraCharacter::AddToSpellPoint_Implementation(int32 InSpellPoint)
 	AuraPlayerState->AddSpellPoints(InSpellPoint);
 }
 
-/**
- * Initialization flow ¡ª ORDER MATTERS:
- *
- * Step 1: Tell the ASC who owns it (PlayerState) and who the physical avatar is (this pawn).
- * Step 2: Cache ASC and AttributeSet on the base class so other systems can find them.
- * Step 3: Initialize the HUD ¡ú creates OverlayWidget ¡ú WidgetController subscribes to ASC delegates.
- * Step 4: AbilityActorInfoSet() binds OnGameplayEffectAppliedDelegateToSelf.
- *         This MUST come after Step 3, otherwise the ASC broadcasts effect events
- *         before the WidgetController's lambda is registered (0 listeners).
- */
-
 int32 AAuraCharacter::FindLevelForXP_Implementation(int32 InXP) const
 {
 	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
 	check(AuraPlayerState);
 	return AuraPlayerState->LevelUpInfo->FindLevelForXP(InXP);
 }
+
 void AAuraCharacter::LevelUp_Implementation()
 {
-
 	MultiCastLevelUpEffect_Implementation();
-	
 }
+
+/**
+ * Initialization flow - ORDER MATTERS:
+ *
+ * Step 1: Tell the ASC who owns it (PlayerState) and who the physical avatar is (this pawn).
+ * Step 2: Cache ASC and AttributeSet on the base class so other systems can find them.
+ * Step 3: Initialize the HUD -> creates OverlayWidget -> WidgetController subscribes to ASC delegates.
+ * Step 4: AbilityActorInfoSet() binds OnGameplayEffectAppliedDelegateToSelf.
+ *         This MUST come after Step 3, otherwise the ASC broadcasts effect events
+ *         before the WidgetController's lambda is registered (0 listeners).
+ */
 void AAuraCharacter::InitAbilityActorInfo()
 {
 	// Step 1: Initialize ASC with Owner=PlayerState, Avatar=this Pawn
@@ -192,7 +184,7 @@ void AAuraCharacter::InitAbilityActorInfo()
 	AbilitySystemComponent = AuraPlayerState->GetAbilitySystemComponent();
 	AttributeSet = AuraPlayerState->GetAttributeSet();
 
-	// Step 3: HUD initialization ¡ª only on the owning client (HUD is local-only)
+	// Step 3: HUD initialization - only on the owning client (HUD is local-only)
 	if (AAuraPlayerController* AuraPlayerController = GetController<AAuraPlayerController>())
 	{
 		if (AAuraHUD* AuraHUD = AuraPlayerController->GetHUD<AAuraHUD>())

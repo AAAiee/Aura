@@ -2,16 +2,17 @@
 
 
 #include "Components/AbilitySystem/ModMagCalc/MMC_MaxHealth.h"
+
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Interaction/CombatInterface.h"
 
 UMMC_MaxHealth::UMMC_MaxHealth()
 {
-	// Capture the Vigor attribute from the target (the character whose max health we are calculating)
+	// MaxHealth scales from the target's Vigor so buffs/debuffs on the owning character are reflected.
 	VigorDef.AttributeToCapture = UAuraAttributeSet::GetVigorAttribute();
 	VigorDef.AttributeSource = EGameplayEffectAttributeCaptureSource::Target;
 
-	/* Snapshot: get the attribute at when the effect spec was created vs at applying time*/
+	// Evaluate at application time instead of snapshotting when the GE spec was created.
 	VigorDef.bSnapshot = false;
 
 	RelevantAttributesToCapture.Add(VigorDef);
@@ -19,8 +20,7 @@ UMMC_MaxHealth::UMMC_MaxHealth()
 
 float UMMC_MaxHealth::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const
 {
-	//TODO:: These steps can be in Utili
-	// Gather tags from source and target
+	// Aggregated tags let captured attributes respect conditional modifiers from source or target.
 	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 
@@ -28,12 +28,11 @@ float UMMC_MaxHealth::CalculateBaseMagnitude_Implementation(const FGameplayEffec
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 
-	// Get Vigor
 	float VigorMag = 0.0f;
-	GetCapturedAttributeMagnitude(VigorDef, Spec, EvaluationParameters, VigorMag); 
+	GetCapturedAttributeMagnitude(VigorDef, Spec, EvaluationParameters, VigorMag);
 	VigorMag = FMath::Max<float>(VigorMag, 0.0f);
 
-	//Get PlayerLevel
+	// Level comes from the source object because this MMC is used by character-authored startup GEs.
 	float Level = 1.0f;
 	UObject* SourceCharacterObject = Spec.GetContext().GetSourceObject();
 	if (SourceCharacterObject && SourceCharacterObject->Implements<UCombatInterface>())

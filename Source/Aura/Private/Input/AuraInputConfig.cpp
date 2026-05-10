@@ -13,7 +13,7 @@ UInputAction* UAuraInputConfig::GetInputAction(FGameplayTag InInputActionTag, bo
 	{
 		if (Entry.InputActionTag == InInputActionTag)
 		{
-			return Entry.InputAction; 
+			return Entry.InputAction;
 		}
 	}
 	if (bLogNotFound)
@@ -30,16 +30,16 @@ EDataValidationResult UAuraInputConfig::IsDataValid(FDataValidationContext& Cont
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	uint16 Index = 0;
-	
+
 	for (const FAuraInputAction& Entry : InputActionEntries)
 	{
 		Result = CombineDataValidationResults(Result, Entry.IsDataValid(Context, Index));
 		Index++;
 	}
-	
+
 	return Result;
 }
-#endif 
+#endif
 
 
 #if WITH_EDITOR

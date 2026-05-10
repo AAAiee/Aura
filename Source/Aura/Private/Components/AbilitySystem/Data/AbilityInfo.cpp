@@ -2,21 +2,16 @@
 
 
 #include "Components/AbilitySystem/Data/AbilityInfo.h"
+
 #include "AuraLogCategory.h"
-
-
 
 FAuraAbilityInfo* UAbilityInfo::FindAbilityInfoByTag(const FGameplayTag& InAbilityTag, bool LogOnNotFound /*=false*/)
 {
 	check(AbilitiesInfo.Num() > 0);
 
-	 FAuraAbilityInfo* FoundAbilityInfo = AbilitiesInfo.FindByPredicate([&InAbilityTag](const FAuraAbilityInfo& info)
+	FAuraAbilityInfo* FoundAbilityInfo = AbilitiesInfo.FindByPredicate([&InAbilityTag](const FAuraAbilityInfo& Info)
 		{
-			if (info.AbilityTag.MatchesTagExact(InAbilityTag))
-			{
-				return true;
-			} 
-			return false;
+			return Info.AbilityTag.MatchesTagExact(InAbilityTag);
 		}
 	);
 

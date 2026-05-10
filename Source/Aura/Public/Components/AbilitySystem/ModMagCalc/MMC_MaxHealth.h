@@ -7,7 +7,7 @@
 #include "MMC_MaxHealth.generated.h"
 
 /**
- * Custom magnitude calculation for maximum health. This class will be used to calculate the maximum health of a character based on character level and vigor
+ * Calculates MaxHealth from the character's level and Vigor attribute.
  */
 UCLASS()
 class AURA_API UMMC_MaxHealth : public UGameplayModMagnitudeCalculation
@@ -15,13 +15,11 @@ class AURA_API UMMC_MaxHealth : public UGameplayModMagnitudeCalculation
 	GENERATED_BODY()
 
 public:
-
 	UMMC_MaxHealth();
 
 	virtual float CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const override;
 
 private:
-	// Capture definitions for the attributes we need to calculate max health: Vigor
-	FGameplayEffectAttributeCaptureDefinition  VigorDef;
-	
+	// Attribute capture used by the MMC when evaluating the target's Vigor.
+	FGameplayEffectAttributeCaptureDefinition VigorDef;
 };

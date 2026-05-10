@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 protected:
 	/** Starts a drag when the player clicks inside the draggable header region. */
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	
+
 	/** Ends the drag and releases mouse capture when the left mouse button is released. */
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
@@ -53,19 +53,18 @@ protected:
 protected:
 	// Height of the area at the top of the window that can be used to drag it.
 	UPROPERTY(EditAnywhere, Category = "Drag")
-	float DragHandleHeight = 30.0f; 
+	float DragHandleHeight = 30.0f;
 
 	// Clamp the popup to the parent canvas bounds so it cannot be dragged off-screen.
 	UPROPERTY(EditAnywhere, Category = "Drag")
 	bool bClampToViewport = true;
 
-
 private:
 	bool IsLeftMouseButtonDown(const FPointerEvent& InMouseEvent) const;
 
-	
 private:
 	bool bIsDraggingWindow = false;
+
 	// Offset from the widget's top-left corner to the press location, stored in widget-local space.
 	FVector2D DragOffset = FVector2D::ZeroVector;
 };

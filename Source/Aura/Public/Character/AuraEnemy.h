@@ -4,15 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Character/AuraCharacterBase.h"
-#include "Interaction/Highlightable.h"
 #include "GameplayTagContainer.h"
 #include "Interaction/EnemyInterface.h"
+#include "Interaction/Highlightable.h"
 #include "Interaction/Summonable.h"
 #include "AuraEnemy.generated.h"
 
+class AAuraAIController;
 class UActorStatusWidgetComponent;
 class UBehaviorTree;
-class AAuraAIController;
 
 /**
  * Base class for AI-controlled enemies in Aura.

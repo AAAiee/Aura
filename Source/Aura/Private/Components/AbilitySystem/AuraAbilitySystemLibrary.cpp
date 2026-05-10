@@ -1,17 +1,21 @@
 // @Copyright HaolunYuan
 
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
+
 #include "AbilitySystemComponent.h"
 #include "AuraAbilityTypes.h"
-#include "Game/AuraGameModeBase.h"
-#include "Kismet/GameplayStatics.h"
-#include "Player/AuraPlayerState.h"
+#include "CollisionQueryParams.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAttributeSet.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Game/AuraGameModeBase.h"
+#include "GameFramework/PlayerController.h"
+#include "Interaction/CombatInterface.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/AuraPlayerState.h"
 #include "UI/HUD/AuraHUD.h"
 #include "UI/WidgetController/AuraWidgetController.h"
-#include "Interaction/CombatInterface.h"
-#include "CollisionQueryParams.h"
 
 namespace
 {
@@ -209,7 +213,7 @@ void UAuraAbilitySystemLibrary::InitializeDefaultAbilities(const UObject* WorldC
 	const FCharacterClassDefaultInfo& DefaultInfo = CharacterClassInfo->GetDefaultInfoForClass(CharacterClass);
 	for (TSubclassOf <UGameplayAbility> AbilityClass : DefaultInfo.ClassUniqueAbilities)
 	{
-		int32 PlayerLevel = 1; 
+		int32 PlayerLevel = 1;
 		check(AvatarActor->Implements<UCombatInterface>());
 
 		PlayerLevel = ICombatInterface::Execute_GetPlayerLevel(AvatarActor);
@@ -224,7 +228,10 @@ UCharacterClassInfo* UAuraAbilitySystemLibrary::GetCharacterClassInfo(const UObj
 	// CharacterClassInfo lives on GameMode because it is server-authored setup data; callers that
 	// run on clients should expect this lookup to return nullptr.
 	AAuraGameModeBase* AuraGameMode = Cast<AAuraGameModeBase>(UGameplayStatics::GetGameMode(WorldContextObject));
-	if (!AuraGameMode) return nullptr;
+	if (!AuraGameMode)
+	{
+		return nullptr;
+	}
 
 	UCharacterClassInfo* CharacterClassInfo = AuraGameMode->CharacterClassInfo;
 
@@ -277,7 +284,6 @@ void UAuraAbilitySystemLibrary::SetIsCriticalHit(UPARAM(ref)FGameplayEffectConte
 	}
 }
 
-
 void UAuraAbilitySystemLibrary::SetShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInShouldHitReact)
 {
 	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetShouldHitReact")))
@@ -288,7 +294,6 @@ void UAuraAbilitySystemLibrary::SetShouldHitReact(UPARAM(ref)FGameplayEffectCont
 
 void UAuraAbilitySystemLibrary::GetLivePlayersWithinRadius(const UObject* WorldContextObject, TArray<AActor*>& OutOverlapActors, const TArray<AActor*>& ActorToIgnore, float Radius, const FVector& SphereOrigin)
 {
-
 	FCollisionQueryParams SphereParams;
 	SphereParams.AddIgnoredActors(ActorToIgnore);
 

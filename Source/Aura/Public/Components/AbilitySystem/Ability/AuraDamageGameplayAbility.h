@@ -27,12 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Damage")
 	void CauseDamage(AActor* TargetActor);
 
-
-
-
 	/* Damage Authoring */
 	// Gameplay Effect class that owns the ExecCalc writing IncomingDamage on the target AttributeSet.
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	TSubclassOf<UGameplayEffect> DamageEffect;
 
 	// Designer-authored typed damage. Each entry becomes one set-by-caller value on the outgoing spec.

@@ -18,7 +18,7 @@ void UAuraWidgetController::SetWidgetControllerParams(const FWidgetControllerPar
 }
 
 /**
- * Base implementation ¡ª intentionally empty.
+ * Base implementation - intentionally empty.
  * Derived classes override this to subscribe to ASC delegates.
  */
 void UAuraWidgetController::BindAllDependencies()

@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "PlayerInterface.generated.h"
 
-// This class does not need to be modified.
+// Reflection shell for player-owned progression state exposed to Blueprint and GAS code.
 UINTERFACE(MinimalAPI)
 class UPlayerInterface : public UInterface
 {
@@ -14,16 +14,14 @@ class UPlayerInterface : public UInterface
 };
 
 /**
- * 
+ * Player progression contract used by combat rewards, UI, and level-up effects.
  */
 class AURA_API IPlayerInterface
 {
 	GENERATED_BODY()
 
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-
-
+	/* Progression Values */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	int32 GetXP() const;
 
@@ -39,7 +37,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	int32 GetAttributePoints() const;
 
-
+	/* Progression Mutators */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void AddToXP(int32 InXP);
 
@@ -52,11 +50,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void AddToSpellPoint(int32 InSpellPoint);
 
-
+	/* Level Queries and Presentation */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	int32 FindLevelForXP(int32 InXP) const;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void LevelUp();
-
 };

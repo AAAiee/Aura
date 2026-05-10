@@ -1,11 +1,10 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UI/Widget/AuraUserWidget.h"
 #include "AuraOverlayRootWidget.generated.h"
-
 
 class UCanvasPanelSlot;
 class UCanvasPanel;
@@ -29,10 +28,10 @@ class AURA_API UAuraOverlayRootWidget : public UAuraUserWidget
 
 public:
 	/** Adds a popup window to the dedicated WindowLayer and returns its Canvas slot for positioning. */
-	UCanvasPanelSlot* AddWindowToLayer(UUserWidget* Window,const FVector2D& InPosition, int32 ZOrder = 0) ;
+	UCanvasPanelSlot* AddWindowToLayer(UUserWidget* Window, const FVector2D& InPosition, int32 ZOrder = 0);
 
 protected:
-	/** Bound from WBP_Overlay — must be a full-screen CanvasPanel that hosts draggable popup widgets. */
+	/** Bound from WBP_Overlay - must be a full-screen CanvasPanel that hosts draggable popup widgets. */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCanvasPanel> WindowLayer;
 };

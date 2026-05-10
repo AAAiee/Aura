@@ -6,6 +6,8 @@
 #include "UObject/NoExportTypes.h"
 #include "AuraWidgetController.generated.h"
 
+class APlayerController;
+class APlayerState;
 class UAbilitySystemComponent;
 class UAttributeSet;
 
@@ -21,7 +23,12 @@ struct FWidgetControllerParameters
 	FWidgetControllerParameters() = default;
 
 	FWidgetControllerParameters(APlayerController* PC, APlayerState* PS, UAbilitySystemComponent* ASC, UAttributeSet* AS)
-		: PlayerController(PC), PlayerState(PS), AbilitySystemComponent(ASC), AttributeSet(AS) { }
+		: PlayerController(PC)
+		, PlayerState(PS)
+		, AbilitySystemComponent(ASC)
+		, AttributeSet(AS)
+	{
+	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<APlayerController> PlayerController = nullptr;
@@ -46,8 +53,8 @@ struct FWidgetControllerParameters
  *   - GAS / PlayerState / AttributeSet (Model) holds the actual game state.
  *
  * Derived classes override:
- *   - BroadcastInitialValues() ¡ª push current values so the UI starts correct.
- *   - BindAllDependencies()    ¡ª subscribe to ASC delegates so the UI updates in real time.
+ *   - BroadcastInitialValues() - push current values so the UI starts correct.
+ *   - BindAllDependencies()    - subscribe to ASC delegates so the UI updates in real time.
  *
  * NOTE: This is a UObject, NOT an AActor. It has no transform or tick. It lives as long as
  * the HUD keeps a UPROPERTY reference to it.
@@ -62,12 +69,11 @@ public:
 	void SetWidgetControllerParams(const FWidgetControllerParameters& Parameters);
 
 	/** Override to broadcast current attribute values to the UI on startup. */
-
 	UFUNCTION(BlueprintCallable)
-	virtual void BroadcastInitialValues() {};
+	virtual void BroadcastInitialValues() {}
 
 	/** Override to bind delegates to ASC attribute changes, GE events, etc. */
-	virtual void BindAllDependencies();;
+	virtual void BindAllDependencies();
 
 	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
 	AActor* GetAvatarActor() const;
@@ -75,9 +81,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
 	AActor* GetOwningActor() const;
 
-
 protected:
-	/*Cached References ¡ª set once via SetWidgetControllerParams, read by derived classes*/
+	/* Cached references: set once via SetWidgetControllerParams, read by derived classes. */
 	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<APlayerController> CachedPlayerController;
 
@@ -89,5 +94,4 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<UAttributeSet> CachedAttributeSet;
-
 };

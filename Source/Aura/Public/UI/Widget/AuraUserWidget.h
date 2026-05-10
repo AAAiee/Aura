@@ -14,13 +14,13 @@
  *   - Controller = WidgetController (provides data + delegates)
  *   - Model = GAS (ASC, AttributeSet, GameplayEffects)
  *
- * The widget never talks to GAS directly ！ it only knows about its WidgetController.
+ * The widget never talks to GAS directly - it only knows about its WidgetController.
  * This keeps UI code decoupled from gameplay code.
  *
  * Flow:
  *   1. HUD calls SetWidgetController(controller) on this widget.
  *   2. SetWidgetController stores the reference and calls WidgetControllerSet().
- *   3. WidgetControllerSet is a BlueprintImplementableEvent ！ the Blueprint child
+ *   3. WidgetControllerSet is a BlueprintImplementableEvent - the Blueprint child
  *      overrides it to bind UI elements (progress bars, text) to the controller's delegates.
  */
 UCLASS()
@@ -34,18 +34,17 @@ public:
 
 protected:
 	/**
-	 * BlueprintImplementableEvent ！ override this in the widget Blueprint.
+	 * BlueprintImplementableEvent - override this in the widget Blueprint.
 	 * This is where you bind progress bars, text blocks, etc. to the controller's delegates.
 	 * Fires once when the controller is first assigned.
 	 */
 	UFUNCTION(BlueprintImplementableEvent)
-	void WidgetControllerSet(); 
+	void WidgetControllerSet();
 
-private:
 	/**
-	 * Typed as UObject* (not UAuraWidgetController*) for flexibility ！
+	 * Typed as UObject* (not UAuraWidgetController*) for flexibility -
 	 * any UObject can serve as a controller, making this widget reusable across different systems.
 	 */
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UObject> WidgetController;
 };

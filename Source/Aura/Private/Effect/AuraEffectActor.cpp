@@ -2,16 +2,17 @@
 
 
 #include "Effect/AuraEffectActor.h"
-#include "AbilitySystemInterface.h"
+
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
+#include "Components/SceneComponent.h"
 
 AAuraEffectActor::AAuraEffectActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// SceneRoot ！ overlap components (Sphere, Box, etc.) are added in the Blueprint subclass
+	// Overlap components (Sphere, Box, etc.) are added in the Blueprint subclass.
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>("SceneRoot"));
 }
 
@@ -24,7 +25,7 @@ void AAuraEffectActor::BeginPlay()
  * Applies a Gameplay Effect to the target actor.
  *
  * Flow:
- *   1. Server-only check ！ GEs must be applied authoritatively to avoid desync.
+ *   1. Server-only check - GEs must be applied authoritatively to avoid desync.
  *   2. Get the target's ASC (safe method that doesn't assume IAbilitySystemInterface).
  *   3. Create an Effect Context (carries metadata like "who caused this effect").
  *   4. Create an Effect Spec from the GE class + level + context.
@@ -33,29 +34,35 @@ void AAuraEffectActor::BeginPlay()
  */
 void AAuraEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGameplayEffect> GameplayEffectClass)
 {
-	// GEs should only be applied on the server to stay authoritative
-	if (!HasAuthority()) return;
+	// GEs should only be applied on the server to stay authoritative.
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	// UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent is safer than casting to
-	// IAbilitySystemInterface ！ it works even if the actor doesn't implement the interface.
+	// IAbilitySystemInterface - it works even if the actor doesn't implement the interface.
 	UAbilitySystemComponent* TargetAbilitySystemComponent = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 
-	if (TargetAbilitySystemComponent == nullptr) return;
+	if (TargetAbilitySystemComponent == nullptr)
+	{
+		return;
+	}
 	check(GameplayEffectClass);
 
-	// Effect Context ！ stores "source" info (this actor) so PostGameplayEffectExecute
+	// Effect Context - stores "source" info (this actor) so PostGameplayEffectExecute
 	// can trace back who caused the effect (useful for damage credits, VFX origin, etc.)
 	FGameplayEffectContextHandle EffectContextHandle = TargetAbilitySystemComponent->MakeEffectContext();
 	UAuraAbilitySystemLibrary::SetShouldHitReact(EffectContextHandle, false);
 
-	// Effect Spec ！ combines the GE class + level + context into an applicable package
+	// Effect Spec - combines the GE class + level + context into an applicable package
 	FGameplayEffectSpecHandle EffectSpecHandle = TargetAbilitySystemComponent->MakeOutgoingSpec(GameplayEffectClass, Level, EffectContextHandle);
 
-	// Apply and get back a handle we can use to remove the effect later
+	// Apply and keep the handle so removable Infinite effects can be cleaned up later.
 	FActiveGameplayEffectHandle ActiveHandle = TargetAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
 
-	/*Track Infinite effects that need removal on end overlap.
-	 * We store the ASC pointer ★ array of handles so OnEndOverlap can remove exactly
+	/* Track Infinite effects that need removal on end overlap.
+	 * We store the ASC pointer -> array of handles so OnEndOverlap can remove exactly
 	 * the effects this actor applied (not effects from other sources). */
 	const UGameplayEffect* GamePlayEffect = EffectSpecHandle.Data.Get()->Def.Get();
 	const bool bIsInfiniteEffect = GamePlayEffect->DurationPolicy == EGameplayEffectDurationType::Infinite;
@@ -114,21 +121,27 @@ void AAuraEffectActor::OnEndOverlap(AActor* TargetActor)
 		ApplyEffectToTarget(TargetActor, InfiniteGameplayEffectClass);
 	}
 
-	// Remove tracked Infinite effects and clean up the map entry
+	// Remove tracked Infinite effects and clean up the map entry.
 	if (InfiniteEffectRemovalPolicy == EEffectRemovalPolicy::RemoveOnEndOverlap)
 	{
 		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
-		if (!IsValid(TargetASC)) return;
+		if (!IsValid(TargetASC))
+		{
+			return;
+		}
 
 		TArray<FActiveGameplayEffectHandle>* TargetAppliedInfiniteRemovalEffectsPool = AppliedEffects.Find(TargetASC);
-		if (!TargetAppliedInfiniteRemovalEffectsPool) return;
+		if (!TargetAppliedInfiniteRemovalEffectsPool)
+		{
+			return;
+		}
 
 		for (const FActiveGameplayEffectHandle& Handles : *TargetAppliedInfiniteRemovalEffectsPool)
 		{
 			TargetASC->RemoveActiveGameplayEffect(Handles, 1);
 		}
 
-		// IMPORTANT: clean up the map entry so stale handles don't interfere with future overlaps
+		// Clean up the map entry so stale handles do not interfere with future overlaps.
 		AppliedEffects.Remove(TargetASC);
 	}
 }

@@ -5,6 +5,6 @@
 
 /**
  * Registers the primary game module with the engine.
- * This macro is required once per game module ¡ª it tells UE that "Aura" is the main module.
+ * This macro is required once per game module - it tells UE that "Aura" is the main module.
  */
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Aura, "Aura" );
+IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, Aura, "Aura");

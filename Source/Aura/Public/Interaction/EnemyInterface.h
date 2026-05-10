@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "EnemyInterface.generated.h"
 
-// This class does not need to be modified.
+// Reflection shell for actors that expose enemy combat targeting to Blueprint and C++.
 UINTERFACE(MinimalAPI)
 class UEnemyInterface : public UInterface
 {

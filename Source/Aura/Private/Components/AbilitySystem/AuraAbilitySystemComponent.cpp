@@ -2,11 +2,12 @@
 
 
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
-#include "GameplayAbilitySpec.h"
-#include "Components/AbilitySystem/Ability/AuraGameplayAbility.h"
-#include "AuraLogCategory.h"
-#include "Interaction/PlayerInterface.h"
+
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AuraLogCategory.h"
+#include "Components/AbilitySystem/Ability/AuraGameplayAbility.h"
+#include "GameplayAbilitySpec.h"
+#include "Interaction/PlayerInterface.h"
 
 void UAuraAbilitySystemComponent::AbilityActorInfoSet()
 {
@@ -43,7 +44,6 @@ void UAuraAbilitySystemComponent::AddCharacterPassiveAbilities(const TArray<TSub
 
 void UAuraAbilitySystemComponent::AbilityInputTagPressed(FGameplayTag InputTag)
 {
-
 	if (!InputTag.IsValid())
 	{
 		return;
@@ -51,7 +51,6 @@ void UAuraAbilitySystemComponent::AbilityInputTagPressed(FGameplayTag InputTag)
 
 	for (auto& GrantedAbilitySpec : GetActivatableAbilities())
 	{
-
 		if (GrantedAbilitySpec.DynamicAbilityTags.HasTagExact(InputTag))
 		{
 			AbilitySpecInputPressed(GrantedAbilitySpec);
@@ -61,8 +60,6 @@ void UAuraAbilitySystemComponent::AbilityInputTagPressed(FGameplayTag InputTag)
 			}
 		}
 	}
-
-
 }
 
 void UAuraAbilitySystemComponent::AbilityInputTagReleased(FGameplayTag InputTag)
@@ -74,20 +71,17 @@ void UAuraAbilitySystemComponent::AbilityInputTagReleased(FGameplayTag InputTag)
 
 	for (auto& GrantedAbilitySpec : GetActivatableAbilities())
 	{
-
 		if (GrantedAbilitySpec.DynamicAbilityTags.HasTagExact(InputTag))
 		{
-
 			AbilitySpecInputReleased(GrantedAbilitySpec);
 		}
 	}
-
 }
 
 void UAuraAbilitySystemComponent::AbilityInputTagHeld(FGameplayTag InputTag)
 {
-
 }
+
 void UAuraAbilitySystemComponent::ForEachAbility(const TFunction<void(const FGameplayAbilitySpec&)>& Predicate)
 {
 	FScopedAbilityListLock AbilityListLock(*this);
@@ -106,7 +100,6 @@ FGameplayTag UAuraAbilitySystemComponent::GetAbilityTagFromSpec(const FGameplayA
 			if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("Ability"))))
 			{
 				return Tag;
-
 			}
 		}
 	}
@@ -124,7 +117,6 @@ FGameplayTag UAuraAbilitySystemComponent::GetInputTagFromSpec(const FGameplayAbi
 			if (Tag.MatchesTag(FGameplayTag::RequestGameplayTag(FName("InputTag"))))
 			{
 				return Tag;
-
 			}
 		}
 	}
@@ -133,15 +125,11 @@ FGameplayTag UAuraAbilitySystemComponent::GetInputTagFromSpec(const FGameplayAbi
 	return FGameplayTag();
 }
 
-void UAuraAbilitySystemComponent::UpgradeAttribute(const FGameplayTag& AttributeTag)
+void UAuraAbilitySystemComponent::UpgradeAttribute(const FGameplayTag& AttributeTag, int32 Delta)
 {
 	if (GetAvatarActor()->Implements<UPlayerInterface>())
 	{
-		const int32 CurrentAttributeLevel = IPlayerInterface::Execute_GetAttributePoints(GetAvatarActor());
-		if (CurrentAttributeLevel > 0)
-		{
-			Server_UpgradeAttribute(AttributeTag); 
-		}
+		Server_UpgradeAttribute(AttributeTag, Delta);
 	}
 }
 
@@ -157,11 +145,11 @@ void UAuraAbilitySystemComponent::OnRep_ActivateAbilities()
 }
 
 /**
- * Client RPC implementation ¡ª runs on the owning client.
+ * Client RPC implementation - runs on the owning client.
  *
  * Flow:
  *   1. A GE is applied to self (server or predicted).
- *   2. Engine fires OnGameplayEffectAppliedDelegateToSelf ¡ú calls this RPC.
+ *   2. Engine fires OnGameplayEffectAppliedDelegateToSelf -> calls this RPC.
  *   3. We extract all asset tags from the GE spec (tags set in the GE Blueprint asset).
  *   4. Broadcast them via OnGatherEffectAssetTags.
  *   5. OverlayWidgetController's lambda receives the tags, filters for "Message.*",
@@ -175,16 +163,16 @@ void UAuraAbilitySystemComponent::Client_OnEffectAppliedToSelf_Implementation(UA
 	OnGatherEffectAssetTags.Broadcast(TagContainer);
 }
 
-void UAuraAbilitySystemComponent::Server_UpgradeAttribute_Implementation(const FGameplayTag& AttributeTag)
+void UAuraAbilitySystemComponent::Server_UpgradeAttribute_Implementation(const FGameplayTag& AttributeTag, int32 Delta)
 {
-	/*Send a Gameplay Event to be captured by the passive game play ability*/
+	// Send a Gameplay Event for passive gameplay abilities that listen for attribute upgrades.
 	FGameplayEventData PayLoad;
-	PayLoad.EventMagnitude = 1.0f;
-	PayLoad.EventTag = AttributeTag; 
+	PayLoad.EventMagnitude = Delta;
+	PayLoad.EventTag = AttributeTag;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetAvatarActor(), AttributeTag, PayLoad);
-	
-	// also decrement attribute points
+
+	// Attribute points live on the player progression interface, not the ASC.
 	check(GetAvatarActor()->Implements<UPlayerInterface>());
 
-	IPlayerInterface::Execute_AddToAttributePoint(GetAvatarActor(), -1);
+	IPlayerInterface::Execute_AddToAttributePoint(GetAvatarActor(), -Delta);
 }

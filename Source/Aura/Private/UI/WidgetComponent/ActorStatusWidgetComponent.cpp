@@ -2,8 +2,9 @@
 
 
 #include "UI/WidgetComponent/ActorStatusWidgetComponent.h"
-#include "UI/WidgetController/AuraWidgetController.h"
+
 #include "UI/AuraWidgetControllerBootstrap.h"
+#include "UI/WidgetController/AuraWidgetController.h"
 
 UActorStatusWidgetComponent::UActorStatusWidgetComponent()
 {

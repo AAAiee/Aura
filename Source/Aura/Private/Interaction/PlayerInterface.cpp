@@ -1,6 +1,5 @@
 // @Copyright HaolunYuan
 
-
 #include "Interaction/PlayerInterface.h"
 
-// Add default functionality here for any IPlayerInterface functions that are not pure virtual.
+// Intentionally empty: player characters provide the progression behavior for this interface.

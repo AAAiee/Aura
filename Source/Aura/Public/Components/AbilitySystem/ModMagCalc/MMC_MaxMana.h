@@ -7,20 +7,19 @@
 #include "MMC_MaxMana.generated.h"
 
 /**
- * a Custom magnitude calculation for maximum mana. This class will be used to calculate the maximum mana of a character based on character level and intelligence
+ * Calculates MaxMana from the character's level and Intelligence attribute.
  */
 UCLASS()
 class AURA_API UMMC_MaxMana : public UGameplayModMagnitudeCalculation
 {
 	GENERATED_BODY()
 
-
 public:
 	UMMC_MaxMana();
 
-	/* Override the base magnitude calculation to calculate max mana based on character level and intelligence */
 	virtual float CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const override;
+
 private:
-	// Capture definitions for the attributes we need to calculate max mana: Intelligence
-	FGameplayEffectAttributeCaptureDefinition  IntelligenceDef;
+	// Attribute capture used by the MMC when evaluating the target's Intelligence.
+	FGameplayEffectAttributeCaptureDefinition IntelligenceDef;
 };

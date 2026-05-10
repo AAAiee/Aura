@@ -18,7 +18,6 @@ class AURA_API UActorStatusWidgetComponent : public UWidgetComponent
 {
 	GENERATED_BODY()
 
-
 public:
 	UActorStatusWidgetComponent();
 

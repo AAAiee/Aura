@@ -2,14 +2,14 @@
 
 
 #include "AuraAssetManager.h"
+
+#include "AbilitySystemGlobals.h"
 #include "AuraGameTagManager.h"
 #include "Engine/Engine.h"
-#include "Components/AbilitySystem/Data/AttributeDataAsset.h"
-#include "AbilitySystemGlobals.h"
 
 UAuraAssetManager& UAuraAssetManager::Get()
 {
-	check(GEngine); 
+	check(GEngine);
 	UAuraAssetManager* Instance = Cast<UAuraAssetManager>(GEngine->AssetManager);
 
 	return *Instance;
@@ -19,6 +19,6 @@ void UAuraAssetManager::StartInitialLoading()
 {
 	FAuraGameTagManager::InitializeAllNativeTags();
 
-	//required for target data 
+	// Required once for GAS target data support before abilities begin producing target handles.
 	UAbilitySystemGlobals::Get().InitGlobalData();
 }

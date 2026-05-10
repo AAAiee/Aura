@@ -26,17 +26,17 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FAbilityGiven, UAuraAbilitySystemComponent*)
  *   - Extracts asset tags from the applied GE
  *   - Rebroadcasts them via OnGatherEffectAssetTags for the UI layer to consume
  *
- * This keeps the UI decoupled from GAS internals ¡ª widgets never touch FGameplayEffectSpec directly.
+ * This keeps the UI decoupled from GAS internals - widgets never touch FGameplayEffectSpec directly.
  */
 UCLASS()
 class AURA_API UAuraAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
-	
+
 public:
 	/**
 	 * Called once after the ASC's AbilityActorInfo is set (Owner + Avatar are known).
-	 * Binds the internal OnGameplayEffectAppliedDelegateToSelf ¡ú Client_OnEffectAppliedToSelf.
+	 * Binds the internal OnGameplayEffectAppliedDelegateToSelf -> Client_OnEffectAppliedToSelf.
 	 *
 	 * TIMING: Must be called AFTER the UI widget controller subscribes to OnGatherEffectAssetTags,
 	 * otherwise the broadcast has 0 listeners. See AAuraCharacter::InitAbilityActorInfo() for ordering.
@@ -44,7 +44,6 @@ public:
 	void AbilityActorInfoSet();
 	void AddCharacterAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InAbilitiesClasses);
 	void AddCharacterPassiveAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InPassiveAbilitiesClasses);
-
 
 	void AbilityInputTagPressed(FGameplayTag InputTag);
 	void AbilityInputTagReleased(FGameplayTag InputTag);
@@ -56,28 +55,28 @@ public:
 	static FGameplayTag GetInputTagFromSpec(const FGameplayAbilitySpec& Spec);
 
 	UFUNCTION(BlueprintCallable)
-	void UpgradeAttribute(const FGameplayTag& AttributeTag);
+	void UpgradeAttribute(const FGameplayTag& AttributeTag, int32 Delta);
 
 protected:
-	void virtual OnRep_ActivateAbilities() override;
+	virtual void OnRep_ActivateAbilities() override;
 
 public:
-	/** Public delegate ¡ª UI layer (OverlayWidgetController) subscribes to this. */
+	/** UI layer (OverlayWidgetController) subscribes to this for applied GE asset tags. */
 	OnGatherEffectAssetTag OnGatherEffectAssetTags;
-	FAbilityGiven AbilityGivenDelegate;
-	bool bStartUpAbilitiesGiven = false;
 
+	FAbilityGiven AbilityGivenDelegate;
+
+	bool bStartUpAbilitiesGiven = false;
 
 private:
 	/**
-	 * Client RPC ¡ª called when a GE is applied to self.
+	 * Client RPC - called when a GE is applied to self.
 	 * Extracts all asset tags from the GE spec and broadcasts them via OnGatherEffectAssetTags.
 	 * Marked Client+Reliable so the broadcast always reaches the owning client for UI updates.
 	 */
 	UFUNCTION(Client, Reliable)
 	void Client_OnEffectAppliedToSelf(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayEffectSpec& GameEffectSpec, FActiveGameplayEffectHandle ActiveGameEffectHandle);
 
-
 	UFUNCTION(Server, Reliable)
-	void Server_UpgradeAttribute(const FGameplayTag& AttributeTag);
+	void Server_UpgradeAttribute(const FGameplayTag& AttributeTag, int32 Delta);
 };

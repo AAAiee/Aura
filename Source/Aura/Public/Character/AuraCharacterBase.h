@@ -1,19 +1,19 @@
-﻿// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
+// @Copyright HaolunYuan  https://github.com/AAAiee/Aura.git
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
-#include "Interaction/CombatInterface.h"
 #include "Components/AbilitySystem/Data/CharacterClassInfo.h"
+#include "GameFramework/Character.h"
+#include "Interaction/CombatInterface.h"
 #include "AuraCharacterBase.generated.h"
 
+class UAnimMontage;
 class UAbilitySystemComponent;
 class UAttributeSet;
-class UGameplayEffect;
 class UGameplayAbility;
-class UAnimMontage;
+class UGameplayEffect;
 class UMaterialInstance;
 class UMaterialInstanceDynamic;
 class USkeletalMeshComponent;
@@ -25,7 +25,7 @@ class USoundBase;
  *
  * Key design decisions:
  *   - Implements IAbilitySystemInterface so GAS can find the ASC on any Aura character.
- *   - Marked UCLASS(Abstract) so it cannot be placed in a level directly — only subclasses can.
+ *   - Marked UCLASS(Abstract) so it cannot be placed in a level directly - only subclasses can.
  *   - ASC and AttributeSet pointers are declared here but CREATED in subclasses, because
  *     the player character stores them on the PlayerState (shared between pawns),
  *     while the enemy creates them directly on itself.
@@ -58,11 +58,10 @@ public:
 	virtual TArray<FTaggedMontage> GetAttackMontages_Implementation() const override { return AttackMontages; }
 	virtual UNiagaraSystem* GetBloodEffect_Implementation() const override { return BloodEffect; }
 	virtual FTaggedMontage GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const override;
-	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; };
+	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; }
 	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override { MinionCount += IncrementBy; }
 	virtual void Die() override;
 	virtual ECharacterClass GetCharacterClass_Implementation() const override { return CharacterClass; }
-
 
 	/* Death Presentation */
 	UFUNCTION(NetMulticast, Reliable)
@@ -73,6 +72,7 @@ public:
 	void Dissolve();
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartWeaponDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
 
@@ -181,5 +181,4 @@ protected:
 	/* Class Data */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
-
 };

@@ -28,12 +28,10 @@ class AURA_API UAuraAssetManager : public UAssetManager
 	GENERATED_BODY()
 
 public:
-	/*Returns the project-level AssetManager singleton, cast from GEngine->AssetManager*/
+	/* Returns the project-level AssetManager singleton, cast from GEngine->AssetManager. */
 	static UAuraAssetManager& Get();
 
 protected:
-	/*Called by the engine during startup ¡ª registers all native GameplayTags via FAuraGameTag*/
+	/* Called by the engine during startup to register all native GameplayTags via FAuraGameTagManager. */
 	virtual void StartInitialLoading() override;
-
-	
 };

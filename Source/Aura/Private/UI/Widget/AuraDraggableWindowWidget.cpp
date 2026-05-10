@@ -1,7 +1,8 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 
 #include "UI/Widget/AuraDraggableWindowWidget.h"
+
 #include "Components/CanvasPanelSlot.h"
 #include "Components/PanelWidget.h"
 
@@ -95,10 +96,9 @@ bool UAuraDraggableWindowWidget::CanStartWindowDrag(const FGeometry& InGeometry,
 	return LocalMousePosition.Y <= DragHandleHeight;
 }
 
-
 void UAuraDraggableWindowWidget::StopWindowDrag()
 {
-	bIsDraggingWindow = false; 
+	bIsDraggingWindow = false;
 }
 
 UCanvasPanelSlot* UAuraDraggableWindowWidget::GetWindowCanvasSlot() const

@@ -1,15 +1,13 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AuraDraggableWindowWidget.h"
+#include "UI/Widget/AuraDraggableWindowWidget.h"
 #include "AuraAttributeMenuWidget.generated.h"
-
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetClosed);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetShown);
-
 
 UCLASS()
 class AURA_API UAuraAttributeMenuWidget : public UAuraDraggableWindowWidget
@@ -32,13 +30,15 @@ public:
 
 	/** Editor-configured default spawn point used the first time the HUD creates the widget. */
 	UFUNCTION(BlueprintPure)
-    FVector2D GetInitialPosition() const { return FVector2D(OnScreenPositionX, OnScreenPositionY); }
-	
-	UPROPERTY(BlueprintAssignable, Category="Attribute Menu")
+	FVector2D GetInitialPosition() const { return FVector2D(OnScreenPositionX, OnScreenPositionY); }
+
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu")
 	FAuraAttributeMenuWidgetClosed OnAttributeMenuClosed;
 
-	UPROPERTY(BlueprintAssignable, Category="Attribute Menu")
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu")
 	FAuraAttributeMenuWidgetShown OnAttributeMenuShown;
+
+	FORCEINLINE bool IsOnScreen() const { return bOnScreen; }
 
 private:
 	/** Default X position inside the OverlayRoot's WindowLayer. */
@@ -48,4 +48,7 @@ private:
 	/** Default Y position inside the OverlayRoot's WindowLayer. */
 	UPROPERTY(EditAnywhere, Category = "UI Properties")
 	int32 OnScreenPositionY;
+
+	UPROPERTY(Transient)
+	bool bOnScreen;
 };

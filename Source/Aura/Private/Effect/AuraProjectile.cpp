@@ -1,20 +1,20 @@
 #include "Effect/AuraProjectile.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "Aura/Aura.h"
+#include "Components/AudioComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
-#include "Components/AudioComponent.h"
-#include "../Aura.h"
-#include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
 
 AAuraProjectile::AAuraProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicateMovement(true);
-
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->InitialSpeed = 550.f;
@@ -26,7 +26,6 @@ AAuraProjectile::AAuraProjectile()
 void AAuraProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-
 }
 
 void AAuraProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -58,7 +57,6 @@ void AAuraProjectile::LaunchInDirection(const FVector& Direction)
 	ProjectileMovement->Velocity = LaunchDirection * ProjectileMovement->InitialSpeed;
 	ProjectileMovement->UpdateComponentVelocity();
 	ForceNetUpdate();
-
 }
 
 void AAuraProjectile::HandleTakenFromPool()
@@ -93,8 +91,8 @@ void AAuraProjectile::SetCollisionComponent(UPrimitiveComponent* InCollisionComp
 	SetRootComponent(CollisionComponent);
 	ProjectileMovement->SetUpdatedComponent(CollisionComponent);
 
-	// Example collision setup
-	CollisionComponent->SetCollisionObjectType(ECC_Projectile); 
+	// Projectile collision overlaps gameplay targets and world blockers but leaves resolution to the server.
+	CollisionComponent->SetCollisionObjectType(ECC_Projectile);
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionComponent->SetGenerateOverlapEvents(true);
 
@@ -104,7 +102,7 @@ void AAuraProjectile::SetCollisionComponent(UPrimitiveComponent* InCollisionComp
 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_EnemyCollision, ECR_Overlap);
 
-	// Bind shared overlap logic once here
+	// Bind shared overlap logic once after the child class supplies its collision primitive.
 	CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AAuraProjectile::OnProjectileOverlap);
 }
 
@@ -164,7 +162,6 @@ void AAuraProjectile::ApplyActiveState()
 	{
 		LoopingSoundComponent = UGameplayStatics::SpawnSoundAttached(LoopingSound, GetRootComponent());
 	}
-
 }
 
 void AAuraProjectile::ApplyInactiveState()
@@ -182,7 +179,6 @@ void AAuraProjectile::ApplyInactiveState()
 		CollisionComponent->SetGenerateOverlapEvents(false);
 		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-
 
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
@@ -261,7 +257,6 @@ void AAuraProjectile::OnProjectileOverlap(
 	}
 
 	bHasResolvedImpact = true;
-
 
 	if (DamageEffectHandle.IsValid())
 	{

@@ -2,8 +2,9 @@
 
 
 #include "UI/AuraWidgetControllerBootstrap.h"
-#include "UI/WidgetController/AuraWidgetController.h"
+
 #include "UI/Widget/AuraUserWidget.h"
+#include "UI/WidgetController/AuraWidgetController.h"
 
 UAuraWidgetController* FAuraWidgetControllerBootstrap::CreateController(UObject* Outer, TSubclassOf<UAuraWidgetController> WidgetControllerClass, const FWidgetControllerParameters& Params)
 {
@@ -36,7 +37,7 @@ void FAuraWidgetControllerBootstrap::AttachControllerToWidget(UUserWidget* Widge
 	 * expects the widget to already know which controller owns it.
 	 */
 	check(Widget);
-	check(WidgetController); 
+	check(WidgetController);
 
 	UAuraUserWidget* AuraWidget = Cast<UAuraUserWidget>(Widget);
 	check(AuraWidget);
@@ -46,6 +47,6 @@ void FAuraWidgetControllerBootstrap::AttachControllerToWidget(UUserWidget* Widge
 	{
 		// After the view knows which controller drives it, push the current values so the widget
 		// does not spend its first frame showing empty or stale data.
-		WidgetController->BroadcastInitialValues(); 
+		WidgetController->BroadcastInitialValues();
 	}
 }

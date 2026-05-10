@@ -2,6 +2,7 @@
 
 
 #include "Components/AbilitySystem/AsyncTask/WaitCooldownChange.h"
+
 #include "AbilitySystemComponent.h"
 
 UWaitCooldownChange* UWaitCooldownChange::WaitCooldownChange(UAbilitySystemComponent* InAbilitySystemComponent, const FGameplayTag& InCooldownTag)
@@ -12,14 +13,14 @@ UWaitCooldownChange* UWaitCooldownChange::WaitCooldownChange(UAbilitySystemCompo
 
 	if (!IsValid(Task->ASC) || !Task->CooldownTag.IsValid())
 	{
-		Task->EndTask(); 
+		Task->EndTask();
 		return nullptr;
 	}
 
-	// to know when a cooldown tag is removed 
+	// Cooldown end is signaled when the tracked tag count returns to zero.
 	InAbilitySystemComponent->RegisterGameplayTagEvent(InCooldownTag, EGameplayTagEventType::NewOrRemoved).AddUObject(Task, &UWaitCooldownChange::CooldownTagChanged);
 
-	//to know when a cooldown tag is added, in case the cooldown is refreshed or changed before it end.
+	// Cooldown start/refresh is signaled by matching newly applied gameplay effects.
 	InAbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(Task, &UWaitCooldownChange::OnActiveGameplayEffectAdded);
 
 	return Task;
@@ -27,7 +28,11 @@ UWaitCooldownChange* UWaitCooldownChange::WaitCooldownChange(UAbilitySystemCompo
 
 void UWaitCooldownChange::EndTask()
 {
-	if (!IsValid(ASC)) return;
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
 	ASC->RegisterGameplayTagEvent(CooldownTag, EGameplayTagEventType::NewOrRemoved).RemoveAll(this);
 
 	SetReadyToDestroy();
@@ -40,38 +45,32 @@ void UWaitCooldownChange::CooldownTagChanged(const FGameplayTag CallbackTag, int
 	{
 		CooldownEnd.Broadcast(0.f);
 	}
-
 }
 
 void UWaitCooldownChange::OnActiveGameplayEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle)
 {
 	FGameplayTagContainer AssetTags;
-	SpecApplied.GetAllAssetTags(AssetTags); 
-
+	SpecApplied.GetAllAssetTags(AssetTags);
 
 	FGameplayTagContainer GrantedTags;
 	SpecApplied.GetAllGrantedTags(GrantedTags);
 
-
 	if (AssetTags.HasTagExact(CooldownTag) || GrantedTags.HasTagExact(CooldownTag))
 	{
 		FGameplayEffectQuery GameplayEffectQuery = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTag.GetSingleTagContainer());
-		TArray<float> TimeRemanings = ASC->GetActiveEffectsTimeRemaining(GameplayEffectQuery);
-		if (TimeRemanings.Num() > 0)
+		TArray<float> TimeRemainings = ASC->GetActiveEffectsTimeRemaining(GameplayEffectQuery);
+		if (TimeRemainings.Num() > 0)
 		{
-			float LongestTimeRemaining = TimeRemanings[0];
-			for (int32 i = 0; i < TimeRemanings.Num(); i++)
+			float LongestTimeRemaining = TimeRemainings[0];
+			for (int32 Index = 0; Index < TimeRemainings.Num(); ++Index)
 			{
-				if (TimeRemanings[i] > LongestTimeRemaining)
+				if (TimeRemainings[Index] > LongestTimeRemaining)
 				{
-					LongestTimeRemaining = TimeRemanings[i];
+					LongestTimeRemaining = TimeRemainings[Index];
 				}
 			}
 
-			float TimeRemaning = LongestTimeRemaining;
-
-			CooldownStart.Broadcast(TimeRemaning);
+			CooldownStart.Broadcast(LongestTimeRemaining);
 		}
 	}
-
 }

@@ -3,17 +3,17 @@
 #include "Player/AuraPlayerController.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Character/AuraCharacter.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/Player/AutoMoveComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "Input/AuraInputComponent.h"
 #include "Interaction/Highlightable.h"
 #include "UI/HUD/AuraHUD.h"
 #include "UI/WidgetComponent/DamageWidgetComponent.h"
-#include "Character/AuraCharacter.h"
-#include "GameFramework/SpringArmComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
 {
@@ -24,19 +24,22 @@ AAuraPlayerController::AAuraPlayerController()
 
 void AAuraPlayerController::ToggleAttributeMenuRequested()
 {
-	AAuraHUD* AuraHUD = GetAuraHUD();
-	if (!AuraHUD)
+	if (!CachedAuraHUD)
 	{
 		return;
 	}
-
-	if (AuraHUD->IsAttributeMenuOnScreen())
+	if (AutoMoveComponent->IsAutoMoving())
 	{
-		AuraHUD->CloseAttributeMenu();
+		AutoMoveComponent->RequestCancelAutoMove();
+	}
+
+	if (CachedAuraHUD->IsAttributeMenuOnScreen())
+	{
+		CachedAuraHUD->CloseAttributeMenu();
 	}
 	else
 	{
-		AuraHUD->ShowAttributeMenu();
+		CachedAuraHUD->ShowAttributeMenu();
 	}
 }
 
@@ -67,6 +70,7 @@ void AAuraPlayerController::BeginPlay()
 	InitializeInputContext();
 	InitializeMouseCursorMode();
 
+	CachedAuraHUD = Cast<AAuraHUD>(GetHUD());
 
 	if (AAuraCharacter* AuraCharacter = Cast<AAuraCharacter>(GetPawn()))
 	{
@@ -159,10 +163,6 @@ void AAuraPlayerController::BindNativeInputActions(UAuraInputComponent* AuraEnha
 	AuraEnhancedInputComponent->BindAction(AttackHelpAction, ETriggerEvent::Completed, this, &AAuraPlayerController::OnAttackHelpReleased);
 }
 
-AAuraHUD* AAuraPlayerController::GetAuraHUD() const
-{
-	return Cast<AAuraHUD>(GetHUD());
-}
 
 void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& ActionValues)
 {
@@ -189,6 +189,10 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 {
 	check(AutoMoveComponent);
+	if (CachedAuraHUD && CachedAuraHUD->IsAttributeMenuOnScreen())
+	{
+		return;
+	}
 
 	FVector MoveTargetLocation = FVector::ZeroVector;
 	if (TryGetCachedMoveTargetLocation(MoveTargetLocation))
@@ -200,6 +204,11 @@ void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 void AAuraPlayerController::OnMoveToCursor(const FInputActionValue& ActionValues)
 {
 	check(AutoMoveComponent);
+
+	if (CachedAuraHUD && CachedAuraHUD->IsAttributeMenuOnScreen())
+	{
+		return;
+	}
 
 	FVector MoveTargetLocation = FVector::ZeroVector;
 	if (TryGetCachedMoveTargetLocation(MoveTargetLocation))

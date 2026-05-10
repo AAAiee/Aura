@@ -17,9 +17,9 @@ TArray<FVector> UAuraSummonAbility::GetSpawnLocations() const
 	const FVector LeftSpreadEdge = ForwardVector.RotateAngleAxis(-HalfSpread, FVector::UpVector);
 
 	// Build evenly distributed directions, then randomize distance per slot for a less rigid group.
-	for (int i = 0; i < NumSpawnLocations; ++i)
+	for (int32 Index = 0; Index < NumSpawnLocations; ++Index)
 	{
-		const FVector Direction = LeftSpreadEdge.RotateAngleAxis(DeltaSpread * i, FVector::ZAxisVector);
+		const FVector Direction = LeftSpreadEdge.RotateAngleAxis(DeltaSpread * Index, FVector::ZAxisVector);
 		const float RandomDistance = FMath::RandRange(MinSpawnDistance, MaxSpawnDistance);
 		FVector SpawnLocation = Location + Direction * RandomDistance;
 

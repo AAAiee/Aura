@@ -7,6 +7,7 @@
 
 class UProjectileMovementComponent;
 class UPrimitiveComponent;
+class UAudioComponent;
 class UNiagaraSystem;
 class USoundBase;
 
@@ -22,11 +23,9 @@ public:
 	void LaunchInDirection(const FVector& Direction);
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-
 	// The spell builds the outgoing damage spec up front, then the projectile applies it on impact.
-	UPROPERTY(BlueprintReadOnly, Category= "Projectile|Effect", meta = (ExposeOnSpawn = true))
+	UPROPERTY(BlueprintReadOnly, Category = "Projectile|Effect", meta = (ExposeOnSpawn = true))
 	FGameplayEffectSpecHandle DamageEffectHandle;
-
 
 protected:
 	virtual void BeginPlay() override;
@@ -34,7 +33,7 @@ protected:
 	virtual void HandleTakenFromPool() override;
 	virtual void ResetPooledState() override;
 
-	// Shared overlap logic for all projectile types
+	// Shared overlap logic for all projectile collision shapes.
 	UFUNCTION(BlueprintCallable)
 	virtual void OnProjectileOverlap(
 		UPrimitiveComponent* OverlappedComponent,
@@ -55,7 +54,7 @@ protected:
 	void ApplyActiveState();
 	void ApplyInactiveState();
 
-	// Child classes pass in whatever collision component they created
+	// Child classes pass in whatever collision component they created.
 	void SetCollisionComponent(UPrimitiveComponent* InCollisionComponent);
 
 protected:
@@ -74,11 +73,11 @@ protected:
 	TObjectPtr<UNiagaraSystem> ImpactEffect;
 
 	// One-shot sound played when the projectile resolves its impact.
-	UPROPERTY(EditAnywhere,Category = "Projectile|Impact")
+	UPROPERTY(EditAnywhere, Category = "Projectile|Impact")
 	TObjectPtr<USoundBase> ImpactSound;
 
 	// Optional looping flight audio that should start on borrow and stop on return / impact.
-	UPROPERTY(EditAnywhere, Category= "Projectile|Impact")
+	UPROPERTY(EditAnywhere, Category = "Projectile|Impact")
 	TObjectPtr<USoundBase> LoopingSound;
 
 	// Cached runtime audio component so pooled reuse can stop and destroy the previous activation's loop.

@@ -49,7 +49,7 @@ public:
 
 	// Grants the shared startup abilities declared on CharacterClassInfo (for example, generic combat responses).
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|CharacterClassDefaults")
-	static void InitializeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC );
+	static void InitializeDefaultAbilities(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC);
 
 	// Convenience accessor for systems that need the authoritative class-info asset without each
 	// caller repeating the GameMode lookup chain.
@@ -68,7 +68,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
 	static bool ShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle);
 
-
 	// Write combat-result flags during server-side ExecCalc resolution so UI can read them later.
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
 	static void SetIsBlockedHit(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInIsBlocked);
@@ -85,15 +84,13 @@ public:
 	static void GetLivePlayersWithinRadius(const UObject* WorldContextObject, TArray<AActor*>& OutOverlapActors, const TArray<AActor*>& ActorToIgnore, float Radius, const FVector& SphereOrigin);
 
 	// Returns one montage entry at random from the authored list. Caller must provide a non-empty array.
-	UFUNCTION(BlueprintCallable, Category ="AuraAbilitySystem|GameplayUtilities")
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayUtilities")
 	static const FTaggedMontage& GetRandomMontageInArray(const TArray<FTaggedMontage>& MontageArray);
 
 	// Lightweight team check used by projectiles and AoE utilities to ignore friendly targets.
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category ="AuraAbilitySystem|GameplayUtilities")
-	static bool  IsNotFriend(AActor* FirstActor, AActor* SecondActor);
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "AuraAbilitySystem|GameplayUtilities")
+	static bool IsNotFriend(AActor* FirstActor, AActor* SecondActor);
 
-
-
-	/*XP*/
+	/* XP */
 	static int32 GetXPRewardForClassAndLevel(const UObject* WorldContextObject, ECharacterClass CharacterClass, int32 CharacterLevel);
 };

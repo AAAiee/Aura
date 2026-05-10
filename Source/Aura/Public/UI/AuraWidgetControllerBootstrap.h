@@ -9,7 +9,7 @@ class UUserWidget;
 struct FWidgetControllerParameters;
 
 /**
- * 
+ * Shared helper for creating widget controllers and attaching them to Aura widgets.
  */
 struct AURA_API FAuraWidgetControllerBootstrap
 {

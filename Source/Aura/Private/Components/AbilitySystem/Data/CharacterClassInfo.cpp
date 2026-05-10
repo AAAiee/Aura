@@ -7,5 +7,5 @@ FCharacterClassDefaultInfo UCharacterClassInfo::GetDefaultInfoForClass(ECharacte
 {
 	// Startup class data is required authoring, so FindChecked gives us a loud failure if a new
 	// enum entry is added but the corresponding asset data was never populated.
-	return CharacterClassDefaultInfoMap.FindChecked(CharacterClass); 
+	return CharacterClassDefaultInfoMap.FindChecked(CharacterClass);
 }

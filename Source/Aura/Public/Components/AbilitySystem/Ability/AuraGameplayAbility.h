@@ -7,7 +7,7 @@
 #include "AuraGameplayAbility.generated.h"
 
 /**
- * 
+ * Base Aura gameplay ability carrying the startup input/ability tag authored by designers.
  */
 UCLASS()
 class AURA_API UAuraGameplayAbility : public UGameplayAbility
@@ -17,7 +17,7 @@ class AURA_API UAuraGameplayAbility : public UGameplayAbility
 
 public:
 
-	UPROPERTY(EditDefaultsOnly, Category=StartUpProperties)
+	UPROPERTY(EditDefaultsOnly, Category = StartUpProperties)
 	FGameplayTag StartupGameTag;
 };
 

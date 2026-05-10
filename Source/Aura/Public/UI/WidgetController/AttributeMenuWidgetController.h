@@ -17,6 +17,7 @@ struct FGameplayTag;
  * - NewValue: runtime value read from the current AttributeSet
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAttributeMenuChangeSignature, FAuraAttributeTagMetadatas, AttributeTagMetadatas, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAttributeDeltaChangedSignature, const FGameplayTag&, AttributeTag, int32, CurrentDelta);
 
 /**
  * Widget Controller responsible for the full Attribute Menu panel.
@@ -45,6 +46,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpgradeAttribute(const FGameplayTag& AttributeTag);
 
+
+	UFUNCTION(BlueprintCallable)
+	void DeductAttribute(const FGameplayTag& AttributeTag);
+
+
+	void BeginAssignmentSession();
+	void EndAssignmentSession();
+
+	UFUNCTION(BlueprintCallable)
+	void ConfirmAttributeAssignments();
+
+
+
 private:
 	/** Helper used by both initial push and live updates to avoid duplicate logic. */
 	void BroadcastAttributeDataEntry(const FAuraAttributeTagMetadatas& AttributeTagInfo);
@@ -56,11 +70,34 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnPlayerStatChangedSignature OnAttributePointsChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnPlayerStatChangedSignature OnSessionAttributePointsAvailableChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnAttributeDeltaChangedSignature OnSessionAttributeDeltaChanged;
+
+
 	/**
 	 * DataAsset listing all attributes shown in the menu.
 	 * Bug-prone if null: always assign in BP_AttributeMenuWidgetController defaults.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attribute Menu", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAttributeDataAsset> AttributeTagsDataAsset = nullptr;
+
+	UPROPERTY(Transient)
+	TMap<FGameplayTag, float> SessionBasePrimaryAttributeValues;
+
+	UPROPERTY(Transient)
+	TMap<FGameplayTag, int32> SessionPrimaryAttributeDeltas;
+
+	UPROPERTY(Transient)
+	int32 SessionAttributePointsAvailable = 0;
+
+	UPROPERTY(Transient)
+	bool bAssignmentSessionInProgress = false;
+
+	UPROPERTY(Transient)
+	bool bWaitingForConfirmation = false;
+
 };
 

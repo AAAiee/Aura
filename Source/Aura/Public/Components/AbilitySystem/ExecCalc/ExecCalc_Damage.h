@@ -15,9 +15,7 @@ class AURA_API UExecCalc_Damage : public UGameplayEffectExecutionCalculation
 {
 	GENERATED_BODY()
 
-
 public:
-	/* Construction */
 	UExecCalc_Damage();
 
 	/* UGameplayEffectExecutionCalculation */

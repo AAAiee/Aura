@@ -7,6 +7,9 @@
 #include "AbilitySystemComponent.h"
 #include "AuraAttributeSet.generated.h"
 
+class ACharacter;
+class AController;
+
 /**
  * ATTRIBUTE_ACCESSORS is a convenience macro provided by GAS.
  * For each attribute (e.g. Health), it generates four helper functions:
@@ -21,7 +24,6 @@
 	GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
 	GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
-
 /**
  * Holds Source and Target information extracted from a Gameplay Effect execution.
  * Populated in PostGameplayEffectExecute so we know WHO applied the effect and WHO received it.
@@ -34,11 +36,11 @@ struct FEffectProperties
 
 	FEffectProperties() = default;
 
-	/*Target - the actor receiving the effect*/
+	/* Target - the actor receiving the effect. */
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> TargetASC;
 
-	/*Source - the actor that caused/applied the effect*/
+	/* Source - the actor that caused/applied the effect. */
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> SourceASC;
 
@@ -80,20 +82,20 @@ UCLASS()
 class AURA_API UAuraAttributeSet : public UAttributeSet
 {
 	GENERATED_BODY()
-	
+
 public:
 	UAuraAttributeSet();
 
 	/* Attribute Accessors */
 	// Generated helpers for vital attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Health);
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Mana); 
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Mana);
 
 	// Generated helpers for primary attributes.
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Strength); 
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Intelligence); 
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Resilience); 
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Vigor); 
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Strength);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Intelligence);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Resilience);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Vigor);
 
 	// Generated helpers for secondary attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, Armor);
@@ -104,8 +106,8 @@ public:
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, CriticalHitResilience);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, HealthRegeneration);
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, ManaRegeneration);
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxHealth); 
-	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxMana); 
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxHealth);
+	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, MaxMana);
 
 	// Generated helpers for resistance attributes.
 	ATTRIBUTE_ACCESSORS(UAuraAttributeSet, FireResistance);
@@ -127,6 +129,7 @@ public:
 
 	/** Registers all attributes for replication. Required for any replicated UPROPERTY in an AttributeSet. */
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
 	/**
 	 * Called after a GameplayEffect has been executed and the attribute value has been committed.
 	 * This is the authoritative place to react to attribute changes (e.g., death check, final clamping).
@@ -207,7 +210,6 @@ private:
 	/* Internal Helpers */
 	/** Extracts Source/Target actor info from a GE execution into an FEffectProperties struct. */
 	void SetEffectProperties(const FGameplayEffectModCallbackData& Data, FEffectProperties& Props);
-private:
 
 	void SendXPEvent(const FEffectProperties& Props);
 
@@ -235,7 +237,7 @@ public:
 
 	/* Primary Attributes */
 	// Replicated with REPNOTIFY_Always so client-side delegates always receive refreshes.
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Strength, Category = "Primary Attributes" )
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Strength, Category = "Primary Attributes")
 	FGameplayAttributeData Strength;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Intelligence, Category = "Primary Attributes")

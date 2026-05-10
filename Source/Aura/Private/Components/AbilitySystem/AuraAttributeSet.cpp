@@ -2,17 +2,17 @@
 
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AuraGameTagManager.h"
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffectExtension.h"
 #include "Interaction/CombatInterface.h"
+#include "Interaction/PlayerInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/AuraPlayerController.h"
-#include "AuraLogCategory.h"
-#include "AbilitySystemBlueprintLibrary.h"
-#include "Interaction/PlayerInterface.h"
 
 /**
  * Constructor - use Init<Attribute>() to set both the Base and Current value.
@@ -57,17 +57,17 @@ void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	/*Vital Attributes OnRep*/
+	/* Vital Attributes */
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Mana, COND_None, REPNOTIFY_Always);
 
-	/*Primary Attributes OnRep*/
+	/* Primary Attributes */
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Strength, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Intelligence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Resilience, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Vigor, COND_None, REPNOTIFY_Always);
 
-	/*Secondary Attributes OnRep*/
+	/* Secondary Attributes */
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, MaxMana, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, Armor, COND_None, REPNOTIFY_Always);
@@ -79,7 +79,7 @@ void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, HealthRegeneration, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, ManaRegeneration, COND_None, REPNOTIFY_Always);
 
-	/*Secondary Resistance Attributes OnRep*/
+	/* Secondary Resistance Attributes */
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, FireResistance, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, LightningResistance, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, ArcaneResistance, COND_None, REPNOTIFY_Always);
@@ -140,7 +140,7 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 					CombatInterface->Die();
 				}
 
-				SendXPEvent(Props); 
+				SendXPEvent(Props);
 			}
 			else if (UAuraAbilitySystemLibrary::ShouldHitReact(Props.GameplayEffectContextHandle))
 			{
@@ -164,26 +164,24 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 		const float LocalIncomingXPRewardCopy = GetInComingXPReward();
 		SetInComingXPReward(0);
 
-		//TODO::See If we shoud level up
+		// XP rewards are resolved on the source character so PlayerState owns level/stat progression.
 		if (Props.SourceCharacter && Props.SourceCharacter->Implements<UPlayerInterface>())
 		{
-
-			const int32 CurrentPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(Props.SourceCharacter); 
+			const int32 CurrentPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(Props.SourceCharacter);
 			const int32 CurrentXP = IPlayerInterface::Execute_GetXP(Props.SourceCharacter);
 			const int32 PLayerLevel_Updated = IPlayerInterface::Execute_FindLevelForXP(Props.SourceCharacter, CurrentXP + LocalIncomingXPRewardCopy);
 			const int32 NumLevelsUp = PLayerLevel_Updated - CurrentPlayerLevel;
 			if (NumLevelsUp > 0)
 			{
 				const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, PLayerLevel_Updated);
-				const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, PLayerLevel_Updated);	
+				const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, PLayerLevel_Updated);
 
 
-				IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp); 
+				IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp);
 				IPlayerInterface::Execute_AddToAttributePoint(Props.SourceCharacter, AttributePointsReward);
 				IPlayerInterface::Execute_AddToSpellPoint(Props.SourceCharacter, SpellPointsReward);
-				
 
-				/*Can't just topup the max health and mana here, level just changed + max health/mana depends on it*/
+				// MaxHealth and MaxMana will be recalculated by follow-up GEs, so top off after those caps change.
 				bTopOffHealth = true;
 				bTopoffMana = true;
 
@@ -191,11 +189,9 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 			}
 			IPlayerInterface::Execute_AddToXP(Props.SourceCharacter, LocalIncomingXPRewardCopy);
 		}
-
 	}
 
 }
-
 
 void UAuraAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
 {
@@ -210,7 +206,7 @@ void UAuraAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 	if (Attribute == GetMaxManaAttribute() && bTopoffMana)
 	{
 		SetMana(GetMaxMana());
-		bTopoffMana = false; 
+		bTopoffMana = false;
 	}
 }
 
@@ -332,7 +328,7 @@ void UAuraAttributeSet::ShowFloatingText(const FEffectProperties& Props, const f
 		return;
 	}
 
-	if (!Props.TargetCharacter )
+	if (!Props.TargetCharacter)
 	{
 		return;
 	}
@@ -409,17 +405,14 @@ void UAuraAttributeSet::SendXPEvent(const FEffectProperties& Props)
 	if (Props.TargetCharacter->Implements<UCombatInterface>())
 	{
 		const int32 TargetLevel = ICombatInterface::Execute_GetPlayerLevel(Props.TargetCharacter);
-		const ECharacterClass TargetClass = ICombatInterface::Execute_GetCharacterClass(Props.TargetCharacter); 
-		const int32 XPReward = UAuraAbilitySystemLibrary::GetXPRewardForClassAndLevel(Props.TargetCharacter,TargetClass, TargetLevel);	
-			
+		const ECharacterClass TargetClass = ICombatInterface::Execute_GetCharacterClass(Props.TargetCharacter);
+		const int32 XPReward = UAuraAbilitySystemLibrary::GetXPRewardForClassAndLevel(Props.TargetCharacter, TargetClass, TargetLevel);
 
 		const FAuraGameTagManager& AuraGameplayTags = FAuraGameTagManager::Get();
 		FGameplayEventData PayLoad;
 		PayLoad.EventTag = AuraGameplayTags.Attributes_Meta_XP;
-		PayLoad.EventMagnitude = XPReward; 
+		PayLoad.EventMagnitude = XPReward;
 
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Props.SourceCharacter, AuraGameplayTags.Attributes_Meta_XP, PayLoad);
 	}
- 
-
 }

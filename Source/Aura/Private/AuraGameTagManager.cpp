@@ -32,6 +32,7 @@
 			FName(TEXT("Attributes.Primary." TagName)), \
 			TEXT(Description)); \
 		FAuraGameTagManager::AddNativeGameplayTagInfo(ToAdd, ToAdd.GetTagName(), TEXT(Description)); \
+		Get().PrimaryAttributeTags.Add(ToAdd); \
 		return ToAdd; \
 	}())
 
@@ -122,14 +123,14 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().DamageTypesToResistance.Add(Get().DamageType_Lightning, Get().Attribute_Secondary_LightningDamageResistance);
 	Get().DamageTypesToResistance.Add(Get().DamageType_Arcane, Get().Attribute_Secondary_ArcaneDamageResistance);
 	Get().DamageTypesToResistance.Add(Get().DamageType_Physical, Get().Attribute_Secondary_PhysicalDamageResistance);
-	Get().Attributes_Meta_XP= ADD_GAMETAG_CUSTOM("Attributes.Meta.XP", "Tag for meta XP attribute");
+	Get().Attributes_Meta_XP = ADD_GAMETAG_CUSTOM("Attributes.Meta.XP", "Tag for meta XP attribute");
 
 	/* Ability Tags */
 	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Attack", "Tag for attack abilities");
 	Get().Ability_Summon = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
 	Get().Ability_FireBolt = ADD_GAMETAG_CUSTOM("Ability.FireBolt", "Tag for fire bolt ability");
 
-	/*Cooldown*/
+	/* Cooldown Tags */
 	Get().Cooldown_FireBolt = ADD_GAMETAG_CUSTOM("Cooldown.FireBolt", "Tag for fire bolt cooldown");
 
 	/* Combat Socket Tags */

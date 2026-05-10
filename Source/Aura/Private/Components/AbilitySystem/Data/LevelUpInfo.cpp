@@ -7,7 +7,7 @@ int32 ULevelUpInfo::FindLevelForXP(int32 XP) const
 {
 	check(LevelUpInfos.Num() > 0);
 
-	// TODO: this could be done in O(log(n)), binay search
+	// Level data is authored in ascending XP order; the first row above XP is the next level gate.
 	const FAuraLevelUpInfo* LevelInfoForGivenXP = LevelUpInfos.FindByPredicate([XP](const FAuraLevelUpInfo& Info)
 		{
 			if (XP < Info.LevelUpRequirement)
@@ -15,7 +15,7 @@ int32 ULevelUpInfo::FindLevelForXP(int32 XP) const
 				return true;
 			}
 
-			return false; 
+			return false;
 		});
 
 	if (LevelInfoForGivenXP)
