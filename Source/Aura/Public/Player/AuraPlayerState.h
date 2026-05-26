@@ -90,7 +90,7 @@ protected:
 
 private:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PlayerLevel, meta = (AllowPrivateAccess = true))
-	int32 PlayerLevel = 0;
+	int32 PlayerLevel = 1;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PlayerXP, meta = (AllowPrivateAccess = true))
 	int32 PlayerXP = 0;

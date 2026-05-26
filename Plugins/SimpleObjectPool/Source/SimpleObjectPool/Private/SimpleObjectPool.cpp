@@ -4,10 +4,12 @@
 
 #define LOCTEXT_NAMESPACE "FSimpleObjectPoolModule"
 
+DEFINE_LOG_CATEGORY(LogSimpleObjectPool);
+
 void FSimpleObjectPoolModule::StartupModule()
 {
 	// Module startup is intentionally lightweight; the world subsystem owns runtime pool state.
-	UE_LOG(LogTemp, Warning, TEXT("SimpleObjectPool module has started!"));
+	UE_LOG(LogSimpleObjectPool, Log, TEXT("SimpleObjectPool module started."));
 }
 
 void FSimpleObjectPoolModule::ShutdownModule()

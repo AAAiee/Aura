@@ -80,16 +80,16 @@ void AAuraEnemy::UnhighLightActor()
 	}
 }
 
-void AAuraEnemy::Die()
+void AAuraEnemy::Die(const FVector& DeathImpulse)
 {
 	// Lifespan cleanup is intentionally delayed so remote clients can still see the ragdoll and
 	// dissolve sequence kicked off by the shared base-character death flow.
 	SetLifeSpan(LifeSpan);
-
+	
 	// Mirror death into the blackboard so active behavior-tree tasks stop treating this pawn as alive.
 	AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("Dead"), true);
 
-	Super::Die();
+	Super::Die(DeathImpulse);
 }
 
 void AAuraEnemy::PossessedBy(AController* NewController)
@@ -170,6 +170,7 @@ void AAuraEnemy::InitAbilityActorInfo()
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
+	OnAscRegisteredDelegate.Broadcast(AbilitySystemComponent);
 }
 
 void AAuraEnemy::InitDefaultAttributes()

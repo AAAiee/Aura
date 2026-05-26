@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "ControllerDelegates.h"
-#include "Components/AbilitySystem/Data/AbilityInfo.h"
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
 #include "UI/WidgetController/AuraWidgetController.h"
@@ -40,7 +39,6 @@ struct FUIWidgetRow : public FTableRowBase
 
 /* Dynamic multicast delegates that Blueprint widgets bind to for overlay updates. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, const FUIWidgetRow&, Row);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAbilityInfoSignature, const FAuraAbilityInfo&, AbilityInfo);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateStatChanged, const float, NewStatValue);
 
 
@@ -86,9 +84,14 @@ public:
 	virtual void BindAllDependencies() override;
 
 private:
-	void OnInitializeStartupAbilities(UAuraAbilitySystemComponent* AuraASC);
-	void OnXpChanged(const int32 NewXP) const;
+	/** Converts absolute XP into a normalized progress bar value for the current level. */
+	void OnXpChanged(const int32 NewXP);
+
+	/** Broadcasts level text updates to Blueprint widgets. */
 	void OnLevelChanged(const int32 NewLevel) const;
+
+	/** Mirrors equipped ability changes into overlay action slots. */
+	void OnAbilityEquippedCallback(const FGameplayTag& AbilityTag, const FGameplayTag& StatusTag, const FGameplayTag& SlotInputTag, const FGameplayTag& PreviousSlotTag) const;
 
 	/* Blueprint-assignable delegates: Blueprint widgets bind to these in WidgetControllerSet. */
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
@@ -107,9 +110,6 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnMessageWidgetRowSignature OnSendMessageWidgetRow;
 
-	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
-	FAbilityInfoSignature AbilityInfoDelegate;
-
 	// XP is not a GAS attribute, but the overlay only needs the same float broadcast shape.
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeChangeSignature OnPlayerXPChanged;
@@ -120,7 +120,4 @@ private:
 	/** DataTable mapping GameplayTags to message text, widget class, and icon. Set in Blueprint. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDataTable> MessageWidgetDataTable;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UAbilityInfo> AbilityInfoDataAsset;
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/AbilitySystem/Data/AbilityInfo.h"
 #include "UObject/NoExportTypes.h"
 #include "AuraWidgetController.generated.h"
 
@@ -10,6 +11,12 @@ class APlayerController;
 class APlayerState;
 class UAbilitySystemComponent;
 class UAttributeSet;
+class AAuraPlayerController;
+class AAuraPlayerState;
+class UAuraAbilitySystemComponent;
+class UAuraAttributeSet;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAbilityInfoSignature, const FAuraAbilityInfo&, AbilityInfo);
 
 /**
  * Parameter bundle passed to Widget Controllers during initialization.
@@ -73,13 +80,34 @@ public:
 	virtual void BroadcastInitialValues() {}
 
 	/** Override to bind delegates to ASC attribute changes, GE events, etc. */
-	virtual void BindAllDependencies();
+	virtual void BindAllDependencies() {}
 
-	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
+	UFUNCTION(BlueprintPure)
 	AActor* GetAvatarActor() const;
 
-	UFUNCTION(BlueprintPure, Category = "Aura|WidgetController")
+	/** Returns the ASC owner actor, which is often the PlayerState for player-owned ASCs. */
+	UFUNCTION(BlueprintPure)
 	AActor* GetOwningActor() const;
+
+	/* Convenience accessors for cached Aura-specific references. */
+	UFUNCTION(BlueprintPure)
+	AAuraPlayerController* GetAuraPlayerController();
+
+	UFUNCTION(BlueprintPure)
+	AAuraPlayerState* GetAuraPlayerState();
+
+	UFUNCTION(BlueprintPure)
+	UAuraAbilitySystemComponent* GetAuraAbilitySystemComponent();
+
+	UFUNCTION(BlueprintPure)
+	UAuraAttributeSet* GetAuraAttributeSet();
+
+	/** Iterates granted ASC ability specs and broadcasts the UI data row for each known ability. */
+	void BroadcastAbilityInfo();
+
+	/** Blueprint widgets bind to this to receive ability icon/status/input-slot updates. */
+	UPROPERTY(BlueprintAssignable, Category = "Delegate", meta = (AllowPrivateAccess = "true"))
+	FAbilityInfoSignature AbilityInfoDelegate;
 
 protected:
 	/* Cached references: set once via SetWidgetControllerParams, read by derived classes. */
@@ -94,4 +122,20 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = DataRef)
 	TObjectPtr<UAttributeSet> CachedAttributeSet;
+
+	/* Cached Aura references. */
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
+	TObjectPtr<AAuraPlayerController> CachedAuraPlayerController;
+
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
+	TObjectPtr<AAuraPlayerState> CachedAuraPlayerState;
+
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
+	TObjectPtr<UAuraAbilitySystemComponent> CachedAuraAbilitySystemComponent;
+
+	UPROPERTY(BlueprintReadOnly, Category = DataRef)
+	TObjectPtr<UAuraAttributeSet> CachedAuraAttributeSet;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAbilityInfo> AbilityInfoDataAsset;
 };

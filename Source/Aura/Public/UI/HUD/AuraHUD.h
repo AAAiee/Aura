@@ -7,6 +7,7 @@
 #include "AuraHUD.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetConstructedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraSpellMenuWidgetConstructedSignature);
 
 class UAbilitySystemComponent;
 class UAuraAttributeMenuWidget;
@@ -14,6 +15,8 @@ class UAuraOverlayRootWidget;
 class UAuraOverlayWidgetController;
 class UAttributeMenuWidgetController;
 class UAttributeSet;
+class UAuraSpellMenuWidget;
+class UAuraSpellMenuWidgetController;
 struct FWidgetControllerParameters;
 
 /**
@@ -49,6 +52,9 @@ public:
 	 */
 	UAttributeMenuWidgetController* GetAttributeMenuWidgetController(const FWidgetControllerParameters& Params);
 
+	/** Returns the cached Spell Menu Widget Controller, or creates one if it doesn't exist yet. */
+	UAuraSpellMenuWidgetController* GetSpellMenuWidgetController(const FWidgetControllerParameters& Params);
+
 	/**
 	 * Full overlay initialization - creates the widget, wires up the controller,
 	 * binds delegates, broadcasts initial values, and adds to viewport.
@@ -57,13 +63,8 @@ public:
 	void InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbilitySystemComponent* ASC, UAttributeSet* AS);
 
 	/**
-	 * Attribute Menu helpers.
-	 *
-	 * Project Extension:
-	 *   These helpers are custom additions beyond the tutorial baseline. They let the HUD
-	 *   own a cached popup Attribute Menu that is hosted inside the Overlay Root's WindowLayer.
-	 *
-	 * The HUD owns the widget lifetime:
+	 * Floating menu helpers.
+	 * The HUD owns each widget lifetime:
 	 *   - create once on demand
 	 *   - add it to the OverlayRoot's WindowLayer
 	 *   - then just hide/show the cached instance
@@ -74,11 +75,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CloseAttributeMenu();
 
+	UFUNCTION(BlueprintCallable)
+	void ShowSpellMenu();
+
+	UFUNCTION(BlueprintCallable)
+	void CloseSpellMenu();
+
 	/** Lazy-create the menu, parent it under the overlay's WindowLayer, and cache the instance. */
 	UAuraAttributeMenuWidget* CreateAttributeMenuWidgetIfNeeded();
+	UAuraSpellMenuWidget* CreateSpellMenuWidgetIfNeeded();
 
 	/** True once the cached menu instance is visible on screen. */
 	bool IsAttributeMenuOnScreen() const;
+	bool IsSpellMenuOnScreen() const;
 
 private:
 	/* Overlay Root - the full-screen HUD widget that also exposes a dedicated WindowLayer for popups. */
@@ -114,9 +123,24 @@ private:
 	UPROPERTY(BlueprintAssignable)
 	FAuraAttributeMenuWidgetConstructedSignature OnAttributeMenuWidgetInstanceConstructed;
 
-private:
-	/* Tracks whether the cached widget is currently visible, so input can toggle without querying visibility each time. */
-	UPROPERTY(VisibleDefaultsOnly, Category = AttributeMenu)
-	bool bIsAttributeMenuOpen = false;
+	/* Spell Menu Widget - cached popup window hosted inside the Overlay Root's WindowLayer. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	TObjectPtr<UAuraSpellMenuWidget> SpellMenuWidget;
+
+	/** Set in Blueprint - the UMG widget class to create (e.g., WBP_SpellMenu). */
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UAuraSpellMenuWidget> SpellMenuWidgetClass;
+
+	/** Fired after the cached Spell Menu widget is constructed so Blueprint can perform one-time setup. */
+	UPROPERTY(BlueprintAssignable)
+	FAuraSpellMenuWidgetConstructedSignature OnSpellMenuWidgetInstanceConstructed;
+
+	/** Set in Blueprint - the controller class that feeds spell rows, descriptions, and equip state. */
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UAuraSpellMenuWidgetController> SpellMenuWidgetControllerClass;
+
+	/** Spell Menu Controller - data provider for the popup spell tree/equipment menu. */
+	UPROPERTY()
+	TObjectPtr<UAuraSpellMenuWidgetController> SpellMenuWidgetController;
 };
 

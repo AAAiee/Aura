@@ -104,6 +104,8 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().InputTag_4 = ADD_GAMETAG_CUSTOM("InputTag.4", "Input for input key 4");
 	Get().InputTag_AuraPrimaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraPrimaryClick", "Input for Primary Click");
 	Get().InputTag_AuraSecondaryClick = ADD_GAMETAG_CUSTOM("InputTag.AuraSecondaryClick", "Input for Secondary Click");
+	Get().InputTag_Passive1 = ADD_GAMETAG_CUSTOM("InputTag.Passive1", "Input for passive ability 1");
+	Get().InputTag_Passive2 = ADD_GAMETAG_CUSTOM("InputTag.Passive2", "Input for passive ability 2");
 
 	/* Combat State Tags */
 	Get().Combat_Damage = ADD_GAMETAG_CUSTOM("Combat.Damage", "Tag for damage dealt in combat");
@@ -127,11 +129,50 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 
 	/* Ability Tags */
 	Get().Ability_Attack = ADD_GAMETAG_CUSTOM("Ability.Attack", "Tag for attack abilities");
+	Get().Ability_None = ADD_GAMETAG_CUSTOM("Ability.None", "Tag for Ability None");
 	Get().Ability_Summon = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
-	Get().Ability_FireBolt = ADD_GAMETAG_CUSTOM("Ability.FireBolt", "Tag for fire bolt ability");
+	Get().Ability_Fire_FireBolt = ADD_GAMETAG_CUSTOM("Ability.Fire.FireBolt", "Tag for fire bolt ability");
+	Get().Ability_Lightning_Electrocute = ADD_GAMETAG_CUSTOM("Ability.Lightning.Electrocute", "Tag for electrocute ability");
+	Get().Ability_HitReact = ADD_GAMETAG_CUSTOM("Ability.HitReact", "Tag for hit react ability");
+
+	/* Ability Status Tags */
+	Get().Ability_Status_Eligible = ADD_GAMETAG_CUSTOM("Ability.Status.Eligible", "Tag for abilities that the player meets the level requirements");
+	Get().Ability_Status_Locked = ADD_GAMETAG_CUSTOM("Ability.Status.Locked", "Tag for abilities that players currently does not meet level requirements");
+	Get().Ability_Status_UnLocked = ADD_GAMETAG_CUSTOM("Ability.Status.UnLocked", "Tag for abilities that players currently unlocked(ready to equip)");
+	Get().Ability_Status_Equipped = ADD_GAMETAG_CUSTOM("Ability.Status.Equipped", "Tag for abilities that players currently equipped");
+
+	/* Ability Type Tags */
+	Get().Ability_Type_None = ADD_GAMETAG_CUSTOM("Ability.Type.None", "Tag for abilities with no type");
+	Get().Ability_Type_Offensive = ADD_GAMETAG_CUSTOM("Ability.Type.Offensive", "Tag for offensive abilities that deal damage or apply debuffs");
+	Get().Ability_Type_Passive = ADD_GAMETAG_CUSTOM("Ability.Type.Passive", "Tag for passive abilities that provide buffs or utility");
+
+	/*
+	 * Debuff type tags are applied as owned tags on the timed GameplayEffect created by the
+	 * AttributeSet. Keeping this map next to the damage-type registration makes the one-to-one
+	 * relationship easy to audit whenever a new damage family is added.
+	 */
+	Get().Debuff_Arcane = ADD_GAMETAG_CUSTOM("Debuff.Arcane", "Tag for Arcane debuff");
+	Get().Debuff_Burn = ADD_GAMETAG_CUSTOM("Debuff.Burn", "Tag for Burn debuff");
+	Get().Debuff_Physical = ADD_GAMETAG_CUSTOM("Debuff.Physical", "Tag for Physical debuff");
+	Get().Debuff_Stun = ADD_GAMETAG_CUSTOM("Debuff.Stun", "Tag for Stun debuff");
+
+	Get().DamageTypeToDebuffType.Add(Get().DamageType_Arcane, Get().Debuff_Arcane);
+	Get().DamageTypeToDebuffType.Add(Get().DamageType_Fire, Get().Debuff_Burn);
+	Get().DamageTypeToDebuffType.Add(Get().DamageType_Lightning, Get().Debuff_Stun);
+	Get().DamageTypeToDebuffType.Add(Get().DamageType_Physical, Get().Debuff_Physical);
+
+	/*
+	 * Debuff property tags are set-by-caller keys. Abilities write the values, ExecCalc_Damage
+	 * reads them during the hit, and the successful values are copied to the custom effect context.
+	 */
+	Get().Debuff_Damage = ADD_GAMETAG_CUSTOM("Debuff.Damage", "Tag for damage debuff");
+	Get().Debuff_Chance = ADD_GAMETAG_CUSTOM("Debuff.Chance", "Tag for chance debuff");
+	Get().Debuff_Frequency = ADD_GAMETAG_CUSTOM("Debuff.Frequency", "Tag for frequency debuff");
+	Get().Debuff_Duration = ADD_GAMETAG_CUSTOM("Debuff.Duration", "Tag for duration debuff");
 
 	/* Cooldown Tags */
-	Get().Cooldown_FireBolt = ADD_GAMETAG_CUSTOM("Cooldown.FireBolt", "Tag for fire bolt cooldown");
+	Get().Cooldown_Fire_FireBolt = ADD_GAMETAG_CUSTOM("Cooldown.Fire.FireBolt", "Tag for fire bolt cooldown");
+	Get().Cooldown_Lightning_Electrocute = ADD_GAMETAG_CUSTOM("Cooldown.Lightning.Electrocute", "Tag for Electrocute ability cooldown");
 
 	/* Combat Socket Tags */
 	Get().CombatSocket_Weapon = ADD_GAMETAG_CUSTOM("CombatSocket.Weapon", "Tag for identifying combat weapon socket");
@@ -144,6 +185,11 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Montage_Attack_2 = ADD_GAMETAG_CUSTOM("Montage.Attack_2", "Tag for attack montage_2");
 	Get().Montage_Attack_3 = ADD_GAMETAG_CUSTOM("Montage.Attack_3", "Tag for attack montage_3");
 	Get().Montage_Attack_4 = ADD_GAMETAG_CUSTOM("Montage.Attack_4", "Tag for attack montage_4");
+	
+	Get().PLayer_BlockInputPressed = ADD_GAMETAG_CUSTOM("PLayer.Block.InputPressed", "Tag for player block input pressed");
+	Get().Player_BlockInputHeld = ADD_GAMETAG_CUSTOM("PLayer.Block.InputHeld", "Tag for player block input held");
+	Get().PLayer_BlockInputReleased = ADD_GAMETAG_CUSTOM("PLayer.Block.InputReleased", "Tag for player block input released");
+	Get().PLayer_BlockCursorTrace = ADD_GAMETAG_CUSTOM("PLayer.Block.CursorTrace", "Tag for player block cursor trace");
 
 	Get().bIsValid = true;
 }

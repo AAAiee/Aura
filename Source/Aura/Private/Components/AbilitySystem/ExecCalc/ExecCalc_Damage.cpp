@@ -95,6 +95,53 @@ UExecCalc_Damage::UExecCalc_Damage()
 	RelevantAttributesToCapture.Add(GetAuraDamageStatics().CriticalHitDamageDef);
 }
 
+void UExecCalc_Damage::DetermineDebuff(
+	const FGameplayEffectCustomExecutionParameters& ExecutionParams,
+	const FGameplayEffectSpec& Spec,
+	const FAggregatorEvaluateParameters& EvalParams) const
+{
+	/*
+	 * Debuff resolution happens beside damage calculation because it needs the same captured
+	 * target resistance attributes and the same authored set-by-caller payload.
+	 *
+	 * The ExecCalc does not apply the timed debuff itself. It records the result on the custom
+	 * GameplayEffectContext, and UAuraAttributeSet creates the dynamic periodic effect only after
+	 * IncomingDamage is consumed. That keeps all "what happens when a hit lands?" work in one place.
+	 */
+	const FAuraGameTagManager& TagManager = FAuraGameTagManager::Get();
+	for (const TTuple<FGameplayTag, FGameplayTag>& Pair : TagManager.DamageTypeToDebuffType)
+	{
+		const FGameplayTag& DamageTypeTag = Pair.Key;
+		const float TypeDamage = Spec.GetSetByCallerMagnitude(DamageTypeTag, false, -1.0f);
+		if (TypeDamage > -1.0f)
+		{
+			const float SourceDebuffSuccessChance = Spec.GetSetByCallerMagnitude(TagManager.Debuff_Chance, false, -1.f);
+			float TargetDebuffResistance = 0.f;
+			const FGameplayTag& TargetResistanceTag = TagManager.DamageTypesToResistance[DamageTypeTag];
+			ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(GetAuraDamageStatics().GetTagsToCaptureDefs()[TargetResistanceTag], EvalParams, TargetDebuffResistance);
+			TargetDebuffResistance = FMath::Clamp(TargetDebuffResistance, 0.f, 100.f);
+
+			// Resistance reduces the authored debuff chance by percentage. A target with 25 fire
+			// resistance only faces 75% of a fire ability's authored burn chance.
+			const float EffectiveDebuffChance = SourceDebuffSuccessChance * (100.f - TargetDebuffResistance) / 100.f;
+			const bool bDebuffSuccess = FMath::FRandRange(1.0f, 100.f) < EffectiveDebuffChance;
+			if (bDebuffSuccess)
+			{
+				FGameplayEffectContextHandle ContextHandle = Spec.GetContext();
+				UAuraAbilitySystemLibrary::SetSuccessfulDebuff(ContextHandle, bDebuffSuccess);
+				UAuraAbilitySystemLibrary::SetDamageTypeTag(ContextHandle, DamageTypeTag);
+				
+				const float DebuffDamage = Spec.GetSetByCallerMagnitude(TagManager.Debuff_Damage, false, -1.f);
+				UAuraAbilitySystemLibrary::SetDebuffDamage(ContextHandle, DebuffDamage);
+				const float DebuffDuration = Spec.GetSetByCallerMagnitude(TagManager.Debuff_Duration, false, -1.f);
+				const float DebuffFrequency = Spec.GetSetByCallerMagnitude(TagManager.Debuff_Frequency, false, -1.f);
+				UAuraAbilitySystemLibrary::SetDebuffDuration(ContextHandle, DebuffDuration);
+				UAuraAbilitySystemLibrary::SetDebuffFrequency(ContextHandle, DebuffFrequency);
+			}
+		}
+	}
+}
+
 void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 {
 	const UAbilitySystemComponent* TargetAbilityComponent = ExecutionParams.GetTargetAbilitySystemComponent();
@@ -139,6 +186,8 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Def, EvalParams, Value);
 		return FMath::Max(0.f, Value);
 	};
+
+	DetermineDebuff(ExecutionParams, Spec, EvalParams);
 
 	/*
 	 * Damage resolution order:

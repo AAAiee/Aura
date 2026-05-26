@@ -135,6 +135,11 @@ void AAuraCharacter::AddToPlayerLevel_Implementation(int32 InPlayerLevel)
 	AAuraPlayerState* AuraPlayerState = GetPlayerState<AAuraPlayerState>();
 	check(AuraPlayerState);
 	AuraPlayerState->AddPlayerLevel(InPlayerLevel);
+
+	if (UAuraAbilitySystemComponent* AuraASC = Cast<UAuraAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		AuraASC->UpdateAbilityStatus(AuraPlayerState->GetPlayerLevel());
+	}
 }
 
 void AAuraCharacter::AddToAttributePoint_Implementation(int32 InAttributePoint)
@@ -160,7 +165,7 @@ int32 AAuraCharacter::FindLevelForXP_Implementation(int32 InXP) const
 
 void AAuraCharacter::LevelUp_Implementation()
 {
-	MultiCastLevelUpEffect_Implementation();
+	MultiCastLevelUpEffect();
 }
 
 /**
@@ -183,6 +188,8 @@ void AAuraCharacter::InitAbilityActorInfo()
 	// Step 2: Cache GAS references on the base class
 	AbilitySystemComponent = AuraPlayerState->GetAbilitySystemComponent();
 	AttributeSet = AuraPlayerState->GetAttributeSet();
+	
+	OnAscRegisteredDelegate.Broadcast(AbilitySystemComponent);
 
 	// Step 3: HUD initialization - only on the owning client (HUD is local-only)
 	if (AAuraPlayerController* AuraPlayerController = GetController<AAuraPlayerController>())
@@ -205,7 +212,6 @@ void AAuraCharacter::MultiCastLevelUpEffect_Implementation()
 		const FVector NiagaraSystemLocation = LevelUpNiagaraComponent->GetComponentLocation();
 		const FRotator ToCameraRotation = (CameraLocation - NiagaraSystemLocation).Rotation();
 		LevelUpNiagaraComponent->SetWorldRotation(ToCameraRotation);
-
 		LevelUpNiagaraComponent->Activate(true);
 	}
 }

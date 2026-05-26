@@ -31,15 +31,14 @@ void UAttributeMenuWidgetController::BroadcastInitialValues()
 
 void UAttributeMenuWidgetController::BindAllDependencies()
 {
-	check(AttributeTagsDataAsset && CachedAbilitySystemComponent && CachedPlayerState);
-	AAuraPlayerState* AuraPlayerState = CastChecked<AAuraPlayerState>(CachedPlayerState);
+	AAuraPlayerState* AuraPlayerState = GetAuraPlayerState();
 
 	const TArray<FAuraAttributeTagMetadatas>& AttributeTagsDataEntries = AttributeTagsDataAsset->GetAllAttributeDataEntries();
 	for (const FAuraAttributeTagMetadatas& AttributeDataEntry : AttributeTagsDataEntries)
 	{
 		if (!AttributeDataEntry.AttributeRelated.IsValid())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("AttributeMenuWidgetController: Invalid AttributeRelated for tag '%s'."), *AttributeDataEntry.AttributeTag.ToString());
+			UE_LOG(LogAura, Warning, TEXT("AttributeMenuWidgetController: Invalid AttributeRelated for tag '%s'."), *AttributeDataEntry.AttributeTag.ToString());
 			continue;
 		}
 
@@ -70,6 +69,8 @@ void UAttributeMenuWidgetController::UpgradeAttribute(const FGameplayTag& Attrib
 	check(SessionAttributePointsAvailable > 0);
 	UE_LOG(LogAura, Log, TEXT("Pressed the + Button"));
 
+	// Attribute assignment is previewed locally first. We spend from the session pool, update the
+	// pending delta for this attribute, then broadcast the preview value without touching GAS yet.
 	SessionAttributePointsAvailable -= 1;
 	OnSessionAttributePointsAvailableChanged.Broadcast(SessionAttributePointsAvailable);
 	UE_LOG(LogAura, Log, TEXT("Attribute points available after decrement: %d"), SessionAttributePointsAvailable);
@@ -98,17 +99,21 @@ void UAttributeMenuWidgetController::DeductAttribute(const FGameplayTag& Attribu
 	check(bAssignmentSessionInProgress);
 	UE_LOG(LogAura, Log, TEXT("Pressed the - Button"));
 
+	int32* const CurrentDelta = SessionPrimaryAttributeDeltas.Find(AttributeTag);
+	check(CurrentDelta);
+	if (*CurrentDelta <= 0)
+	{
+		return;
+	}
+
+	// Refunding is the inverse of UpgradeAttribute: give the point back to the local session pool,
+	// lower the preview delta, and broadcast the rolled-back preview value.
 	SessionAttributePointsAvailable += 1;
 	OnSessionAttributePointsAvailableChanged.Broadcast(SessionAttributePointsAvailable);
 
-	int32* const CurrentDelta = SessionPrimaryAttributeDeltas.Find(AttributeTag);
-	if (CurrentDelta && *CurrentDelta > 0)
-	{
-		(*CurrentDelta)--;
-	}
+	(*CurrentDelta)--;
 	OnSessionAttributeDeltaChanged.Broadcast(AttributeTag, *CurrentDelta);
 	check(*CurrentDelta >= 0);
-
 
 	const FAuraAttributeTagMetadatas* Info = AttributeTagsDataAsset->GetAttributeDataEntryByTag(AttributeTag);
 	check(Info);
@@ -124,6 +129,8 @@ void UAttributeMenuWidgetController::BeginAssignmentSession()
 	check(FAuraGameTagManager::Get().PrimaryAttributeTags.Num() > 0);
 	check(AttributeTagsDataAsset);
 
+	// Capture committed AttributeSet values before previewing local changes. If the player closes
+	// the menu without confirming, EndAssignmentSession uses these baselines to restore the UI.
 	SessionBasePrimaryAttributeValues.Empty();
 	SessionPrimaryAttributeDeltas.Empty();
 	bAssignmentSessionInProgress = true;
@@ -151,11 +158,9 @@ void UAttributeMenuWidgetController::BeginAssignmentSession()
 
 void UAttributeMenuWidgetController::EndAssignmentSession()
 {
-	UAuraAbilitySystemComponent* AuraASC = CastChecked<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent);
-
 	if (bWaitingForConfirmation)
 	{
-		for (const auto& Pair : SessionBasePrimaryAttributeValues )
+		for (const auto& Pair : SessionBasePrimaryAttributeValues)
 		{
 			const FAuraAttributeTagMetadatas* Info = AttributeTagsDataAsset->GetAttributeDataEntryByTag(Pair.Key);
 			const float ResetValue = Pair.Value;
@@ -174,7 +179,7 @@ void UAttributeMenuWidgetController::EndAssignmentSession()
 
 void UAttributeMenuWidgetController::ConfirmAttributeAssignments()
 {
-	UAuraAbilitySystemComponent* AuraASC = CastChecked<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent);
+	UAuraAbilitySystemComponent* AuraASC = GetAuraAbilitySystemComponent();
 
 	if (!bWaitingForConfirmation)
 	{
@@ -183,6 +188,8 @@ void UAttributeMenuWidgetController::ConfirmAttributeAssignments()
 
 	for (auto& Pair : SessionPrimaryAttributeDeltas)
 	{
+		// Only the confirmed delta crosses into gameplay state. The ASC turns each delta into a
+		// server-side gameplay event so passive effects can react through normal GAS pathways.
 		AuraASC->UpgradeAttribute(Pair.Key, Pair.Value);
 		Pair.Value = 0;
 		OnSessionAttributeDeltaChanged.Broadcast(Pair.Key, 0);
@@ -194,7 +201,7 @@ void UAttributeMenuWidgetController::ConfirmAttributeAssignments()
 
 void UAttributeMenuWidgetController::BroadcastAttributeDataEntry(const FAuraAttributeTagMetadatas& AttributeTagInfo)
 {
-	if (!CachedAttributeSet)
+	if (!GetAuraAttributeSet())
 	{
 		return;
 	}
@@ -205,7 +212,7 @@ void UAttributeMenuWidgetController::BroadcastAttributeDataEntry(const FAuraAttr
 		return;
 	}
 
-	const float Value = AttributeRelated.GetNumericValue(CachedAttributeSet);
+	const float Value = AttributeRelated.GetNumericValue(GetAuraAttributeSet());
 	OnAttributeMenuChange.Broadcast(AttributeTagInfo, Value);
 }
 

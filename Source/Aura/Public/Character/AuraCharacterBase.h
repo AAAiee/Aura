@@ -9,6 +9,7 @@
 #include "Interaction/CombatInterface.h"
 #include "AuraCharacterBase.generated.h"
 
+class UDebuffNiagaraComponent;
 class UAnimMontage;
 class UAbilitySystemComponent;
 class UAttributeSet;
@@ -60,12 +61,13 @@ public:
 	virtual FTaggedMontage GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const override;
 	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; }
 	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override { MinionCount += IncrementBy; }
-	virtual void Die() override;
+	virtual void Die(const FVector& DeathImpulse) override;
 	virtual ECharacterClass GetCharacterClass_Implementation() const override { return CharacterClass; }
+	virtual USkeletalMeshComponent* GetWeaponMesh_Implementation() override {return Weapon;}; 
 
 	/* Death Presentation */
 	UFUNCTION(NetMulticast, Reliable)
-	virtual void MulticastHandleDeath();
+	virtual void MulticastHandleDeath(const FVector& DeathImpulse);
 
 	// Replaces authored materials with per-instance dynamics so each dead character can drive its
 	// own dissolve timeline without mutating the shared material asset.
@@ -75,6 +77,9 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartWeaponDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
+	
+	virtual FOnAbilitySystemComponentRegistered& GetOnAscRegisteredDelegate()  override;
+	virtual FOnCharacterDie& GetOnCharacterDieDelegate()  override;
 
 protected:
 	/* AActor Overrides */
@@ -165,6 +170,7 @@ protected:
 	TObjectPtr<UMaterialInstance> WeaponDisolveMaterialInstance;
 
 	/* Runtime State */
+	UPROPERTY(Transient)
 	bool bDead = false;
 
 	// Cosmetic effect spawned when combat damage asks this character to show blood feedback.
@@ -174,6 +180,9 @@ protected:
 	// One-shot sound used by the replicated death presentation.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Effect")
 	TObjectPtr<USoundBase> DeathSound;
+	
+	UPROPERTY(VisibleAnywhere,  Category = "Combat Effect")
+	TObjectPtr<UDebuffNiagaraComponent> BurnDebuffComponent;
 
 	// Number of active minions owned by this combatant, exposed through ICombatInterface.
 	int32 MinionCount = 0;
@@ -181,4 +190,7 @@ protected:
 	/* Class Data */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Class Default", meta = (AllowPrivateAccess = true))
 	ECharacterClass CharacterClass = ECharacterClass::ECC_Warrior;
+	
+	FOnAbilitySystemComponentRegistered OnAscRegisteredDelegate;
+	FOnCharacterDie OnDeath;
 };

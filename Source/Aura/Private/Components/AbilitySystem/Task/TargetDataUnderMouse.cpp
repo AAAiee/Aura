@@ -4,6 +4,7 @@
 #include "Components/AbilitySystem/Task/TargetDataUnderMouse.h"
 
 #include "AbilitySystemComponent.h"
+#include "Aura/Aura.h"
 #include "GameFramework/PlayerController.h"
 
 UTargetDataUnderMouse* UTargetDataUnderMouse::GetTargetDataUnderMouse(UGameplayAbility* OwningAbility)
@@ -42,7 +43,6 @@ void UTargetDataUnderMouse::Activate()
 		AbilitySystemComponent.Get()->AbilityTargetDataSetDelegate(SpecHandle, PredictionKey).AddUObject(this, &UTargetDataUnderMouse::OnTargetDataReplicatedCallback);
 
 		const bool bCalledReplicated = AbilitySystemComponent.Get()->CallReplicatedTargetDataDelegatesIfSet(SpecHandle, PredictionKey);
-
 		if (!bCalledReplicated)
 		{
 			SetWaitingOnRemotePlayerData();
@@ -62,7 +62,7 @@ void UTargetDataUnderMouse::SendMouseCursorData()
 	}
 
 	FHitResult CursorHitResult;
-	PC->GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
+	PC->GetHitResultUnderCursor(ECC_Target, false, CursorHitResult);
 
 	FGameplayAbilityTargetData_SingleTargetHit* Data = new FGameplayAbilityTargetData_SingleTargetHit();
 	Data->HitResult = CursorHitResult;

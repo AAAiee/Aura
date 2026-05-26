@@ -7,6 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "AuraPlayerController.generated.h"
 
+class UNiagaraSystem;
 class AAuraHUD;
 class ACharacter;
 class IHighlightable;
@@ -67,6 +68,9 @@ private:
 
 	/* UI */
 	void OnToggleAttributeMenu(const FInputActionValue& ActionValues);
+
+	/** Blocks click-to-move and move-to-cursor while floating UI panels are visible. */
+	bool IsAnyMenuOnScreen() const;
 
 	/* Movement */
 	void Move(const FInputActionValue& ActionValues);
@@ -140,4 +144,8 @@ private:
 	TSubclassOf<UDamageWidgetComponent> DamageTextComponentClass;
 
 	TObjectPtr<AAuraHUD> CachedAuraHUD;
+	
+	/*NiagaraSystem For Click-to-Move*/
+	UPROPERTY(EditDefaultsOnly, Category = "Niagara System")
+	TObjectPtr<UNiagaraSystem> OnClickMoveNiagaraSystem;
 };

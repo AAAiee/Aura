@@ -6,8 +6,10 @@
 #include "UI/AuraWidgetControllerBootstrap.h"
 #include "UI/Widget/AuraAttributeMenuWidget.h"
 #include "UI/Widget/AuraOverlayRootWidget.h"
+#include "UI/Widget/AuraSpellMenuWidget.h"
 #include "UI/WidgetController/AttributeMenuWidgetController.h"
 #include "UI/WidgetController/AuraOverlayWidgetController.h"
+#include "UI/WidgetController/AuraSpellMenuWidgetController.h"
 
 /**
  * Lazy singleton - creates the widget controller on first request, then caches it.
@@ -33,6 +35,17 @@ UAttributeMenuWidgetController* AAuraHUD::GetAttributeMenuWidgetController(const
 	}
 
 	return AttributeMenuWidgetController;
+}
+
+UAuraSpellMenuWidgetController* AAuraHUD::GetSpellMenuWidgetController(const FWidgetControllerParameters& Params)
+{
+	if (!SpellMenuWidgetController)
+	{
+		SpellMenuWidgetController = CastChecked<UAuraSpellMenuWidgetController>(
+			FAuraWidgetControllerBootstrap::CreateController(this, SpellMenuWidgetControllerClass, Params));
+	}
+
+	return SpellMenuWidgetController;
 }
 
 /**
@@ -63,17 +76,30 @@ void AAuraHUD::InitOverlayWidget(APlayerController* PC, APlayerState* PS, UAbili
 void AAuraHUD::ShowAttributeMenu()
 {
 	// The first call creates and parents the popup under the Overlay Root; later calls just reuse it.
-	UAuraAttributeMenuWidget* Menu = CreateAttributeMenuWidgetIfNeeded();
-	Menu->ShowAttributeMenu();
+	UAuraAttributeMenuWidget* AttributeMenu = CreateAttributeMenuWidgetIfNeeded();
+	AttributeMenu->ShowAttributeMenu();
 }
 
 void AAuraHUD::CloseAttributeMenu()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Closing Attribute Menu"));
 	if (AttributeMenuWidget)
 	{
 		// We hide instead of destroying so the dragged position survives repeated open/close cycles.
 		AttributeMenuWidget->CloseAttributeMenu();
+	}
+}
+
+void AAuraHUD::ShowSpellMenu()
+{
+	UAuraSpellMenuWidget* SpellMenu = CreateSpellMenuWidgetIfNeeded();
+	SpellMenu->ShowSpellMenu();
+}
+
+void AAuraHUD::CloseSpellMenu()
+{
+	if (SpellMenuWidget)
+	{
+		SpellMenuWidget->CloseSpellMenu();
 	}
 }
 
@@ -98,11 +124,42 @@ UAuraAttributeMenuWidget* AAuraHUD::CreateAttributeMenuWidgetIfNeeded()
 	return AttributeMenuWidget;
 }
 
+UAuraSpellMenuWidget* AAuraHUD::CreateSpellMenuWidgetIfNeeded()
+{
+	checkf(SpellMenuWidgetClass, TEXT("Forget to set SpellMenuWidgetClass in HUD!"));
+	checkf(OverlayWidget, TEXT("OverlayWidget must exist before creating the Spell Menu."));
+
+	if (SpellMenuWidget != nullptr)
+	{
+		return SpellMenuWidget;
+	}
+
+	SpellMenuWidget = CreateWidget<UAuraSpellMenuWidget>(GetWorld(), SpellMenuWidgetClass);
+	checkf(SpellMenuWidget, TEXT("Failed to create Spell Menu Widget!"));
+
+	// Host the menu inside the OverlayRoot's dedicated floating-window layer rather than as a second top-level viewport widget.
+	OverlayWidget->AddWindowToLayer(SpellMenuWidget, SpellMenuWidget->GetInitialPosition(), 10);
+	SpellMenuWidget->SetVisibility(ESlateVisibility::Hidden);
+
+	OnSpellMenuWidgetInstanceConstructed.Broadcast();
+	return SpellMenuWidget;
+}
+
 bool AAuraHUD::IsAttributeMenuOnScreen() const
 {
 	if (AttributeMenuWidget)
 	{
 		return AttributeMenuWidget->IsOnScreen();
+	}
+
+	return false;
+}
+
+bool AAuraHUD::IsSpellMenuOnScreen() const
+{
+	if (SpellMenuWidget)
+	{
+		return SpellMenuWidget->IsOnScreen();
 	}
 
 	return false;

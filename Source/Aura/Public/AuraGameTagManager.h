@@ -124,6 +124,8 @@ public:
 	DECLARE_GAMETAG_CUSTOM(InputTag, 4)
 	DECLARE_GAMETAG_CUSTOM(InputTag, AuraPrimaryClick)
 	DECLARE_GAMETAG_CUSTOM(InputTag, AuraSecondaryClick)
+	DECLARE_GAMETAG_CUSTOM(InputTag, Passive1)
+	DECLARE_GAMETAG_CUSTOM(InputTag, Passive2)
 
 	/* Combat State Tags */
 	// Combat tags bridge authored GE data to runtime combat logic such as ExecCalcs and hit-react abilities.
@@ -143,11 +145,46 @@ public:
 
 	/* Ability Tags */
 	DECLARE_GAMETAG_CUSTOM(Ability, Attack)
+	DECLARE_GAMETAG_CUSTOM(Ability, None)
 	DECLARE_GAMETAG_CUSTOM(Ability, Summon)
-	DECLARE_GAMETAG_CUSTOM(Ability, FireBolt)
+	DECLARE_GAMETAG_CUSTOM(Ability, Fire_FireBolt)
+	DECLARE_GAMETAG_CUSTOM(Ability, Lightning_Electrocute)
+	DECLARE_GAMETAG_CUSTOM(Ability, HitReact)
+
+	/* Ability Status Tags */
+	DECLARE_GAMETAG_CUSTOM(Ability, Status_Locked)
+	DECLARE_GAMETAG_CUSTOM(Ability, Status_Eligible)
+	DECLARE_GAMETAG_CUSTOM(Ability, Status_UnLocked)
+	DECLARE_GAMETAG_CUSTOM(Ability, Status_Equipped)
+
+	/* Ability Type Tags */
+	DECLARE_GAMETAG_CUSTOM(Ability, Type_Offensive)
+	DECLARE_GAMETAG_CUSTOM(Ability, Type_Passive)
+	DECLARE_GAMETAG_CUSTOM(Ability, Type_None)
+
+	/* Debuff Type Tags */
+	/*
+	 * Debuff tags are owned tags placed on dynamic timed GameplayEffects. They let abilities/UI
+	 * reason about the status effect ("Burn", "Stun", etc.) without knowing which damage type
+	 * produced it.
+	 */
+	DECLARE_GAMETAG_CUSTOM(Debuff, Burn)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Stun)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Physical)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Arcane)
+
+	/* Debuff Set-By-Caller Tags */
+	// These tags are keys into the outgoing damage spec. ExecCalc_Damage reads the values and copies
+	// successful results onto FAuraGameplayEffectContext for the AttributeSet to consume.
+	DECLARE_GAMETAG_CUSTOM(Debuff, Chance)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Frequency)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Damage)
+	DECLARE_GAMETAG_CUSTOM(Debuff, Duration)
 
 	/* Cooldown Tags */
-	DECLARE_GAMETAG_CUSTOM(Cooldown, FireBolt)
+	DECLARE_GAMETAG_CUSTOM(Cooldown,Fire_FireBolt)
+	DECLARE_GAMETAG_CUSTOM(Cooldown,Lightning_Electrocute)
+	
 
 	/* Combat Socket Tags */
 	DECLARE_GAMETAG_CUSTOM(CombatSocket, Weapon)
@@ -160,9 +197,17 @@ public:
 	DECLARE_GAMETAG_CUSTOM(Montage, Attack_2)
 	DECLARE_GAMETAG_CUSTOM(Montage, Attack_3)
 	DECLARE_GAMETAG_CUSTOM(Montage, Attack_4)
+	
+	DECLARE_GAMETAG_CUSTOM(PLayer,BlockInputPressed);
+	DECLARE_GAMETAG_CUSTOM(Player,BlockInputHeld);
+	DECLARE_GAMETAG_CUSTOM(PLayer,BlockInputReleased);
+	DECLARE_GAMETAG_CUSTOM(PLayer,BlockCursorTrace);
 
 	// Central lookup that keeps typed damage extensible without hard-coding a switch per ability.
 	TMap<FGameplayTag, FGameplayTag> DamageTypesToResistance;
+
+	// Maps the damage type that won a debuff roll to the gameplay tag applied by the timed effect.
+	TMap<FGameplayTag, FGameplayTag> DamageTypeToDebuffType;
 
 	TArray<FGameplayTag> PrimaryAttributeTags;
 

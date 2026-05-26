@@ -6,8 +6,6 @@
 #include "UI/Widget/AuraDraggableWindowWidget.h"
 #include "AuraAttributeMenuWidget.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetClosed);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAuraAttributeMenuWidgetShown);
 
 UCLASS()
 class AURA_API UAuraAttributeMenuWidget : public UAuraDraggableWindowWidget
@@ -32,12 +30,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	FVector2D GetInitialPosition() const { return FVector2D(OnScreenPositionX, OnScreenPositionY); }
 
+	/** Broadcast when HUD show/hide changes this floating window's visible state. */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu")
-	FAuraAttributeMenuWidgetClosed OnAttributeMenuClosed;
+	FIsWidgetAddedToScreenSignature OnAttributeMenuOnWindowStateChanged;
 
-	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu")
-	FAuraAttributeMenuWidgetShown OnAttributeMenuShown;
-
+	/** Cached visible state used by PlayerController input gating. */
 	FORCEINLINE bool IsOnScreen() const { return bOnScreen; }
 
 private:
@@ -49,6 +46,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "UI Properties")
 	int32 OnScreenPositionY;
 
+	/** True while the cached attribute menu window is visible in the overlay layer. */
 	UPROPERTY(Transient)
 	bool bOnScreen;
 };

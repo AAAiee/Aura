@@ -8,6 +8,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameplayEffect.h"
+#include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 #include "GameplayEffectExtension.h"
 #include "Interaction/CombatInterface.h"
 #include "Interaction/PlayerInterface.h"
@@ -86,6 +88,173 @@ void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 	DOREPLIFETIME_CONDITION_NOTIFY(UAuraAttributeSet, PhysicalResistance, COND_None, REPNOTIFY_Always);
 }
 
+void UAuraAttributeSet::HandleIncomingHealth(const FGameplayEffectModCallbackData& Data)
+{
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+	}
+}
+
+void UAuraAttributeSet::HandleIncomingMana(const FGameplayEffectModCallbackData& Data)
+{
+	if (Data.EvaluatedData.Attribute == GetManaAttribute())
+	{
+		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
+	}
+}
+
+void UAuraAttributeSet::HandleIncomingDamage(const FEffectProperties& Props)
+{
+	/*
+	 * IncomingDamage is a meta attribute: it is only a mailbox for the ExecCalc result.
+	 * The AttributeSet immediately copies and clears it so the next GameplayEffect starts with
+	 * a clean mailbox, then translates that value into durable state such as Health and death.
+	 */
+	const float DamageLocalCopy = GetIncomingDamage();
+	SetIncomingDamage(0.f);
+
+	if (DamageLocalCopy > 0.f)
+	{
+		FGameplayEffectContextHandle AuraContextHandle = Props.GameplayEffectContextHandle;
+		const float NewHealth = GetHealth() - DamageLocalCopy;
+		SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
+
+		const bool bFatal = NewHealth <= 0.f;
+		if (bFatal)
+		{
+			ICombatInterface* CombatInterface = Cast<ICombatInterface>(Props.TargetAvatarActor);
+			if (CombatInterface)
+			{
+				// Death stays polymorphic: the AttributeSet decides that the target died, while
+				// the concrete combatant decides how its death sequence should play out.
+				CombatInterface->Die(UAuraAbilitySystemLibrary::GetDeathImpulse(AuraContextHandle));
+			}
+
+			SendXPEvent(Props);
+		}
+		else if (UAuraAbilitySystemLibrary::ShouldHitReact(AuraContextHandle))
+		{
+			// Non-fatal damage routes through the shared hit-react tag so movement, animation, and
+			// gameplay abilities can all observe the same temporary combat state.
+			FGameplayTagContainer Tags;
+			Tags.AddTag(FAuraGameTagManager::Get().Combat_HitReact);
+			Props.TargetASC->TryActivateAbilitiesByTag(Tags);
+			
+			const FVector KnockBackForce = UAuraAbilitySystemLibrary::GetKnockBackForce(AuraContextHandle);
+			if (!KnockBackForce.IsNearlyZero(10.f))
+			{
+				Props.TargetCharacter->LaunchCharacter(KnockBackForce, true, true) ; 
+			}
+		}
+
+		// The ExecCalc writes these booleans onto the custom effect context before outputting
+		// IncomingDamage, so the AttributeSet can forward accurate result styling to the UI.
+		const bool bBlockedHit = UAuraAbilitySystemLibrary::IsBlockedHit(Props.GameplayEffectContextHandle);
+		const bool bCriticalHit = UAuraAbilitySystemLibrary::IsCriticalHit(Props.GameplayEffectContextHandle);
+		ShowFloatingText(Props, DamageLocalCopy, bBlockedHit, bCriticalHit);
+
+		if (UAuraAbilitySystemLibrary::IsSuccessfulDebuff(AuraContextHandle))
+		{
+			/*
+			 * Debuffs are authored as data on the original damage spec, but the actual timed effect
+			 * is created here after we know the hit landed and the debuff roll succeeded. The dynamic
+			 * GameplayEffect applies periodic IncomingDamage back through this same AttributeSet path,
+			 * which keeps damage/death/floating-text behavior centralized.
+			 */
+			check(Props.SourceASC);
+			check(Props.TargetASC);
+
+			const FAuraGameTagManager& TagManager = FAuraGameTagManager::Get();
+			FGameplayEffectContextHandle EffectContextHandle = Props.SourceASC->MakeEffectContext();
+			EffectContextHandle.AddSourceObject(Props.SourceAvatarActor);
+
+			const FGameplayTag DamageTypeTag = UAuraAbilitySystemLibrary::GetDamageTypeTag(AuraContextHandle);
+			const FGameplayTag DebuffTypeTag = TagManager.DamageTypeToDebuffType.FindRef(DamageTypeTag);
+			const float DebuffDamage = UAuraAbilitySystemLibrary::GetDebuffDamage(AuraContextHandle);
+			const float DebuffDuration = UAuraAbilitySystemLibrary::GetDebuffDuration(AuraContextHandle);
+			const float DebuffFrequency = UAuraAbilitySystemLibrary::GetDebuffFrequency(AuraContextHandle);
+
+			const FName DebuffEffectName = FName(*FString::Printf(TEXT("DynamicDebuffEffect_%s"), *DebuffTypeTag.ToString()));
+
+			UGameplayEffect* Effect = NewObject<UGameplayEffect>(
+				GetTransientPackage(),
+				DebuffEffectName);
+
+			Effect->DurationPolicy = EGameplayEffectDurationType::HasDuration;
+			Effect->Period = DebuffFrequency;
+			Effect->DurationMagnitude = FScalableFloat(DebuffDuration);
+			Effect->StackingType = EGameplayEffectStackingType::AggregateBySource;
+			Effect->StackLimitCount = 1;
+
+			// UE 5.6 grants owned target tags through a GameplayEffectComponent instead of the
+			// deprecated InheritableOwnedTagsContainer. The granted Debuff.* tag is what other
+			// systems can query while this periodic effect is active on the target.
+			FInheritedTagContainer GrantedDebuffTags;
+			GrantedDebuffTags.AddTag(DebuffTypeTag);
+			UTargetTagsGameplayEffectComponent& TargetTagsComponent = Effect->FindOrAddComponent<UTargetTagsGameplayEffectComponent>();
+			TargetTagsComponent.SetAndApplyTargetTagChanges(GrantedDebuffTags);
+
+			// Periodic effects execute their modifier each tick. Writing to IncomingDamage here means
+			// every burn/stun/arcane tick reuses the normal damage post-processing path.
+			const int32 Index = Effect->Modifiers.Num();
+			Effect->Modifiers.Add(FGameplayModifierInfo());
+			FGameplayModifierInfo& ModifierInfo = Effect->Modifiers[Index];
+
+			ModifierInfo.Attribute = GetIncomingDamageAttribute();
+			ModifierInfo.ModifierOp = EGameplayModOp::Additive;
+			ModifierInfo.ModifierMagnitude = FScalableFloat(DebuffDamage);
+
+			FGameplayEffectSpec MutableSpec(Effect, EffectContextHandle, 1.0f);
+			FGameplayEffectContextHandle MutableContextHandle = MutableSpec.GetContext();
+			UAuraAbilitySystemLibrary::SetDamageTypeTag(MutableContextHandle, DamageTypeTag);
+
+			Props.SourceASC->ApplyGameplayEffectSpecToTarget(MutableSpec, Props.TargetASC);
+		}
+	}
+}
+
+void UAuraAttributeSet::HandleIncomingXP(const FEffectProperties& Props)
+{
+	const float LocalIncomingXPRewardCopy = GetInComingXPReward();
+	SetInComingXPReward(0);
+
+	// XP rewards are resolved on the source character so PlayerState owns level/stat progression.
+	if (Props.SourceCharacter && Props.SourceCharacter->Implements<UPlayerInterface>())
+	{
+		const int32 CurrentPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(Props.SourceCharacter);
+		const int32 CurrentXP = IPlayerInterface::Execute_GetXP(Props.SourceCharacter);
+		const int32 UpdatedPlayerLevel = IPlayerInterface::Execute_FindLevelForXP(Props.SourceCharacter, CurrentXP + LocalIncomingXPRewardCopy);
+		const int32 NumLevelsUp = UpdatedPlayerLevel - CurrentPlayerLevel;
+		if (NumLevelsUp > 0)
+		{
+			const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, UpdatedPlayerLevel);
+			const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, UpdatedPlayerLevel);
+
+			IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp);
+			IPlayerInterface::Execute_AddToAttributePoint(Props.SourceCharacter, AttributePointsReward);
+			IPlayerInterface::Execute_AddToSpellPoint(Props.SourceCharacter, SpellPointsReward);
+
+			// MaxHealth and MaxMana will be recalculated by follow-up GEs, so top off after those caps change.
+			bTopOffHealth = true;
+			bTopoffMana = true;
+
+			IPlayerInterface::Execute_LevelUp(Props.SourceCharacter);
+		}
+		IPlayerInterface::Execute_AddToXP(Props.SourceCharacter, LocalIncomingXPRewardCopy);
+	}
+}
+
+bool UAuraAttributeSet::CheckIfCharacterIsDead(const FEffectProperties& Props) const
+{
+	if (!Props.TargetCharacter || !Props.TargetCharacter->Implements<UCombatInterface>())
+	{
+		return false;
+	}
+
+	return ICombatInterface::Execute_IsDead(Props.TargetCharacter);
+}
+
 /**
  * PostGameplayEffectExecute runs AFTER a GameplayEffect has modified an attribute.
  * The value is already committed at this point. This is the authoritative place to:
@@ -95,23 +264,20 @@ void UAuraAttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
  *
  * We extract Source/Target info into FEffectProperties for easy access.
  */
-void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
+void UAuraAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
 
 	FEffectProperties Props;
 	SetEffectProperties(Data, Props);
 
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	if (CheckIfCharacterIsDead(Props))
 	{
-		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
-		UE_LOG(LogTemp, Warning, TEXT("Change of Health on %s, Changed to %f"), *GetNameSafe(Props.TargetAvatarActor), GetHealth());
+		return;
 	}
 
-	if (Data.EvaluatedData.Attribute == GetManaAttribute())
-	{
-		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
-	}
+	HandleIncomingHealth(Data);
+	HandleIncomingMana(Data);
 
 	/*
 	 * IncomingDamage is a meta attribute populated by the damage ExecCalc. We consume it here so the
@@ -120,77 +286,13 @@ void UAuraAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMo
 	 */
 	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
 	{
-		const float DamageLocalCopy = GetIncomingDamage();
-		SetIncomingDamage(0.f);
-
-		if (DamageLocalCopy > 0.f)
-		{
-			const float NewHealth = GetHealth() - DamageLocalCopy;
-			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
-
-			const bool bFatal = NewHealth <= 0.f;
-
-			if (bFatal)
-			{
-				ICombatInterface* CombatInterface = Cast<ICombatInterface>(Props.TargetAvatarActor);
-				if (CombatInterface)
-				{
-					// Death stays polymorphic: the AttributeSet decides that the target died, while
-					// the concrete combatant decides how its death sequence should play out.
-					CombatInterface->Die();
-				}
-
-				SendXPEvent(Props);
-			}
-			else if (UAuraAbilitySystemLibrary::ShouldHitReact(Props.GameplayEffectContextHandle))
-			{
-				// Non-fatal damage routes through the shared hit-react tag so movement, animation, and
-				// gameplay abilities can all observe the same temporary combat state.
-				FGameplayTagContainer Tags;
-				Tags.AddTag(FAuraGameTagManager::Get().Combat_HitReact);
-				Props.TargetASC->TryActivateAbilitiesByTag(Tags);
-			}
-
-			// The ExecCalc writes these booleans onto the custom effect context before outputting
-			// IncomingDamage, so the AttributeSet can forward accurate result styling to the UI.
-			const bool bBlockedHit = UAuraAbilitySystemLibrary::IsBlockedHit(Props.GameplayEffectContextHandle);
-			const bool bCriticalHit = UAuraAbilitySystemLibrary::IsCriticalHit(Props.GameplayEffectContextHandle);
-			ShowFloatingText(Props, DamageLocalCopy, bBlockedHit, bCriticalHit);
-		}
+		HandleIncomingDamage(Props);
 	}
 
 	if (Data.EvaluatedData.Attribute == GetInComingXPRewardAttribute())
 	{
-		const float LocalIncomingXPRewardCopy = GetInComingXPReward();
-		SetInComingXPReward(0);
-
-		// XP rewards are resolved on the source character so PlayerState owns level/stat progression.
-		if (Props.SourceCharacter && Props.SourceCharacter->Implements<UPlayerInterface>())
-		{
-			const int32 CurrentPlayerLevel = ICombatInterface::Execute_GetPlayerLevel(Props.SourceCharacter);
-			const int32 CurrentXP = IPlayerInterface::Execute_GetXP(Props.SourceCharacter);
-			const int32 PLayerLevel_Updated = IPlayerInterface::Execute_FindLevelForXP(Props.SourceCharacter, CurrentXP + LocalIncomingXPRewardCopy);
-			const int32 NumLevelsUp = PLayerLevel_Updated - CurrentPlayerLevel;
-			if (NumLevelsUp > 0)
-			{
-				const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, PLayerLevel_Updated);
-				const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, PLayerLevel_Updated);
-
-
-				IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp);
-				IPlayerInterface::Execute_AddToAttributePoint(Props.SourceCharacter, AttributePointsReward);
-				IPlayerInterface::Execute_AddToSpellPoint(Props.SourceCharacter, SpellPointsReward);
-
-				// MaxHealth and MaxMana will be recalculated by follow-up GEs, so top off after those caps change.
-				bTopOffHealth = true;
-				bTopoffMana = true;
-
-				IPlayerInterface::Execute_LevelUp(Props.SourceCharacter);
-			}
-			IPlayerInterface::Execute_AddToXP(Props.SourceCharacter, LocalIncomingXPRewardCopy);
-		}
+		HandleIncomingXP(Props);
 	}
-
 }
 
 void UAuraAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
@@ -346,7 +448,6 @@ void UAuraAttributeSet::ShowFloatingText(const FEffectProperties& Props, const f
 		// attacking player's controller instead of storing extra UI state on the target.
 		PC->Client_ShowDamageNumber(Damage, Props.TargetCharacter, bBlockedHit, bCriticalHit);
 	}
-
 }
 
 /**
@@ -402,7 +503,7 @@ void UAuraAttributeSet::SetEffectProperties(const FGameplayEffectModCallbackData
 
 void UAuraAttributeSet::SendXPEvent(const FEffectProperties& Props)
 {
-	if (Props.TargetCharacter->Implements<UCombatInterface>())
+	if (Props.TargetCharacter && Props.TargetCharacter->Implements<UCombatInterface>())
 	{
 		const int32 TargetLevel = ICombatInterface::Execute_GetPlayerLevel(Props.TargetCharacter);
 		const ECharacterClass TargetClass = ICombatInterface::Execute_GetCharacterClass(Props.TargetCharacter);

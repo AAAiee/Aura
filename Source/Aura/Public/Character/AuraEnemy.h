@@ -36,7 +36,7 @@ public:
 
 	/* ICombatInterface */
 	FORCEINLINE virtual int32 GetPlayerLevel_Implementation() const override { return EnemyLevel; }
-	virtual void Die() override final;
+	virtual void Die(const FVector& DeathImpulse) override final;
 
 	/* APawn / AActor */
 	virtual void PossessedBy(AController* NewController) override;

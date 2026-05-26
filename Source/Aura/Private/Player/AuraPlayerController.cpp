@@ -3,11 +3,13 @@
 #include "Player/AuraPlayerController.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AuraGameTagManager.h"
 #include "Character/AuraCharacter.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Components/Player/AutoMoveComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "NiagaraFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Input/AuraInputComponent.h"
@@ -75,7 +77,10 @@ void AAuraPlayerController::BeginPlay()
 	if (AAuraCharacter* AuraCharacter = Cast<AAuraCharacter>(GetPawn()))
 	{
 		USpringArmComponent* SpringArm = AuraCharacter->FindComponentByClass<USpringArmComponent>();
-		if (!SpringArm) return;
+		if (!SpringArm)
+		{
+			return;
+		}
 
 		const float CameraPitch = -40.f;
 		const float SpawnYaw = AuraCharacter->GetActorRotation().Yaw;
@@ -169,8 +174,24 @@ void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& Actio
 	ToggleAttributeMenuRequested();
 }
 
+bool AAuraPlayerController::IsAnyMenuOnScreen() const
+{
+	if (!CachedAuraHUD)
+	{
+		return false;
+	}
+
+	// Floating menus consume attention and cursor intent, so movement commands pause while either
+	// menu is visible. The HUD owns the actual widget lifetime; the controller only asks for state.
+	return CachedAuraHUD->IsSpellMenuOnScreen() || CachedAuraHUD->IsAttributeMenuOnScreen();
+}
+
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 {
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
+	{
+		return;
+	}
 	CancelAutoMoveIfActive();
 
 	const FVector2D MoveVector = ActionValues.Get<FVector2D>();
@@ -188,24 +209,39 @@ void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 
 void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 {
-	check(AutoMoveComponent);
-	if (CachedAuraHUD && CachedAuraHUD->IsAttributeMenuOnScreen())
+	if (!AutoMoveComponent)
 	{
 		return;
 	}
+	if (IsAnyMenuOnScreen())
+	{
+		return;
+	}
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
+	{
+		return;
+	}
+	
 
 	FVector MoveTargetLocation = FVector::ZeroVector;
 	if (TryGetCachedMoveTargetLocation(MoveTargetLocation))
 	{
 		AutoMoveComponent->RequestToMoveToLocation(MoveTargetLocation);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, OnClickMoveNiagaraSystem, MoveTargetLocation) ;
 	}
 }
 
 void AAuraPlayerController::OnMoveToCursor(const FInputActionValue& ActionValues)
 {
-	check(AutoMoveComponent);
-
-	if (CachedAuraHUD && CachedAuraHUD->IsAttributeMenuOnScreen())
+	if (!AutoMoveComponent)
+	{
+		return;
+	}
+	if (IsAnyMenuOnScreen())
+	{
+		return;
+	}
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
 	{
 		return;
 	}
@@ -253,9 +289,16 @@ bool AAuraPlayerController::TryGetCachedMoveTargetLocation(FVector& OutMoveTarge
 
 void AAuraPlayerController::CursorTrace()
 {
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockCursorTrace))
+	{
+		if (LastHighlightable) LastHighlightable->UnhighLightActor();
+		if (CurrentHighlightable) CurrentHighlightable->UnhighLightActor(); 
+		LastHighlightable = nullptr;
+		CurrentHighlightable = nullptr;
+		return;
+	}
 	FHitResult CursorHitResult;
 	GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
-
 	UpdateCachedCursorHitResult(CursorHitResult);
 
 	LastHighlightable = CurrentHighlightable;
@@ -321,28 +364,39 @@ UAuraAbilitySystemComponent* AAuraPlayerController::GetAuraASC()
 
 void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 {
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
+	{
+		return;
+	}
+	if (!CouldLaunchGameplayAbility())
+	{
+		return;
+	}
+	CancelAutoMoveIfActive();
 	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagPressed);
 }
 
 void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 {
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputReleased))
+	{
+		return;
+	}
 	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagReleased);
 }
 
 void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
 {
+	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().Player_BlockInputHeld))
+	{
+		return;
+	}
+	
 	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagHeld);
 }
 
 void AAuraPlayerController::ForwardAbilityInputTag(FGameplayTag InputTag, void (UAuraAbilitySystemComponent::*InputHandler)(FGameplayTag))
 {
-	if (!CouldLaunchGameplayAbility())
-	{
-		return;
-	}
-
-	CancelAutoMoveIfActive();
-
 	if (UAuraAbilitySystemComponent* AuraASC = GetAuraASC())
 	{
 		(AuraASC->*InputHandler)(InputTag);

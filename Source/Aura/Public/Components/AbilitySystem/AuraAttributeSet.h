@@ -9,6 +9,7 @@
 
 class ACharacter;
 class AController;
+struct FGameplayEffectModCallbackData;
 
 /**
  * ATTRIBUTE_ACCESSORS is a convenience macro provided by GAS.
@@ -44,24 +45,31 @@ struct FEffectProperties
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> SourceASC;
 
+	/* Avatar actor that visually/physically represents the source ASC for this effect. */
 	UPROPERTY()
 	TObjectPtr<AActor> SourceAvatarActor;
 
+	/* Avatar actor that visually/physically represents the target ASC for this effect. */
 	UPROPERTY()
 	TObjectPtr<AActor> TargetAvatarActor;
 
+	/* Controller responsible for the source avatar, resolved through PlayerController or pawn fallback. */
 	UPROPERTY()
 	TObjectPtr<AController> SourceController;
 
+	/* Controller responsible for the target avatar when available. */
 	UPROPERTY()
 	TObjectPtr<AController> TargetController;
 
+	/* Source avatar cast to Character for systems such as XP rewards and PlayerInterface calls. */
 	UPROPERTY()
 	TObjectPtr<ACharacter> SourceCharacter;
 
+	/* Target avatar cast to Character for death, hit-react, and floating combat text. */
 	UPROPERTY()
 	TObjectPtr<ACharacter> TargetCharacter;
 
+	/* Effect context carrying instigator data plus Aura-specific combat result metadata. */
 	UPROPERTY()
 	FGameplayEffectContextHandle GameplayEffectContextHandle;
 };
@@ -134,11 +142,27 @@ public:
 	 * Called after a GameplayEffect has been executed and the attribute value has been committed.
 	 * This is the authoritative place to react to attribute changes (e.g., death check, final clamping).
 	 */
-	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data) override;
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 
-	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue);
+	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
 private:
+	/* Post-Execute Handlers */
+	/** Re-clamps Health after any GameplayEffect has committed its final value. */
+	void HandleIncomingHealth(const FGameplayEffectModCallbackData& Data);
+
+	/** Re-clamps Mana after any GameplayEffect has committed its final value. */
+	void HandleIncomingMana(const FGameplayEffectModCallbackData& Data);
+
+	/** Consumes IncomingDamage, updates health, routes death/hit-react, shows combat text, and applies debuffs. */
+	void HandleIncomingDamage(const FEffectProperties& Props);
+
+	/** Consumes the XP meta attribute and awards progression to the source player. */
+	void HandleIncomingXP(const FEffectProperties& Props);
+
+	/** Prevents post-effect work from running again on targets that are already in their death state. */
+	bool CheckIfCharacterIsDead(const FEffectProperties& Props) const;
+
 	/* Replication Callbacks */
 	// Vital attributes.
 	UFUNCTION()

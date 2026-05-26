@@ -46,18 +46,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpgradeAttribute(const FGameplayTag& AttributeTag);
 
-
+	/** Removes one unconfirmed assignment delta and refunds it to the current session pool. */
 	UFUNCTION(BlueprintCallable)
 	void DeductAttribute(const FGameplayTag& AttributeTag);
 
-
+	/** Captures the current primary attribute values and starts a local preview/assignment session. */
 	void BeginAssignmentSession();
+
+	/** Ends the local preview session and restores unconfirmed preview values in the UI. */
 	void EndAssignmentSession();
 
+	/** Sends all pending primary attribute deltas to the ASC/server and clears the local preview deltas. */
 	UFUNCTION(BlueprintCallable)
 	void ConfirmAttributeAssignments();
-
-
 
 private:
 	/** Helper used by both initial push and live updates to avoid duplicate logic. */
@@ -76,7 +77,6 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnAttributeDeltaChangedSignature OnSessionAttributeDeltaChanged;
 
-
 	/**
 	 * DataAsset listing all attributes shown in the menu.
 	 * Bug-prone if null: always assign in BP_AttributeMenuWidgetController defaults.
@@ -84,20 +84,24 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Attribute Menu", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAttributeDataAsset> AttributeTagsDataAsset = nullptr;
 
+	/** Baseline attribute values captured when an assignment session begins, used to rollback previews. */
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, float> SessionBasePrimaryAttributeValues;
 
+	/** Local pending point deltas keyed by primary attribute tag until the player confirms. */
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, int32> SessionPrimaryAttributeDeltas;
 
+	/** Points still available for local preview assignment in the current session. */
 	UPROPERTY(Transient)
 	int32 SessionAttributePointsAvailable = 0;
 
+	/** True while the menu is showing local preview deltas instead of only committed AttributeSet values. */
 	UPROPERTY(Transient)
 	bool bAssignmentSessionInProgress = false;
 
+	/** True once the player has changed at least one delta that still needs confirm/cancel handling. */
 	UPROPERTY(Transient)
 	bool bWaitingForConfirmation = false;
-
 };
 

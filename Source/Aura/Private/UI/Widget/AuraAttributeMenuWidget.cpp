@@ -9,7 +9,7 @@ void UAuraAttributeMenuWidget::ShowAttributeMenu()
 {
 	// The HUD creates the widget once; showing it again only restores visibility.
 	SetVisibility(ESlateVisibility::Visible);
-	OnAttributeMenuShown.Broadcast();
+	OnAttributeMenuOnWindowStateChanged.Broadcast(true);
 
 	UAttributeMenuWidgetController* Controller = Cast<UAttributeMenuWidgetController>(WidgetController);
 	Controller->BeginAssignmentSession();
@@ -21,7 +21,7 @@ void UAuraAttributeMenuWidget::CloseAttributeMenu()
 {
 	// Keep the widget alive so drag state/position stay on the cached instance.
 	SetVisibility(ESlateVisibility::Hidden);
-	OnAttributeMenuClosed.Broadcast();
+	OnAttributeMenuOnWindowStateChanged.Broadcast(false);
 
 	UAttributeMenuWidgetController* Controller = Cast<UAttributeMenuWidgetController>(WidgetController);
 	Controller->EndAssignmentSession();

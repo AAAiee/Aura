@@ -117,26 +117,51 @@ public:
 	void ReturnActorToPool(AActor* Actor);
 
 private:
+	/** Finds the project config row for an actor class, returning false when the class is not configured. */
 	bool TryGetPoolClassConfig(TSubclassOf<AActor> ActorClass, FPoolClassConfig& OutConfig) const;
+
+	/** Converts authored config data into the small runtime policy used during a borrow. */
 	static FPoolRecyclePolicy BuildRecyclePolicy(const FPoolClassConfig& PoolClassConfig);
+
+	/** Lazily loads the developer-settings pool config asset once per world subsystem. */
 	const UObjectPoolConfigDataAsset* LoadPoolConfigIfNeeded() const;
+
+	/** Internal borrow path shared by default config and explicit recycle-policy requests. */
 	AActor* BorrowPooledActor(
 		TSubclassOf<AActor> ActorClass,
 		const FTransform& SpawnTransform,
 		bool bShouldAutomaticallyReturnPool,
 		float RecycleDelayTime);
+
+	/** Starts or clears an auto-return timer for a borrowed actor. */
 	void DelayActor(AActor* InActor, float DelayTime, bool bAutomaticallyReturnPool);
+
+	/** Cancels any pending auto-return timer before an actor is reused or returned. */
 	void ClearReturnTimer(AActor* InActor);
+
+	/** Hides, disables, and optionally notifies an actor before it rests in the pool. */
 	void DeactivateActor(AActor* SpawnedActor, bool bNotifyPoolableActor = true);
+
+	/** Positions, enables, optionally possesses, and notifies an actor as it leaves the pool. */
 	void ActivateActor(
 		AActor* FreeActor,
 		const FTransform& SpawnTransform,
 		bool bShouldAutomaticallyReturnPool,
 		float RecycleDelayTime);
+
+	/** Spawns one hidden actor and records its reverse lookup so it can be returned later. */
 	AActor* SpawnPooledActor(TSubclassOf<AActor> ActorClass);
+
+	/** Optional interface hook fired after an actor has been activated from the pool. */
 	static void NotifyActorTakenFromPool(AActor* Actor);
+
+	/** Optional interface hook fired before an actor is deactivated into the pool. */
 	static void NotifyActorReturnedToPool(AActor* Actor);
+
+	/** Emits a compact pool-usage message after initialize, borrow, expand, or return operations. */
 	void LogPoolState(const TCHAR* Action, TSubclassOf<AActor> ActorClass, const TArray<FPoolItem>& TargetPool, const AActor* ActorInstance = nullptr) const;
+
+	/** Counts valid actors currently marked in-use for diagnostics. */
 	static int32 CountInUseActors(const TArray<FPoolItem>& TargetPool);
 
 private:

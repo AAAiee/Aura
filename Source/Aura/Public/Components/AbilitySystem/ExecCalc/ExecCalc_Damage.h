@@ -20,4 +20,14 @@ public:
 
 	/* UGameplayEffectExecutionCalculation */
 	virtual void Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;
+
+private:
+	/**
+	 * Reads debuff set-by-caller data from the owning damage spec, applies target resistance to
+	 * the success chance, and writes the result metadata into FAuraGameplayEffectContext.
+	 */
+	void DetermineDebuff(
+		const FGameplayEffectCustomExecutionParameters& ExecutionParams,
+		const FGameplayEffectSpec& Spec,
+		const FAggregatorEvaluateParameters& EvalParams) const;
 };

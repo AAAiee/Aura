@@ -8,9 +8,13 @@
 #include "Components/AbilitySystem/Data/CharacterClassInfo.h"
 #include "CombatInterface.generated.h"
 
+class UAbilitySystemComponent;
 class UAnimMontage;
 class UNiagaraSystem;
 class USoundBase;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAbilitySystemComponentRegistered, UAbilitySystemComponent*)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterDie, AActor*, DeadActor);
 
 /**
  * Data-driven attack entry shared by melee, projectile, and summon-facing combat code.
@@ -76,7 +80,7 @@ public:
 	/* Life Cycle */
 	// Called by authoritative damage resolution when Health reaches zero. Implementers own the
 	// actual death presentation (ragdoll, dissolve, lifespan cleanup, etc.).
-	virtual void Die() = 0;
+	virtual void Die(const FVector& DeathImpulse) = 0;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	bool IsDead() const;
@@ -103,8 +107,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void IncrementMinionCount(int32 IncrementBy);
 
-
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	ECharacterClass GetCharacterClass() const;
-
+	
+	virtual FOnAbilitySystemComponentRegistered& GetOnAscRegisteredDelegate()  = 0;
+	virtual FOnCharacterDie& GetOnCharacterDieDelegate()  = 0;
+	
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void SetInShockLoop(bool bInLoop);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	USkeletalMeshComponent* GetWeaponMesh();
 };

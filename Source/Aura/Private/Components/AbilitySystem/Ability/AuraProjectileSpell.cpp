@@ -8,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "Interaction/CombatInterface.h"
 #include "ObjectPoolSubsystem.h"
+#include "Projects.h"
 
 void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation, const FGameplayTag& CombatSocket)
 {
@@ -55,27 +56,9 @@ void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocati
 		SpawnTransform);
 	checkf(Projectile, TEXT("AuraProjectileSpell::SpawnProjectile failed to borrow a pooled projectile for class %s."), *ProjectileClass->GetName());
 
-	if (UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetAvatarActorFromActorInfo()))
-	{
-		check(DamageEffect);
-
-		// Build the outgoing spec once here while we still know the owning ability level / source ASC.
-		// The projectile simply carries this spec until its overlap callback resolves the impact.
-		// Typed damage is authored on the ability as a tag-to-scalable-float map, then converted to
-		// set-by-caller magnitudes so ExecCalc_Damage can resolve resistance by DamageType.* tag.
-		FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
-		ContextHandle.SetAbility(this);
-		ContextHandle.AddSourceObject(Projectile);
-
-		FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(DamageEffect, GetAbilityLevel(), ContextHandle);
-		for (const TPair<FGameplayTag, FScalableFloat>& Pair : DamageType)
-		{
-			const float ScaledDamage = Pair.Value.GetValueAtLevel(GetAbilityLevel());
-			UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, Pair.Key, ScaledDamage);
-		}
-
-		Projectile->DamageEffectHandle = SpecHandle;
-	}
+	// The target is unknown until overlap, so the projectile stores a source-authored payload now
+	// and fills TargetAbilitySystemComponent when it actually hits something.
+	Projectile->DamageEffectParameters = MakeDamageEffectParametersFromClassDefault();
 
 	Projectile->SetOwner(AvatarActor);
 	Projectile->SetInstigator(Cast<APawn>(AvatarActor));

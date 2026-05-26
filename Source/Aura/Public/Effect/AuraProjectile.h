@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AuraAbilityTypes.h"
 #include "Effect/AuraPooledGameplayActor.h"
-#include "GameplayEffectTypes.h"
 #include "AuraProjectile.generated.h"
 
 class UProjectileMovementComponent;
@@ -25,7 +25,7 @@ public:
 
 	// The spell builds the outgoing damage spec up front, then the projectile applies it on impact.
 	UPROPERTY(BlueprintReadOnly, Category = "Projectile|Effect", meta = (ExposeOnSpawn = true))
-	FGameplayEffectSpecHandle DamageEffectHandle;
+	FDamageEffectParameters DamageEffectParameters;
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,11 +46,11 @@ protected:
 	UFUNCTION()
 	void OnRep_ReplicatedProjectileActive();
 
-	UFUNCTION(NetMulticast, Unreliable)
-	void MulticastPlayImpactEffects();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayImpactEffects(const FVector_NetQuantize& ImpactLocation);
 
 	// Cosmetic helpers split out so both authority and replicated clients can apply the same state.
-	void PlayImpactEffects();
+	void PlayImpactEffects(const FVector& ImpactLocation);
 	void ApplyActiveState();
 	void ApplyInactiveState();
 
@@ -90,4 +90,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
 	TObjectPtr<UPrimitiveComponent> CollisionComponent;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<USceneComponent> HomingTargetComponent;
+	
+	friend class UAuraFireBolt;
 };

@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayEffect.h"
+#include "Components/AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -24,10 +25,14 @@ AAuraCharacterBase::AAuraCharacterBase()
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
 	// Weapon visuals live on a dedicated mesh component so combat sockets and dissolve materials can
-	// be authored independently from the main skeletal mesh.
+	// be authored independently of the main skeletal mesh.
 	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon"));
 	Weapon->SetupAttachment(GetMesh(), FName("WeaponHandSocket"));
 	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	BurnDebuffComponent = CreateDefaultSubobject<UDebuffNiagaraComponent>("BurnDebuffComponent");
+	BurnDebuffComponent->SetupAttachment(GetRootComponent());
+	BurnDebuffComponent->DebuffTag = FAuraGameTagManager::Get().Debuff_Burn;
 }
 
 void AAuraCharacterBase::AddStartupGameAbilities()
@@ -86,17 +91,17 @@ FTaggedMontage AAuraCharacterBase::GetTaggedMontageForTag_Implementation(const F
 	return FTaggedMontage();
 }
 
-void AAuraCharacterBase::Die()
+void AAuraCharacterBase::Die(const FVector& DeathImpulse)
 {
 	// The authority-side entry point detaches the weapon first so the death presentation is no
 	// longer driven by living hand-socket animation.
 	FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, true);
 	Weapon->DetachFromComponent(DetachmentRules);
 
-	MulticastHandleDeath();
+	MulticastHandleDeath(DeathImpulse);
 }
 
-void AAuraCharacterBase::MulticastHandleDeath_Implementation()
+void AAuraCharacterBase::MulticastHandleDeath_Implementation(const FVector& DeathImpulse)
 {
 	/*
 	 * The multicast fans the visual death state out to every machine:
@@ -114,11 +119,13 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 	Weapon->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	Weapon->SetSimulatePhysics(true);
 	Weapon->SetEnableGravity(true);
+	Weapon->AddImpulse(DeathImpulse * Weapon->GetMass() * 0.1, NAME_None, true);
 
 	GetMesh()->SetSimulatePhysics(true);
 	GetMesh()->SetEnableGravity(true);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	GetMesh()->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	GetMesh()->AddImpulse(DeathImpulse * Weapon->GetMass(), NAME_None, true);
 
 	// Keep the capsule blocking world static for attached client UI while ignoring gameplay collision.
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -126,6 +133,7 @@ void AAuraCharacterBase::MulticastHandleDeath_Implementation()
 	Dissolve();
 
 	bDead = true;
+	OnDeath.Broadcast(this); 
 }
 
 void AAuraCharacterBase::Dissolve()
@@ -147,6 +155,16 @@ void AAuraCharacterBase::Dissolve()
 		Weapon->SetMaterial(0, DynamicInstance);
 		StartWeaponDissolveTimeline(DynamicInstance);
 	}
+}
+
+FOnAbilitySystemComponentRegistered& AAuraCharacterBase::GetOnAscRegisteredDelegate()
+{
+	return  OnAscRegisteredDelegate;
+}
+
+FOnCharacterDie& AAuraCharacterBase::GetOnCharacterDieDelegate() 
+{
+	return OnDeath;
 }
 
 void AAuraCharacterBase::BeginPlay()

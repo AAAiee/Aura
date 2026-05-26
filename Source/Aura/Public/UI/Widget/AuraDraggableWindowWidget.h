@@ -6,6 +6,9 @@
 #include "UI/Widget/AuraUserWidget.h"
 #include "AuraDraggableWindowWidget.generated.h"
 
+/** Shared visibility-state delegate for floating windows hosted by the HUD overlay layer. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FIsWidgetAddedToScreenSignature, bool, bOnScreen);
+
 class UCanvasPanelSlot;
 
 /**

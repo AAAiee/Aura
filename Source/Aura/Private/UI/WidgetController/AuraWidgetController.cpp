@@ -1,8 +1,13 @@
 // @Copyright HaolunYuan
 
-
 #include "UI/WidgetController/AuraWidgetController.h"
+
 #include "AbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/AbilitySystem/AuraAttributeSet.h"
+#include "Components/AbilitySystem/Data/AbilityInfo.h"
+#include "Player/AuraPlayerController.h"
+#include "Player/AuraPlayerState.h"
 
 /**
  * Caches the four core references so derived controllers (e.g., OverlayWidgetController)
@@ -17,14 +22,6 @@ void UAuraWidgetController::SetWidgetControllerParams(const FWidgetControllerPar
 	CachedAttributeSet = Parameters.AttributeSet;
 }
 
-/**
- * Base implementation - intentionally empty.
- * Derived classes override this to subscribe to ASC delegates.
- */
-void UAuraWidgetController::BindAllDependencies()
-{
-
-}
 
 AActor* UAuraWidgetController::GetAvatarActor() const
 {
@@ -44,4 +41,70 @@ AActor* UAuraWidgetController::GetOwningActor() const
 	}
 
 	return CachedAbilitySystemComponent->GetOwner();
+}
+
+AAuraPlayerController* UAuraWidgetController::GetAuraPlayerController()
+{
+	if (!CachedAuraPlayerController)
+	{
+		CachedAuraPlayerController = Cast<AAuraPlayerController>(CachedPlayerController);
+	}
+
+	return CachedAuraPlayerController;
+}
+
+AAuraPlayerState* UAuraWidgetController::GetAuraPlayerState()
+{
+	if (!CachedAuraPlayerState)
+	{
+		CachedAuraPlayerState = Cast<AAuraPlayerState>(CachedPlayerState);
+	}
+
+	return CachedAuraPlayerState;
+}
+
+UAuraAbilitySystemComponent* UAuraWidgetController::GetAuraAbilitySystemComponent()
+{
+	if (!CachedAuraAbilitySystemComponent)
+	{
+		CachedAuraAbilitySystemComponent = Cast<UAuraAbilitySystemComponent>(CachedAbilitySystemComponent);
+	}
+
+	return CachedAuraAbilitySystemComponent;
+}
+
+UAuraAttributeSet* UAuraWidgetController::GetAuraAttributeSet()
+{
+	if (!CachedAuraAttributeSet)
+	{
+		CachedAuraAttributeSet = Cast<UAuraAttributeSet>(CachedAttributeSet);
+	}
+
+	return CachedAuraAttributeSet;
+}
+
+void UAuraWidgetController::BroadcastAbilityInfo()
+{
+	// Ability UI combines two data sources:
+	//   - static row data from AbilityInfoDataAsset (icons, cooldown tags, level requirement)
+	//   - runtime spec data from the ASC (current input slot and unlock/equip status)
+	const auto BroadcastAbilityInfo = [this](const FGameplayAbilitySpec& Spec)
+		{
+			const FGameplayTag AbilityTag = UAuraAbilitySystemComponent::GetAbilityTagFromSpec(Spec);
+
+			if (!AbilityTag.IsValid())
+			{
+				return;
+			}
+
+			FAuraAbilityInfo* AbilityInfo = AbilityInfoDataAsset->FindAbilityInfoByTag(AbilityTag, true);
+			if (AbilityInfo)
+			{
+				AbilityInfo->InputTag = UAuraAbilitySystemComponent::GetInputTagFromSpec(Spec);
+				AbilityInfo->AbilityStatusTag = UAuraAbilitySystemComponent::GetStatusTagFromSpec(Spec);
+				AbilityInfoDelegate.Broadcast(*AbilityInfo);
+			}
+		};
+
+	GetAuraAbilitySystemComponent()->ForEachAbility(BroadcastAbilityInfo);
 }

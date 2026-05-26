@@ -9,6 +9,14 @@
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
+#include "TimerManager.h"
+#include "AuraLogCategory.h"
+#include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
+
+namespace
+{
+	constexpr float ImpactReturnToPoolDelay = 0.05f;
+}
 
 AAuraProjectile::AAuraProjectile()
 {
@@ -106,18 +114,19 @@ void AAuraProjectile::SetCollisionComponent(UPrimitiveComponent* InCollisionComp
 	CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AAuraProjectile::OnProjectileOverlap);
 }
 
-void AAuraProjectile::PlayImpactEffects()
+void AAuraProjectile::PlayImpactEffects(const FVector& ImpactLocation)
 {
 	// Cosmetic playback is intentionally isolated from hit resolution so the same visuals can be
 	// triggered by authority code and mirrored to simulated clients through a multicast.
 	if (ImpactSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, ImpactSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f);
+		UGameplayStatics::PlaySoundAtLocation(this, ImpactSound, ImpactLocation, FRotator::ZeroRotator, 0.6f);
 	}
 
 	if (ImpactEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactEffect, GetActorLocation(), FRotator::ZeroRotator);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactEffect, ImpactLocation, FRotator::ZeroRotator);
+		UE_LOG(LogAura, Log, TEXT("Spawned Explosion impact effect at location: %s"), *ImpactLocation.ToString());
 	}
 
 	if (LoopingSoundComponent)
@@ -172,8 +181,15 @@ void AAuraProjectile::ApplyInactiveState()
 	{
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
+		ProjectileMovement->bIsHomingProjectile = false;
+		ProjectileMovement->HomingTargetComponent.Reset();
+		ProjectileMovement->HomingAccelerationMagnitude = 0.f;
 	}
-
+	
+	//TODO: Reset Homing Component Related data
+	HomingTargetComponent = nullptr;
+		
+	
 	if (CollisionComponent)
 	{
 		CollisionComponent->SetGenerateOverlapEvents(false);
@@ -191,7 +207,7 @@ void AAuraProjectile::ApplyInactiveState()
 		LoopingSoundComponent = nullptr;
 	}
 
-	DamageEffectHandle.Clear();
+	DamageEffectParameters = FDamageEffectParameters();
 }
 
 void AAuraProjectile::OnRep_ReplicatedProjectileActive()
@@ -206,12 +222,12 @@ void AAuraProjectile::OnRep_ReplicatedProjectileActive()
 	}
 }
 
-void AAuraProjectile::MulticastPlayImpactEffects_Implementation()
+void AAuraProjectile::MulticastPlayImpactEffects_Implementation(const FVector_NetQuantize& ImpactLocation)
 {
 	// Dedicated servers do not need local cosmetic playback.
 	if (GetNetMode() != NM_DedicatedServer)
 	{
-		PlayImpactEffects();
+		PlayImpactEffects(ImpactLocation);
 	}
 }
 
@@ -258,24 +274,50 @@ void AAuraProjectile::OnProjectileOverlap(
 
 	bHasResolvedImpact = true;
 
-	if (DamageEffectHandle.IsValid())
+	FVector ImpactLocation = GetActorLocation();
+	if (bFromSweep)
 	{
-		// The projectile itself does not "calculate" damage. It simply carries the already-authored
-		// outgoing spec from the ability and hands that spec to the target ASC on impact.
-		if (UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner()))
+		ImpactLocation = SweepResult.ImpactPoint;
+	}
+	if (OtherComp)
+	{
+		FVector ClosestPoint = ImpactLocation;
+		if (OtherComp->GetClosestPointOnCollision(GetActorLocation(), ClosestPoint) >= 0.f)
 		{
-			if (UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor))
-			{
-				SourceASC->ApplyGameplayEffectSpecToTarget(*DamageEffectHandle.Data.Get(), TargetASC);
-			}
+			ImpactLocation = ClosestPoint;
 		}
 	}
-	else
+
+	// The projectile itself does not "calculate" damage. It simply carries the already-authored
+	// outgoing spec from the ability and hands that spec to the target ASC on impact.
+	if (UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor))
 	{
-		ensureMsgf(false, TEXT("AuraProjectile::OnProjectileOverlap hit %s without a valid damage effect spec on projectile %s."), *GetNameSafe(OtherActor), *GetName());
+		/*Calculate death impulse force*/
+		const FVector DeathImpulse = GetActorForwardVector() * DamageEffectParameters.DeathImpulseMagnitude;
+		DamageEffectParameters.DeathImpulse = DeathImpulse;
+		
+		/*Calculate Knockback force*/
+		const float Dice = FMath::RandRange(1,100);
+		FVector KnockBackForce = FVector::ZeroVector;
+		if (Dice <= DamageEffectParameters.KnockBackChance)
+		{
+			FRotator Rotation = GetActorRotation();
+			Rotation.Pitch = 45.f;
+			KnockBackForce = Rotation.Vector() * DamageEffectParameters.KnockBackMagnitude;
+		}
+		DamageEffectParameters.KnockBackForce = KnockBackForce;
+		DamageEffectParameters.TargetAbilitySystemComponent = TargetASC;
+		UAuraAbilitySystemLibrary::ApplyDamageEffect(DamageEffectParameters);
 	}
 
 	// One authoritative multicast tells every relevant machine to play the impact locally once.
-	MulticastPlayImpactEffects();
-	RequestReturnToPool();
+	MulticastPlayImpactEffects(ImpactLocation);
+
+	FTimerHandle ReturnToPoolTimerHandle;
+	GetWorldTimerManager().SetTimer(
+		ReturnToPoolTimerHandle,
+		this,
+		&AAuraProjectile::RequestReturnToPool,
+		ImpactReturnToPoolDelay,
+		false);
 }

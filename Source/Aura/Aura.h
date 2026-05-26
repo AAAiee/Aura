@@ -17,3 +17,4 @@
 
 /** Object channel assigned to enemy capsules for gameplay-specific filtering. */
 #define ECC_EnemyCollision ECollisionChannel::ECC_GameTraceChannel2
+#define ECC_Target ECollisionChannel::ECC_GameTraceChannel3
