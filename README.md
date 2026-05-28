@@ -4,13 +4,15 @@ Aura is a gameplay systems prototype built in Unreal Engine 5 and C++. The proje
 
 ## Demo
 
-Click the thumbnail below to open the compressed gameplay demo.
+Click the thumbnail below to watch the gameplay demo on YouTube.
 
 <p align="center">
-  <a href="Docs/Media/AuraDemo-preview.mp4">
+  <a href="https://youtu.be/y_uQL8ulQLg">
     <img src="Docs/Media/AuraDemo-thumbnail.jpg" alt="Aura gameplay demo" width="860">
   </a>
 </p>
+
+Direct link: [Aura Gameplay Systems Demo](https://youtu.be/y_uQL8ulQLg)
 
 ## Highlights
 
