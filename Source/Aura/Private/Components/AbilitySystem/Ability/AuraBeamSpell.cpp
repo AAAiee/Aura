@@ -52,7 +52,7 @@ void UAuraBeamSpell::TraceFirstTarget(const FVector& BeamTargetLocation)
 				TraceTypeQuery1,
 				false ,
 				ActorsToIgnore,
-				EDrawDebugTrace::ForDuration,
+				EDrawDebugTrace::None,
 				HitResult, 
 				true);
 			
@@ -100,3 +100,74 @@ void UAuraBeamSpell::StoreAdditionalTarget(TArray<AActor*>& OutAdditionalTargets
 		}
 	}
 }
+
+FString UAuraBeamSpell::GetDescription(int32 Level) const
+{
+	const float Damage = DamageMagnitude.GetValueAtLevel(Level);
+	const float ManaCost = GetManaCost(Level) * -1.f;
+	const float Cooldown = GetCooldown(Level);
+	const int32 NumAdditionalTargets = FMath::Min(MaxNumShockTarget, FMath::Max(Level - 1, 0));
+	if (NumAdditionalTargets == 0)
+	{
+		return FString::Printf(TEXT(
+			"<Title>ELECTROCUTE</>\n\n"
+			"<Small>Level: %d</>\n"
+			"<Small>ManaCost: %.1f</>\n"
+			"<Cooldown>Cooldown: %.1f Seconds</>\n\n"
+			"<Default>Launches a beam of lightning at the target enemy, dealing </><Damage>%d</><Default> lightning damage.</>\n\n"),
+			Level,
+			ManaCost,
+			Cooldown,
+			FMath::RoundToInt(Damage));
+	}
+
+	return FString::Printf(TEXT(
+		"<Title>ELECTROCUTE</>\n\n"
+		"<Small>Level: %d</>\n"
+		"<Small>ManaCost: %.1f</>\n"
+		"<Cooldown>Cooldown: %.1f Seconds</>\n\n"
+		"<Default>Launches a beam of lightning at the target enemy, then chains to up to </>"
+		"<Small>%d</>"
+		"<Default> nearby enemies, dealing </><Damage>%d</><Default> lightning damage to each target.</>\n\n"),
+		Level,
+		ManaCost,
+		Cooldown,
+		NumAdditionalTargets,
+		FMath::RoundToInt(Damage));
+}
+
+FString UAuraBeamSpell::GetNextLevelDescription(int32 Level) const
+{
+	const float Damage = DamageMagnitude.GetValueAtLevel(Level);
+	const float ManaCost = GetManaCost(Level) * -1.f;
+	const float Cooldown = GetCooldown(Level);
+	const int32 NumAdditionalTargets = FMath::Min(MaxNumShockTarget, FMath::Max(Level - 1, 0));
+	if (NumAdditionalTargets == 0)
+	{
+		return FString::Printf(TEXT(
+			"<Title>NEXT LEVEL</>\n\n"
+			"<Small>Level: %d</>\n"
+			"<Small>ManaCost: %.1f</>\n"
+			"<Cooldown>Cooldown: %.1f Seconds</>\n\n"
+			"<Default>Launches a beam of lightning at the target enemy, dealing </><Damage>%d</><Default> lightning damage.</>\n\n"),
+			Level,
+			ManaCost,
+			Cooldown,
+			FMath::RoundToInt(Damage));
+	}
+
+	return FString::Printf(TEXT(
+		"<Title>NEXT LEVEL</>\n\n"
+		"<Small>Level: %d</>\n"
+		"<Small>ManaCost: %.1f</>\n"
+		"<Cooldown>Cooldown: %.1f Seconds</>\n\n"
+		"<Default>Launches a beam of lightning at the target enemy, then chains to up to </>"
+		"<Small>%d</>"
+		"<Default> nearby enemies, dealing </><Damage>%d</><Default> lightning damage to each target.</>\n\n"),
+		Level,
+		ManaCost,
+		Cooldown,
+		NumAdditionalTargets,
+		FMath::RoundToInt(Damage));
+}
+

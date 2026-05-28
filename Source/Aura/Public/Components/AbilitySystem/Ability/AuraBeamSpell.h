@@ -33,6 +33,12 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void AdditionalTargetDied(AActor* DeadActor);
 	
+	/** Builds the current-level rich-text tooltip shown by the spell menu. */
+	virtual FString GetDescription(int32 Level) const override;
+
+	/** Builds the preview tooltip for what the next spell level will change. */
+	virtual FString GetNextLevelDescription(int32 Level) const override;
+	
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "CachedRef")
 	FVector MouseHitLocation;

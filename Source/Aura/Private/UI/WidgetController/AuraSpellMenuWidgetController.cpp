@@ -11,12 +11,14 @@
 UAuraSpellMenuWidgetController::UAuraSpellMenuWidgetController()
 	: CurrentlySelectedAbility(FAuraGameTagManager::Get().Ability_None, FAuraGameTagManager::Get().Ability_Status_Locked)
 {
+	
 }
 
 void UAuraSpellMenuWidgetController::BroadcastInitialValues()
 {
 	BroadcastAbilityInfo();
 
+	CurrentSpellPoints =  GetAuraPlayerState()->GetSpellPoints();
 	OnSpellPointsChanged.Broadcast(GetAuraPlayerState()->GetSpellPoints());
 }
 
