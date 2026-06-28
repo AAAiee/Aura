@@ -10,8 +10,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayEffect.h"
 #include "Components/AbilitySystem/Debuff/DebuffNiagaraComponent.h"
+#include "Components/AbilitySystem/Passive/PassiveNiagaraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Net/UnrealNetwork.h"
 
 AAuraCharacterBase::AAuraCharacterBase()
 {
@@ -22,7 +25,9 @@ AAuraCharacterBase::AAuraCharacterBase()
 	// Camera collision is disabled so the spring arm and camera can move through friendly meshes
 	// without snapping or zooming when the player fights in close quarters.
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_ExcludeEnemiesAndPlayers, ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_ExcludeEnemiesAndPlayers, ECR_Ignore);
 
 	// Weapon visuals live on a dedicated mesh component so combat sockets and dissolve materials can
 	// be authored independently of the main skeletal mesh.
@@ -33,6 +38,31 @@ AAuraCharacterBase::AAuraCharacterBase()
 	BurnDebuffComponent = CreateDefaultSubobject<UDebuffNiagaraComponent>("BurnDebuffComponent");
 	BurnDebuffComponent->SetupAttachment(GetRootComponent());
 	BurnDebuffComponent->DebuffTag = FAuraGameTagManager::Get().Debuff_Burn;
+	
+	StunDebuffComponent = CreateDefaultSubobject<UDebuffNiagaraComponent>("StunDebuffComponent");
+	StunDebuffComponent->SetupAttachment(GetRootComponent());
+	StunDebuffComponent->DebuffTag = FAuraGameTagManager::Get().Debuff_Stun;
+	
+	EffectAttachComponent = CreateDefaultSubobject<USceneComponent>(TEXT("EffectAttachComponent"));
+	EffectAttachComponent->SetupAttachment(GetRootComponent());
+	EffectAttachComponent->SetUsingAbsoluteRotation(true);
+	EffectAttachComponent->SetWorldRotation(FRotator::ZeroRotator);
+	
+	HaloProtectionNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("HaloProtectionNiagaraComponent");
+	HaloProtectionNiagaraComponent->SetupAttachment(EffectAttachComponent);
+	LifeSiphonNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("LifeSiphonNiagaraComponent");
+	LifeSiphonNiagaraComponent->SetupAttachment(EffectAttachComponent);
+	ManaSiphonNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("ManaSiphonNiagaraComponent");
+	ManaSiphonNiagaraComponent->SetupAttachment(EffectAttachComponent);
+}
+
+void AAuraCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(AAuraCharacterBase, bIsStunned);
+	DOREPLIFETIME(AAuraCharacterBase, bIsBurned);
+	DOREPLIFETIME(AAuraCharacterBase, bIsBeingShocked);
 }
 
 void AAuraCharacterBase::AddStartupGameAbilities()
@@ -101,6 +131,11 @@ void AAuraCharacterBase::Die(const FVector& DeathImpulse)
 	MulticastHandleDeath(DeathImpulse);
 }
 
+void AAuraCharacterBase::SetBeingShocked_Implementation(bool bInBeingShocked)
+{
+	bIsBeingShocked = bInBeingShocked;
+}
+
 void AAuraCharacterBase::MulticastHandleDeath_Implementation(const FVector& DeathImpulse)
 {
 	/*
@@ -167,6 +202,12 @@ FOnCharacterDie& AAuraCharacterBase::GetOnCharacterDieDelegate()
 	return OnDeath;
 }
 
+void AAuraCharacterBase::OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	bIsStunned = NewCount > 0;
+	GetCharacterMovement()->MaxWalkSpeed  = bIsStunned ? 0.f : BaseSpeed;
+}
+
 void AAuraCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -198,4 +239,12 @@ void AAuraCharacterBase::InitDefaultAttributes()
 	ApplyGameEffectToSelf(PrimaryAttributeInitGE, 1.0f);
 	ApplyGameEffectToSelf(SecondaryAttributeInitGE, 1.0f);
 	ApplyGameEffectToSelf(VitalAttributeInitGE, 1.0f);
+}
+
+void AAuraCharacterBase::OnRep_Stunned()
+{
+}
+
+void AAuraCharacterBase::OnRep_Burned()
+{
 }

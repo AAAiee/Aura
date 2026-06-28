@@ -28,3 +28,4 @@ UCanvasPanelSlot* UAuraOverlayRootWidget::AddWindowToLayer(UUserWidget* Window, 
 	CanvasSlot->SetAlignment(FVector2D::ZeroVector);
 	return CanvasSlot;
 }
+

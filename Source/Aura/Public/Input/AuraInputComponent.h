@@ -29,19 +29,19 @@ public:
 
 	/*
 	 * Binds all tag-driven ability inputs from a config asset.
-	 * PressedFunc / ReleasedFunc / HeldFunc are optional and skipped when nullptr.
+	 * TriggeredFunc / CompletedFunc / CanceledFunc are optional and skipped when nullptr.
 	 */
 	template<typename UserClassType>
 	requires UObjectDerived<UserClassType>
 	void BindAbilityActions(
 		const UAuraInputConfig* InputConfig,
 		UserClassType* Object,
-		FAbilityInputFunc<UserClassType> PressedFunc,
-		FAbilityInputFunc<UserClassType> ReleasedFunc,
-		FAbilityInputFunc<UserClassType> HeldFunc);
+		FAbilityInputFunc<UserClassType> TriggeredFunc,
+		FAbilityInputFunc<UserClassType> CompletedFunc,
+		FAbilityInputFunc<UserClassType> CanceledFunc);
 
 private:
-	// Shared binder for the Started / Completed / Triggered variants of an input action.
+	// Shared binder for the Triggered / Completed / Canceled variants of an input action.
 	template<typename UserClassType>
 	requires UObjectDerived<UserClassType>
 	void BindAbilityAction(
@@ -73,23 +73,33 @@ requires UObjectDerived<UserClassType>
 void UAuraInputComponent::BindAbilityActions(
 	const UAuraInputConfig* InputConfig,
 	UserClassType* Object,
-	FAbilityInputFunc<UserClassType> PressedFunc,
-	FAbilityInputFunc<UserClassType> ReleasedFunc,
-	FAbilityInputFunc<UserClassType> HeldFunc)
+	FAbilityInputFunc<UserClassType> TriggeredFunc,
+	FAbilityInputFunc<UserClassType> CompletedFunc,
+	FAbilityInputFunc<UserClassType> CanceledFunc)
 {
-	check(InputConfig);
-	check(Object);
+	checkf(InputConfig, TEXT("BindAbilityActions requires a valid input config."));
+	checkf(Object, TEXT("BindAbilityActions requires a valid receiver object."));
 
 	for (const FAuraInputAction& Action : InputConfig->InputActionEntries)
 	{
 		// Runtime guard mirrors editor validation so broken data assets do not bind empty inputs.
-		if (!Action.InputAction || !Action.InputActionTag.IsValid())
+		if (!ensureMsgf(Action.InputAction,
+			TEXT("Input config [%s] contains an ability input entry with no InputAction."),
+			*GetNameSafe(InputConfig)))
 		{
 			continue;
 		}
 
-		BindAbilityAction(Action, ETriggerEvent::Started, Object, PressedFunc);
-		BindAbilityAction(Action, ETriggerEvent::Completed, Object, ReleasedFunc);
-		BindAbilityAction(Action, ETriggerEvent::Triggered, Object, HeldFunc);
+		if (!ensureMsgf(Action.InputActionTag.IsValid(),
+			TEXT("Input action [%s] in config [%s] has no valid InputActionTag."),
+			*GetNameSafe(Action.InputAction),
+			*GetNameSafe(InputConfig)))
+		{
+			continue;
+		}
+
+		BindAbilityAction(Action, ETriggerEvent::Triggered, Object, TriggeredFunc);
+		BindAbilityAction(Action, ETriggerEvent::Completed, Object, CompletedFunc);
+		BindAbilityAction(Action, ETriggerEvent::Canceled, Object, CanceledFunc);
 	}
 }

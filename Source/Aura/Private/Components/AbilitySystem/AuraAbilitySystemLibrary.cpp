@@ -242,6 +242,11 @@ FGameplayEffectContextHandle UAuraAbilitySystemLibrary::ApplyDamageEffect(const 
 		ContextHandle);
 	SetDeathImpulse(ContextHandle, DamageParameters.DeathImpulse);
 	SetKnockBackForce(ContextHandle, DamageParameters.KnockBackForce);
+	SetIsRadialDamage(ContextHandle, DamageParameters.bIsRadialDamage);
+	SetRadialDamageInnerRadius(ContextHandle, DamageParameters.RadialDamageInnerRadius);
+	SetRadialDamageOuterRadius(ContextHandle, DamageParameters.RadialDamageOuterRadius);
+	SetRadialDamageOrigin(ContextHandle, DamageParameters.RadialDamageOrigin);
+	
 	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(DamageEffectSpecHandle, TagManager.Debuff_Damage, DamageParameters.DebuffDamage);
 	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(DamageEffectSpecHandle, DamageParameters.DamageType, DamageParameters.BaseDamage);
 	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(DamageEffectSpecHandle, TagManager.Debuff_Chance, DamageParameters.DebuffChance);
@@ -271,6 +276,43 @@ bool UAuraAbilitySystemLibrary::IsCriticalHit(const FGameplayEffectContextHandle
 	}
 
 	return false;
+}
+
+bool UAuraAbilitySystemLibrary::IsRadialDamage(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	{
+		return AuraContext->GetIsRadialDamage();
+	}
+	
+	return false;
+}
+
+float UAuraAbilitySystemLibrary::GetRadialDamageInnerRadius(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	{
+		return AuraContext->GetRadialDamageInnerRadius();
+	}
+	return  0.0f;
+}
+
+float UAuraAbilitySystemLibrary::GetRadialDamageOuterRadius(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	{
+		return AuraContext->GetRadialDamageOuterRadius();
+	}
+	return  0.0f;
+}
+
+FVector UAuraAbilitySystemLibrary::GetRadialDamageOrigin(const FGameplayEffectContextHandle& EffectHandle)
+{
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	{
+		return AuraContext->GetRadialDamageOrigin();
+	}
+	return  FVector::ZeroVector;
 }
 
 bool UAuraAbilitySystemLibrary::ShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle)
@@ -437,6 +479,42 @@ void UAuraAbilitySystemLibrary::SetKnockBackForce(FGameplayEffectContextHandle& 
 	}
 }
 
+void UAuraAbilitySystemLibrary::SetIsRadialDamage(FGameplayEffectContextHandle& EffectHandle, bool bInIsRadialDamage)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetIsRadialDamage")))
+	{
+		AuraContext->SetIsRadialDamage(bInIsRadialDamage);
+	}
+}
+
+void UAuraAbilitySystemLibrary::SetRadialDamageInnerRadius(FGameplayEffectContextHandle& EffectHandle,
+                                                           float InInnerRadius)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetKnockBackForce")))
+	{
+		AuraContext->SetRadialDamageInnerRadius(InInnerRadius);
+	}
+}
+
+void UAuraAbilitySystemLibrary::SetRadialDamageOuterRadius(FGameplayEffectContextHandle& EffectHandle,
+	float InOuterRadius)
+{
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetKnockBackForce")))
+	{
+		AuraContext->SetRadialDamageOuterRadius(InOuterRadius);
+	}
+}
+
+void UAuraAbilitySystemLibrary::SetRadialDamageOrigin(FGameplayEffectContextHandle& EffectHandle,
+	const FVector& InOrigin)
+{
+	FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetRadialDamageOrigin"));
+		if (AuraContext)
+		{
+			AuraContext->SetRadialDamageOrigin(InOrigin);
+		}
+}
+
 void UAuraAbilitySystemLibrary::GetLivePlayersWithinRadius(const UObject* WorldContextObject, TArray<AActor*>& OutOverlapActors, const TArray<AActor*>& ActorToIgnore, float Radius, const FVector& SphereOrigin)
 {
 	FCollisionQueryParams SphereParams;
@@ -509,6 +587,31 @@ void UAuraAbilitySystemLibrary::GetClosestTargets(
 
 	OutClosestTargets.Reserve(MaxTargets);
 	OutClosestTargets.Append(MaxHeap.GetData(), MaxTargets);
+}
+
+void  UAuraAbilitySystemLibrary::CalculateRadialDamage(const FGameplayEffectContextHandle& EffectContextHandle,
+	 float& OutDamage, const AActor* TargetActor)
+{
+	check(OutDamage > 0.f);
+	FVector TargetLocation = TargetActor->GetActorLocation(); 
+	const FVector Origin = UAuraAbilitySystemLibrary::GetRadialDamageOrigin(EffectContextHandle);
+	const float InnerRadius = UAuraAbilitySystemLibrary::GetRadialDamageInnerRadius(EffectContextHandle);
+	const float OuterRadius = UAuraAbilitySystemLibrary::GetRadialDamageOuterRadius(EffectContextHandle);
+	TargetLocation.Z = Origin.Z;  // 
+	
+	const float SquaredDistance = FVector::DistSquared(Origin, TargetLocation);
+	const float InnerRadiusSq = InnerRadius * InnerRadius;
+	const float OuterRadiusSq = OuterRadius * OuterRadius;
+	
+	if (SquaredDistance <= InnerRadiusSq)
+	{
+		return;
+	}
+	
+	const TRange<float> DistanceRange = TRange<float>(InnerRadiusSq, OuterRadiusSq);
+	const TRange<float> DamageScaledRange(1.0f, 0.f);
+	const float DamageScale = FMath::GetMappedRangeValueClamped(DistanceRange, DamageScaledRange, SquaredDistance);
+	OutDamage *= DamageScale;
 }
 
 const FTaggedMontage& UAuraAbilitySystemLibrary::GetRandomMontageInArray(const TArray<FTaggedMontage>& MontageArray)

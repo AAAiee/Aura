@@ -88,6 +88,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayEffects")
 	static bool IsCriticalHit(const FGameplayEffectContextHandle& EffectHandle);
+	
+	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayEffects")
+	static bool IsRadialDamage(const FGameplayEffectContextHandle& EffectHandle);
+	
+	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayEffects")
+	static float GetRadialDamageInnerRadius(const FGameplayEffectContextHandle& EffectHandle);
+	
+	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayEffects")
+	static float GetRadialDamageOuterRadius(const FGameplayEffectContextHandle& EffectHandle);
+	
+	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayEffects")
+	static FVector GetRadialDamageOrigin(const FGameplayEffectContextHandle& EffectHandle);
 
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
 	static bool ShouldHitReact(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle);
@@ -146,6 +158,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
 	static void SetKnockBackForce(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, const FVector& InKnockBackForce);
 	
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
+	static void SetIsRadialDamage(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, bool bInIsRadialDamage);
+	
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
+	static void SetRadialDamageInnerRadius(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, float InInnerRadius);
+	
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
+	static void SetRadialDamageOuterRadius(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, float InOuterRadius);
+	
+	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayEffects")
+	static void SetRadialDamageOrigin(UPARAM(ref)FGameplayEffectContextHandle& EffectHandle, const FVector& InOrigin);
+	
+
+
+	
 
 	/* Gameplay Utilities */
 	// Collects living combatants inside a radius while respecting an ignore list supplied by the caller.
@@ -154,6 +181,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayUtilities")
 	static void GetClosestTargets(int32 MaxTargets, const TArray<AActor*>& Actors,  TArray<AActor*>& OutClosestTargets, const FVector& Origin);
+	
+	UFUNCTION(BlueprintPure, Category = "AuraAbilitySystem|GameplayUtilities")
+	static void CalculateRadialDamage(const FGameplayEffectContextHandle& EffectContextHandle, float& OutDamage, const AActor* TargetActor);
+	
 
 	// Returns one montage entry at random from the authored list. Caller must provide a non-empty array.
 	UFUNCTION(BlueprintCallable, Category = "AuraAbilitySystem|GameplayUtilities")

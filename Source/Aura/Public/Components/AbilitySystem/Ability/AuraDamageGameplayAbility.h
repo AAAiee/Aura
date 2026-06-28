@@ -31,7 +31,7 @@ public:
 
 	/** Copies the class-default damage/debuff tuning into a payload that projectiles can carry until impact. */
 	UFUNCTION(BlueprintPure)
-	FDamageEffectParameters MakeDamageEffectParametersFromClassDefault(AActor* TargetActor = nullptr) const;
+	FDamageEffectParameters MakeDamageEffectParametersFromClassDefault(AActor* TargetActor = nullptr);
 
 	/* Damage Authoring */
 	// Gameplay Effect class that owns the ExecCalc writing IncomingDamage on the target AttributeSet.
@@ -62,12 +62,43 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debuff")
 	float DebuffDuration = 5.0f;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Death")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effect")
 	float DeathImpulseMagnitude = 1000.f;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "KnockBack")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effect")
 	float KnockbackForceMagnitude = 60.f;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "KnockBack")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Effect")
 	float KnockbackChance = 0.f;
+	
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	bool bIsRadialDamage = false; 
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	float  RadialDamageInnerRadius = 0.f;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Damage")
+	float  RadialDamageOuterRadius = 0.f;
+	
+	UPROPERTY(BlueprintReadWrite,Category = "Damage")
+	FVector RadialDamageOrigin = FVector::ZeroVector;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Effect")
+	FVector KnockBackDirectionOverride = FVector::ZeroVector;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadWrite, Category = "Effect")
+	bool bOverrideKnockbackDirection = false;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadWrite, Category = "Effect")
+	bool bDeathImpulseDirectionOverride = false;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Effect")
+	FVector DeathImpulseDirectionOverride =  FVector::ZeroVector;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Effect")
+	bool bOverrideDirPitch = false;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadWrite, Category = "Effect")
+	float DirPitchOverride = 0.f;
 };

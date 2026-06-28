@@ -42,6 +42,8 @@ AAuraEnemy::AAuraEnemy()
 
 	HealthBarComponent = CreateDefaultSubobject<UActorStatusWidgetComponent>(TEXT("EnemyHealthBar"));
 	HealthBarComponent->SetupAttachment(GetRootComponent());
+	
+	BaseSpeed = 250.f;
 }
 
 void AAuraEnemy::HighLightActor()
@@ -90,6 +92,16 @@ void AAuraEnemy::Die(const FVector& DeathImpulse)
 	AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("Dead"), true);
 
 	Super::Die(DeathImpulse);
+}
+
+void AAuraEnemy::SetBeingShocked_Implementation(bool bInBeingShocked)
+{
+	Super::SetBeingShocked_Implementation(bInBeingShocked);
+	
+	if (AuraAIController && AuraAIController->GetBlackboardComponent())
+	{
+		AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("IsBeingShocked"), bIsBeingShocked);
+	}
 }
 
 void AAuraEnemy::PossessedBy(AController* NewController)
@@ -171,6 +183,7 @@ void AAuraEnemy::InitAbilityActorInfo()
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
 	OnAscRegisteredDelegate.Broadcast(AbilitySystemComponent);
+	AbilitySystemComponent->RegisterGameplayTagEvent(FAuraGameTagManager::Get().Debuff_Stun, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AAuraEnemy::OnStunTagChanged);
 }
 
 void AAuraEnemy::InitDefaultAttributes()
@@ -178,6 +191,16 @@ void AAuraEnemy::InitDefaultAttributes()
 	// Class-based defaults are centralized in the ability-system library so players and enemies stay
 	// on the same data-driven startup pipeline.
 	UAuraAbilitySystemLibrary::InitializeDefaultAttributes(this, CharacterClass, AbilitySystemComponent, EnemyLevel);
+}
+
+void AAuraEnemy::OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	Super::OnStunTagChanged(CallbackTag, NewCount);
+	
+	if (AuraAIController && AuraAIController->GetBlackboardComponent())
+	{
+		AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("IsStunned"), bIsStunned);
+	}
 }
 
 void AAuraEnemy::InitializeStatusWidget()
@@ -210,5 +233,8 @@ void AAuraEnemy::OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewC
 		GetCharacterMovement()->MaxWalkSpeed = BaseSpeed;
 	}
 
-	AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("HitReacting"), bHitReacting);
+	if (AuraAIController && AuraAIController->GetBlackboardComponent())
+	{
+		AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("HitReacting"), bHitReacting);
+	}
 }

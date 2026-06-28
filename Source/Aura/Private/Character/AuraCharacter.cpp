@@ -3,6 +3,7 @@
 
 #include "Character/AuraCharacter.h"
 
+#include "AuraGameTagManager.h"
 #include "Aura/Aura.h"
 #include "Camera/CameraComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
@@ -11,6 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "NiagaraComponent.h"
+#include "Components/AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Player/AuraPlayerController.h"
 #include "Player/AuraPlayerState.h"
 #include "UI/HUD/AuraHUD.h"
@@ -168,6 +170,24 @@ void AAuraCharacter::LevelUp_Implementation()
 	MultiCastLevelUpEffect();
 }
 
+void AAuraCharacter::ShowMagicCircle_Implementation(UMaterialInterface* DecalMaterial)
+{
+	if (AAuraPlayerController* AuraPC = GetController<AAuraPlayerController>())
+	{
+		AuraPC->ShowMagicCircle(DecalMaterial);
+		AuraPC->bShowMouseCursor = false;
+	}
+}
+
+void AAuraCharacter::HideMagicCircle_Implementation()
+{
+	if (AAuraPlayerController* AuraPC = GetController<AAuraPlayerController>())
+	{
+		AuraPC->HideMagicCircle();
+		AuraPC->bShowMouseCursor = true;
+	}
+}
+
 /**
  * Initialization flow - ORDER MATTERS:
  *
@@ -190,6 +210,7 @@ void AAuraCharacter::InitAbilityActorInfo()
 	AttributeSet = AuraPlayerState->GetAttributeSet();
 	
 	OnAscRegisteredDelegate.Broadcast(AbilitySystemComponent);
+	AbilitySystemComponent->RegisterGameplayTagEvent(FAuraGameTagManager::Get().Debuff_Stun, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AAuraCharacter::OnStunTagChanged); 
 
 	// Step 3: HUD initialization - only on the owning client (HUD is local-only)
 	if (AAuraPlayerController* AuraPlayerController = GetController<AAuraPlayerController>())
@@ -202,6 +223,33 @@ void AAuraCharacter::InitAbilityActorInfo()
 
 	// Step 4: Bind ASC effect-applied delegate AFTER UI listeners are registered
 	Cast<UAuraAbilitySystemComponent>(AuraPlayerState->GetAbilitySystemComponent())->AbilityActorInfoSet();
+}
+
+void AAuraCharacter::OnRep_Stunned()
+{
+	const FAuraGameTagManager& TagManager = FAuraGameTagManager::Get();
+	if (UAuraAbilitySystemComponent* AuraASC =  Cast<UAuraAbilitySystemComponent>(AbilitySystemComponent))
+	{
+		FGameplayTagContainer BlockedTag; 
+		BlockedTag.AddTag(TagManager.Player_BlockInputHeld);
+		BlockedTag.AddTag(TagManager.PLayer_BlockCursorTrace);
+		BlockedTag.AddTag(TagManager.PLayer_BlockInputPressed);
+		BlockedTag.AddTag(TagManager.PLayer_BlockInputReleased);
+		
+		if (bIsStunned)
+		{
+			AuraASC->AddLooseGameplayTags(BlockedTag) ;
+		}
+		else
+		{
+			AuraASC->RemoveLooseGameplayTags(BlockedTag);
+		}
+	}
+	
+}
+
+void AAuraCharacter::OnRep_Burned()
+{
 }
 
 void AAuraCharacter::MultiCastLevelUpEffect_Implementation()

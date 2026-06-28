@@ -7,6 +7,10 @@
 #include "AbilitySystemComponent.h"
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 #include "Components/SceneComponent.h"
+#include "InventoryManagement/Component/InvSS_InventoryComponent.h"
+#include "InventoryManagement/Interface/InvSS_InventoryPlayerControllerInterface.h"
+#include "InventorySystem/Public/Item/InvSS_ItemComponent.h"
+
 
 AAuraEffectActor::AAuraEffectActor()
 {
@@ -14,11 +18,8 @@ AAuraEffectActor::AAuraEffectActor()
 
 	// Overlap components (Sphere, Box, etc.) are added in the Blueprint subclass.
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>("SceneRoot"));
-}
-
-void AAuraEffectActor::BeginPlay()
-{
-	Super::BeginPlay();
+	
+	ItemComponent = CreateDefaultSubobject<UInvSS_ItemComponent>( TEXT("ItemComponent")) ; 
 }
 
 /**
@@ -69,7 +70,7 @@ void AAuraEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGam
 	const bool bIsRemovable = InfiniteEffectRemovalPolicy == EEffectRemovalPolicy::RemoveOnEndOverlap;
 	if (bIsInfiniteEffect && bIsRemovable)
 	{
-		TArray<FActiveGameplayEffectHandle>& GameEffectsPool = AppliedEffects.FindOrAdd(TargetAbilitySystemComponent);
+		TArray<FActiveGameplayEffectHandle>& GameEffectsPool = AppliedInfiniteRemovableEffects.FindOrAdd(TargetAbilitySystemComponent);
 		GameEffectsPool.Add(ActiveHandle);
 	}
 }
@@ -80,6 +81,11 @@ void AAuraEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGam
  */
 void AAuraEffectActor::OnOverlap(AActor* TargetActor)
 {
+	const bool bShouldTryAddItem =
+		InstantEffectApplicationPolicy == EEffectApplicationPolicy::DoNotApplyOnPickUp ||
+		DurationEffectApplicationPolicy == EEffectApplicationPolicy::DoNotApplyOnPickUp ||
+		InfiniteEffectApplicationPolicy == EEffectApplicationPolicy::DoNotApplyOnPickUp;
+
 	if (InstantEffectApplicationPolicy == EEffectApplicationPolicy::ApplyOnOverlap)
 	{
 		ApplyEffectToTarget(TargetActor, InstantGameplayEffectClass);
@@ -93,6 +99,20 @@ void AAuraEffectActor::OnOverlap(AActor* TargetActor)
 	if (InfiniteEffectApplicationPolicy == EEffectApplicationPolicy::ApplyOnOverlap)
 	{
 		ApplyEffectToTarget(TargetActor, InfiniteGameplayEffectClass);
+	}
+
+	if (bShouldTryAddItem && HasAuthority())
+	{
+		if (APawn* Pawn = Cast<APawn>(TargetActor))
+		{
+			if (IInvSS_InventoryPlayerControllerInterface* IPC = Cast<IInvSS_InventoryPlayerControllerInterface>(Pawn->GetController()))
+			{
+				check(ItemComponent);
+				UInvSS_InventoryComponent* InventoryComponent = IPC->GetInventoryComponent();
+				check(InventoryComponent);
+				InventoryComponent->TryAddItem(ItemComponent);
+			}
+		}
 	}
 }
 
@@ -130,7 +150,7 @@ void AAuraEffectActor::OnEndOverlap(AActor* TargetActor)
 			return;
 		}
 
-		TArray<FActiveGameplayEffectHandle>* TargetAppliedInfiniteRemovalEffectsPool = AppliedEffects.Find(TargetASC);
+		TArray<FActiveGameplayEffectHandle>* TargetAppliedInfiniteRemovalEffectsPool = AppliedInfiniteRemovableEffects.Find(TargetASC);
 		if (!TargetAppliedInfiniteRemovalEffectsPool)
 		{
 			return;
@@ -142,6 +162,11 @@ void AAuraEffectActor::OnEndOverlap(AActor* TargetActor)
 		}
 
 		// Clean up the map entry so stale handles do not interfere with future overlaps.
-		AppliedEffects.Remove(TargetASC);
+		AppliedInfiniteRemovableEffects.Remove(TargetASC);
 	}
+}
+
+void AAuraEffectActor::ResetPooledState()
+{
+	AppliedInfiniteRemovableEffects.Empty();
 }

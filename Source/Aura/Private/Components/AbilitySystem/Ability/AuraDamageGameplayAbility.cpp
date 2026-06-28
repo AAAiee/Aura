@@ -4,6 +4,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "NiagaraMeshRendererProperties.h"
 
 void UAuraDamageGameplayAbility::CauseDamage(AActor* TargetActor)
 {
@@ -30,7 +31,7 @@ void UAuraDamageGameplayAbility::CauseDamage(AActor* TargetActor)
 	OwnerASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 }
 
-FDamageEffectParameters UAuraDamageGameplayAbility::MakeDamageEffectParametersFromClassDefault(AActor* TargetActor) const
+FDamageEffectParameters UAuraDamageGameplayAbility::MakeDamageEffectParametersFromClassDefault(AActor* TargetActor) 
 {
 	/*
 	 * Projectiles need to know "what damage should I apply?" before they know "who did I hit?".
@@ -53,18 +54,57 @@ FDamageEffectParameters UAuraDamageGameplayAbility::MakeDamageEffectParametersFr
 	Parameters.KnockBackMagnitude = KnockbackForceMagnitude;
 	Parameters.KnockBackChance = KnockbackChance;
 	
-	/* Calculate a default value for death impulse and knockback force if target is valid*/
-	if (TargetActor)
+	if (IsValid(TargetActor))
 	{
 		FRotator DirToTarget = (TargetActor->GetActorLocation() - GetAvatarActorFromActorInfo()->GetActorLocation()).Rotation();
-		DirToTarget.Pitch = 45.0f;
-		const bool bShouldCalculateKnockBackForce = (KnockbackChance * 100 >= FMath::RandRange(1.f,100.f));
-		Parameters.KnockBackForce = FVector::ZeroVector;
-		if (bShouldCalculateKnockBackForce)
+		if (bOverrideDirPitch)
 		{
-			Parameters.KnockBackForce = DirToTarget.Vector() * KnockbackForceMagnitude;
+			DirToTarget.Pitch = DirPitchOverride;
 		}
-		Parameters.DeathImpulse = DirToTarget.Vector() *  DeathImpulseMagnitude;
+		FVector ToTarget = DirToTarget.Vector();
+		if (!bDeathImpulseDirectionOverride)
+		{
+			Parameters.DeathImpulse = ToTarget * DeathImpulseMagnitude;
+		}
+		if (!bOverrideKnockbackDirection)
+		{
+			Parameters.KnockBackForce = ToTarget * KnockbackForceMagnitude;
+		}
 	}
+	
+	if (bOverrideKnockbackDirection)
+	{
+		KnockBackDirectionOverride.Normalize();
+		Parameters.KnockBackForce = KnockBackDirectionOverride * KnockbackForceMagnitude;
+		if (bOverrideDirPitch)
+		{
+			FRotator KnockbackRotation = KnockBackDirectionOverride.Rotation();
+			KnockbackRotation.Pitch = DirPitchOverride; 
+			Parameters.KnockBackForce = KnockbackRotation.Vector() * KnockbackForceMagnitude;
+		}
+	}
+	
+	if (bDeathImpulseDirectionOverride)
+	{
+		DeathImpulseDirectionOverride.Normalize();
+		Parameters.DeathImpulse = DeathImpulseDirectionOverride * DeathImpulseMagnitude;
+		if (bOverrideDirPitch)
+		{
+			FRotator DeathImpulseRotation = DeathImpulseDirectionOverride.Rotation();
+			DeathImpulseRotation.Pitch = DirPitchOverride; 
+			Parameters.DeathImpulse = DeathImpulseRotation.Vector() * DeathImpulseMagnitude;
+		}
+	}
+	
+	
+	/* Calculate a default value for death impulse and knockback force if target is valid*/
+	if (bIsRadialDamage)
+	{
+		Parameters.bIsRadialDamage = bIsRadialDamage;
+		Parameters.RadialDamageInnerRadius = RadialDamageInnerRadius;
+		Parameters.RadialDamageOuterRadius = RadialDamageOuterRadius;
+		Parameters.RadialDamageOrigin = RadialDamageOrigin;
+	}
+	
 	return Parameters;
 }

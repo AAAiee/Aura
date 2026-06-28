@@ -13,16 +13,12 @@
 #include "AuraLogCategory.h"
 #include "Components/AbilitySystem/AuraAbilitySystemLibrary.h"
 
-namespace
-{
-	constexpr float ImpactReturnToPoolDelay = 0.05f;
-}
 
 AAuraProjectile::AAuraProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
-	SetReplicateMovement(true);
+	AActor::SetReplicateMovement(true);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->InitialSpeed = 550.f;
@@ -313,11 +309,5 @@ void AAuraProjectile::OnProjectileOverlap(
 	// One authoritative multicast tells every relevant machine to play the impact locally once.
 	MulticastPlayImpactEffects(ImpactLocation);
 
-	FTimerHandle ReturnToPoolTimerHandle;
-	GetWorldTimerManager().SetTimer(
-		ReturnToPoolTimerHandle,
-		this,
-		&AAuraProjectile::RequestReturnToPool,
-		ImpactReturnToPoolDelay,
-		false);
+	RequestReturnToPool();
 }

@@ -66,11 +66,35 @@ bool FAuraGameplayEffectContext::NetSerialize(FArchive& Ar, class UPackageMap* M
 		{
 			RepBits |= 1 << 9;
 		}
+		if (bIsRadialDamage != false)
+		{
+			RepBits |= 1 << 10;
+			if (RadialDamageInnerRadius > 0.f)
+			{
+				RepBits |= 1 << 11;
+			}
+			if (RadialDamageOuterRadius > 0.f)
+			{
+				RepBits |= 1 << 12;
+			}
+			if (!RadialDamageOrigin.IsZero())
+			{
+				RepBits |= 1 << 13;
+			}
+		}
 	}
 
 	// The first four bits are booleans: presence means true, absence means false. Later bits gate
 	// optional scalar/tag payloads so we do not serialize default debuff data for every hit.
-	Ar.SerializeBits(&RepBits, 10);
+	Ar.SerializeBits(&RepBits, 14);
+	
+	if (Ar.IsLoading())
+	{
+		bIsCriticalHit = (RepBits & (1 << 0)) != 0;
+		bIsBlockedHit = (RepBits & (1 << 1)) != 0;
+		bShouldHitReact = (RepBits & (1 << 2)) != 0;
+		bIsSuccessfulDebuff = (RepBits & (1 << 3)) != 0;
+	}
 
 	if (RepBits & (1 << 4))
 	{
@@ -103,14 +127,26 @@ bool FAuraGameplayEffectContext::NetSerialize(FArchive& Ar, class UPackageMap* M
 	{
 		KnockBackForce.NetSerialize(Ar, Map, bOutSuccess);
 	}
-
-	if (Ar.IsLoading())
+	
+	if (RepBits & (1 << 10))
 	{
-		bIsCriticalHit = (RepBits & (1 << 0)) != 0;
-		bIsBlockedHit = (RepBits & (1 << 1)) != 0;
-		bShouldHitReact = (RepBits & (1 << 2)) != 0;
-		bIsSuccessfulDebuff = (RepBits & (1 << 3)) != 0;
+		Ar << bIsRadialDamage;
+		if (RepBits & (1 << 11))
+		{
+			Ar << RadialDamageInnerRadius;
+		}
+		if (RepBits & (1 << 12))
+		{
+			Ar << RadialDamageOuterRadius;
+		}
+		if (RepBits & (1 << 13))
+		{
+			RadialDamageOrigin.NetSerialize(Ar, Map, bOutSuccess);
+		}
 	}
+		
+
+
 
 	bOutSuccess = bBaseSuccess;
 	return true;

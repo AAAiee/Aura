@@ -55,6 +55,8 @@ public:
 	virtual void AddToSpellPoint_Implementation(int32 InSpellPoint) override;
 	virtual int32 FindLevelForXP_Implementation(int32 InXP) const override;
 	virtual void LevelUp_Implementation() override;
+	virtual void ShowMagicCircle_Implementation(UMaterialInterface* DecalMaterial = nullptr) override;
+	virtual void HideMagicCircle_Implementation() override;
 
 protected:
 	/**
@@ -62,6 +64,9 @@ protected:
 	 * Called from both PossessedBy (server) and OnRep_PlayerState (client) to cover all cases.
 	 */
 	virtual void InitAbilityActorInfo() override;
+	
+	virtual void OnRep_Stunned() override;
+	virtual void OnRep_Burned() override;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UNiagaraComponent> LevelUpNiagaraComponent;

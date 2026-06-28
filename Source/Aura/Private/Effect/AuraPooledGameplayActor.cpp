@@ -8,10 +8,6 @@ AAuraPooledGameplayActor::AAuraPooledGameplayActor()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void AAuraPooledGameplayActor::BeginPlay()
-{
-	Super::BeginPlay();
-}
 
 void AAuraPooledGameplayActor::RequestReturnToPool()
 {

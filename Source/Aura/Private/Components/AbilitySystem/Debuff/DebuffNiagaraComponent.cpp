@@ -1,6 +1,5 @@
 // @Copyright HaolunYuan
 
-
 #include "Components/AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
@@ -9,30 +8,34 @@
 
 UDebuffNiagaraComponent::UDebuffNiagaraComponent()
 {
-	UNiagaraComponent::Deactivate(); 
+	UActorComponent::SetAutoActivate(false);
+	SetVisibility(false, true);
 }
 
+/* Debuff Visual State : BeginPlay() OnDebuffTagChangedCallback() OnOwnerDeath() *****************************/
 void UDebuffNiagaraComponent::BeginPlay()
 {
+	// Pipeline:
+	// 1. Resolve the owner's ASC and combat interface.
+	// 2. Bind debuff tag-count changes immediately, or defer binding until ASC registration.
+	// 3. Bind owner death so visual effects are cleared even if the debuff tag remains.
 	Super::BeginPlay();
-	
+
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
-	ICombatInterface* CombatInterface = Cast<ICombatInterface>(GetOwner()); 
-	
-	/*If ASC is already valid at this point, bind the delegates, otherwise bind to ASCconstruct delegate and bind delegates then */
+	ICombatInterface* CombatInterface = Cast<ICombatInterface>(GetOwner());
+
 	if (ASC)
 	{
-		ASC->RegisterGameplayTagEvent(DebuffTag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UDebuffNiagaraComponent::OnDebuffTagChangedCallback); 
-	}else if (CombatInterface)
+		ASC->RegisterGameplayTagEvent(DebuffTag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UDebuffNiagaraComponent::OnDebuffTagChangedCallback);
+	}
+	else if (CombatInterface)
 	{
-		
 		CombatInterface->GetOnAscRegisteredDelegate().AddWeakLambda(this, [this](UAbilitySystemComponent* ASC)
 		{
-			ASC->RegisterGameplayTagEvent(DebuffTag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UDebuffNiagaraComponent::OnDebuffTagChangedCallback); 
-		}); 
+			ASC->RegisterGameplayTagEvent(DebuffTag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UDebuffNiagaraComponent::OnDebuffTagChangedCallback);
+		});
 	}
-	
-	/*Bind delegate to get informed upon owner's death*/
+
 	if (CombatInterface)
 	{
 		CombatInterface->GetOnCharacterDieDelegate().AddDynamic(this, &UDebuffNiagaraComponent::OnOwnerDeath);
@@ -41,22 +44,31 @@ void UDebuffNiagaraComponent::BeginPlay()
 
 void UDebuffNiagaraComponent::OnDebuffTagChangedCallback(const FGameplayTag CallbackTag, int32 NewCount)
 {
-	const AActor* Owner = GetOwner();
-	if (IsValid(GetOwner()) 
-		&& GetOwner()->Implements<UCombatInterface>() 
-		&& !ICombatInterface::Execute_IsDead(GetOwner()) 
+	// Pipeline:
+	// 1. Confirm the owner is still valid, alive, and combat-capable.
+	// 2. Activate and reveal the Niagara effect while the debuff tag count is positive.
+	// 3. Immediately deactivate and hide the effect when the tag is removed or the owner cannot show it.
+	AActor* Owner = GetOwner();
+	if (IsValid(Owner)
+		&& Owner->Implements<UCombatInterface>()
+		&& !ICombatInterface::Execute_IsDead(Owner)
 		&& NewCount > 0)
 	{
-		Activate(); 
+		SetVisibility(true, true);
+		Activate(true);
 	}
 	else
 	{
-		Deactivate();
+		DeactivateImmediate();
+		SetVisibility(false, true);
 	}
 }
 
 void UDebuffNiagaraComponent::OnOwnerDeath(AActor* DeadActor)
 {
-	Deactivate(); 
+	// Pipeline:
+	// 1. Stop the Niagara system immediately.
+	// 2. Hide the component so no debuff visual lingers on the dead actor.
+	DeactivateImmediate();
+	SetVisibility(false, true);
 }
-

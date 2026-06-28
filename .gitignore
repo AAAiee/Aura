@@ -71,6 +71,7 @@ build.ninja
 .ninja_log
 out/
 .vscode/
+.idea/
 
 ##############################
 # vcpkg (if used)
@@ -108,3 +109,8 @@ desktop.ini
 # !Config/DefaultEngine.ini
 # !Config/DefaultInput.ini
 # !Config/DefaultGame.ini
+
+
+ORGANIZE_CODES.md
+transitionplan.md
+transitionplan.pdf

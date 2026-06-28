@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
-#include "GameFramework/Actor.h"
-#include "GameplayEffectTypes.h"
+#include "Effect/AuraPooledGameplayActor.h"
+#include "Item/InvSS_ItemComponent.h"
 #include "AuraEffectActor.generated.h"
 
 class UAbilitySystemComponent;
@@ -20,7 +20,7 @@ enum class EEffectApplicationPolicy : uint8
 {
 	ApplyOnOverlap,     // Apply the GE when the target enters the overlap volume
 	ApplyOnEndOverlap,  // Apply the GE when the target leaves the overlap volume
-	DoNotApply          // This effect type is not used on this actor
+	DoNotApplyOnPickUp          // This effect type is not used on this actor
 };
 
 /**
@@ -51,7 +51,7 @@ enum class EEffectRemovalPolicy : uint8
  * so we can remove exactly the right effects when the target leaves the volume.
  */
 UCLASS()
-class AURA_API AAuraEffectActor : public AActor
+class AURA_API AAuraEffectActor : public AAuraPooledGameplayActor
 {
 	GENERATED_BODY()
 
@@ -59,8 +59,6 @@ public:
 	AAuraEffectActor();
 
 protected:
-	virtual void BeginPlay() override;
-
 	/**
 	 * Core GE application logic. Creates a GE spec, applies it to the target, and
 	 * tracks the handle if the effect is Infinite + RemoveOnEndOverlap.
@@ -76,11 +74,12 @@ protected:
 	/** Called from Blueprint when an actor leaves the overlap volume. */
 	UFUNCTION(BlueprintCallable)
 	void OnEndOverlap(AActor* TargetActor);
-
+	
+	virtual void ResetPooledState() override;
+	
+	UPROPERTY(VisibleAnywhere,  meta = (AllowPrivateAccess = true))
+	TObjectPtr<UInvSS_ItemComponent> ItemComponent;	
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effects", meta = (AllowPrivateAccess = true))
-	bool bDestoryOnEffectRemoval = false;
-
 	/** GE level - passed to MakeOutgoingSpec. Controls magnitude scaling in the GE curve tables. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effects", meta = (AllowPrivateAccess = true))
 	float Level = 1.0f;
@@ -90,25 +89,25 @@ private:
 	 * Key: target's ASC pointer.  Value: array of active GE handles applied by this actor.
 	 * Cleaned up in OnEndOverlap after removal to prevent stale handles from accumulating.
 	 */
-	TMap<UAbilitySystemComponent*, TArray<FActiveGameplayEffectHandle>> AppliedEffects;
+	TMap<UAbilitySystemComponent*, TArray<FActiveGameplayEffectHandle>> AppliedInfiniteRemovableEffects;
 
 	/* Instant Effect - applied once, modifies attributes immediately. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
 	TSubclassOf<UGameplayEffect> InstantGameplayEffectClass;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
-	EEffectApplicationPolicy InstantEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApply;
+	EEffectApplicationPolicy InstantEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApplyOnPickUp;
 
 	/* Duration Effect - lasts for a set time, then auto-removes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
 	TSubclassOf<UGameplayEffect> DurationGameplayEffectClass;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
-	EEffectApplicationPolicy DurationEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApply;
+	EEffectApplicationPolicy DurationEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApplyOnPickUp;
 
 	/* Infinite Effect - persists until manually removed. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
 	TSubclassOf<UGameplayEffect> InfiniteGameplayEffectClass;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
-	EEffectApplicationPolicy InfiniteEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApply;
+	EEffectApplicationPolicy InfiniteEffectApplicationPolicy = EEffectApplicationPolicy::DoNotApplyOnPickUp;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Applied Effect", meta = (AllowPrivateAccess = true))
 	EEffectRemovalPolicy InfiniteEffectRemovalPolicy = EEffectRemovalPolicy::RemoveOnEndOverlap;
 };

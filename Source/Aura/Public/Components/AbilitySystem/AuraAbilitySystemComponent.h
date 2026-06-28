@@ -19,6 +19,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(OnGatherEffectAssetTag, const FGameplayTagCo
 DECLARE_MULTICAST_DELEGATE(FAbilityGiven);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FAbilityStatusChanged, const FGameplayTag& /*AbilityTag*/, const FGameplayTag& /*AbilityStatusTag*/, int32 /*AbilityLevel*/);
 DECLARE_MULTICAST_DELEGATE_FourParams(FAbilityEquipped, const FGameplayTag& /*AbilityTag*/, const FGameplayTag& /*StatusTag*/, const FGameplayTag& /*SlotTag*/, const FGameplayTag& /*PreviousSlotTag*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FDeactivePassiveAbilitiy, const FGameplayTag&/* AbilityTag*/); 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FActivatePassiveEffects, const FGameplayTag&  /*AbilityTag*/, bool /*bActivate*/);
 
 /**
  * Custom Ability System Component for the Aura project.
@@ -52,18 +54,16 @@ public:
 	void AddCharacterPassiveAbilities(const TArray<TSubclassOf<class UGameplayAbility>>& InPassiveAbilitiesClasses);
 
 	/* Input Routing */
-	/** Marks a matching ability spec as pressed and activates it if it is not already running. */
-	void AbilityInputTagPressed(FGameplayTag InputTag);
+	/** Handles a satisfied Enhanced Input trigger for an equipped input slot. */
+	bool AbilityInputTagTriggered(const FGameplayTag& InputTag, bool bCanActivateInactiveAbility);
 
 	/** Marks a matching ability spec as released so active abilities can end channels/holds cleanly. */
-	void AbilityInputTagReleased(FGameplayTag InputTag);
-
-	/** Reserved for abilities that should repeatedly respond while their input tag is held. */
-	void AbilityInputTagHeld(FGameplayTag InputTag);
+	void AbilityInputTagReleased(const FGameplayTag& InputTag);
 
 	/* Ability Spec Queries */
 	/** Iterates granted abilities under GAS's scoped list lock so specs are not mutated mid-loop. */
 	void ForEachAbility(const TFunction<void(const FGameplayAbilitySpec&)>& Predicate);
+	bool IsPassiveAbility(FGameplayAbilitySpec** AbilitySpec);
 
 	/** Reads the authored Ability.* asset tag from a granted spec. */
 	static FGameplayTag GetAbilityTagFromSpec(const FGameplayAbilitySpec& Spec);
@@ -102,7 +102,7 @@ public:
 
 	/** Server equips an unlocked ability into the requested input slot and clears slot conflicts. */
 	UFUNCTION(Server, Reliable)
-	void Server_EquipAbility(const FGameplayTag& AbilityTag, const FGameplayTag& SlotInputTag);
+	void Server_EquipAbility(const FGameplayTag& InAbilityTag, const FGameplayTag& InSlotInputTag);
 
 protected:
 	virtual void OnRep_ActivateAbilities() override;
@@ -119,6 +119,10 @@ public:
 
 	/** Fired after equipment changes so UI slots can clear the previous slot and fill the new one. */
 	FAbilityEquipped OnAbilityEquipped;
+	
+	FDeactivePassiveAbilitiy OnDeactivatePassiveAbility;
+	
+	FActivatePassiveEffects ActivatePassiveEffects;
 
 	/** True once startup abilities have been granted locally or replicated from the server. */
 	bool bStartUpAbilitiesGiven = false;
@@ -143,13 +147,31 @@ private:
 	/** Mirrors equipment changes to the owning client for overlay and spell menu refresh. */
 	UFUNCTION(Client, Reliable)
 	void Client_EquipAbility(const FGameplayTag& AbilityTag, const FGameplayTag& Status, const FGameplayTag& SlotInputTag, const FGameplayTag& PreviousSlotTag);
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiCast_ActivatePassiveEffect(const FGameplayTag& AbilityTag, bool bActivate);
+
+	/** Sends GAS's input-pressed notification to one active ability spec. */
+	void NotifyAbilityInputPressed(FGameplayAbilitySpec& AbilitySpec);
+
+	/** Sends GAS's input-released notification to one active ability spec. */
+	void NotifyAbilityInputReleased(FGameplayAbilitySpec& AbilitySpec);
 
 	/** Removes the currently assigned InputTag.* from one spec. */
-	void ClearSlot(FGameplayAbilitySpec* Spec);
+	static void ClearSlot(FGameplayAbilitySpec* Spec);
 
 	/** Clears any ability currently occupying a requested input slot. */
 	void ClearAbilityOfSlot(const FGameplayTag& SlotInputTag);
 
+	static bool AbilityHasSlot(const FGameplayAbilitySpec& AbilitySpec, const FGameplayTag& SlotTag);
+	
 	/** Returns true when a spec already owns the requested InputTag.* slot. */
-	static bool AbilityHasSlot(FGameplayAbilitySpec* Spec, const FGameplayTag& SlotInputTag);
+	static bool AbilityHasSlot(FGameplayAbilitySpec& Spec, const FGameplayTag& SlotInputTag);
+	static bool AbilityHasAnySlot(FGameplayAbilitySpec& Spec);
+	
+	bool SlotIsEmpty(const FGameplayTag& Slot);
+	bool IsPassiveAbility(const FGameplayAbilitySpec& AbilitySpec) const;
+	static void AssignSlotToAbility(FGameplayAbilitySpec& Spec, const FGameplayTag& SlotInputTag);
+	
+	FGameplayAbilitySpec* GetSpecWithSlotInputTag(const FGameplayTag& SlotInputTag);
 };

@@ -133,7 +133,12 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	Get().Ability_Summon = ADD_GAMETAG_CUSTOM("Ability.Summon", "Tag for summon abilities");
 	Get().Ability_Fire_FireBolt = ADD_GAMETAG_CUSTOM("Ability.Fire.FireBolt", "Tag for fire bolt ability");
 	Get().Ability_Lightning_Electrocute = ADD_GAMETAG_CUSTOM("Ability.Lightning.Electrocute", "Tag for electrocute ability");
+	Get().Ability_Arcane_Shards = ADD_GAMETAG_CUSTOM("Ability.Arcane.Shards", "Tag for shards ability");
 	Get().Ability_HitReact = ADD_GAMETAG_CUSTOM("Ability.HitReact", "Tag for hit react ability");
+	Get().Ability_Passive_HaloOfProtection = ADD_GAMETAG_CUSTOM("Ability.Passive.HaloOfProtection", "Tag for Halo of Protection passive ability");
+	Get().Ability_Passive_LifeSiphon = ADD_GAMETAG_CUSTOM("Ability.Passive.LifeSiphon", "Tag for Life Siphon passive ability");
+	Get().Ability_Passive_ManaSiphon = ADD_GAMETAG_CUSTOM("Ability.Passive.ManaSiphon", "Tag for Mana Siphon passive ability");
+	
 
 	/* Ability Status Tags */
 	Get().Ability_Status_Eligible = ADD_GAMETAG_CUSTOM("Ability.Status.Eligible", "Tag for abilities that the player meets the level requirements");
@@ -173,6 +178,7 @@ void FAuraGameTagManager::InitializeAllNativeTags()
 	/* Cooldown Tags */
 	Get().Cooldown_Fire_FireBolt = ADD_GAMETAG_CUSTOM("Cooldown.Fire.FireBolt", "Tag for fire bolt cooldown");
 	Get().Cooldown_Lightning_Electrocute = ADD_GAMETAG_CUSTOM("Cooldown.Lightning.Electrocute", "Tag for Electrocute ability cooldown");
+	Get().Cooldown_Arcane_Shards = ADD_GAMETAG_CUSTOM("Cooldown.Arcane.Shards", "Tag for Shards ability cooldown");
 
 	/* Combat Socket Tags */
 	Get().CombatSocket_Weapon = ADD_GAMETAG_CUSTOM("CombatSocket.Weapon", "Tag for identifying combat weapon socket");

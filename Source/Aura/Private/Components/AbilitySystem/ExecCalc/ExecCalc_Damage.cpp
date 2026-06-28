@@ -8,6 +8,7 @@
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Engine/CurveTable.h"
 #include "Interaction/CombatInterface.h"
+#include "Kismet/GameplayStatics.h"
 
 // Centralizes every captured attribute this execution needs so the constructor and Execute()
 // stay in sync on which combat stats participate in damage resolution.
@@ -207,11 +208,19 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 		const FGameplayEffectAttributeCaptureDefinition& CaptureDef = TagsToCaptureDefs[ResistanceTag];
 		float DamageTypeValue = Spec.GetSetByCallerMagnitude(DamageType, false, 0.f);
+		if (DamageTypeValue <= 0.f) continue; 
 		const float TargetResistanceValue = FMath::Clamp(GetClampedAttributeMagnitude(CaptureDef), 0.f, 100.f);
 
 		// Typed resistance is applied per bucket before all buckets are recombined, which lets a
 		// mixed-damage ability be partially resisted instead of treating it as one flat number.
 		DamageTypeValue *= (100.f - TargetResistanceValue) / 100.f;
+		
+		// nerf the damage based on distance if it's radial  
+		if (UAuraAbilitySystemLibrary::IsRadialDamage(ContextHandle))
+		{
+			 UAuraAbilitySystemLibrary::CalculateRadialDamage(ContextHandle, DamageTypeValue, TargetAvatar);
+		}
+		
 		Damage += DamageTypeValue;
 	}
 

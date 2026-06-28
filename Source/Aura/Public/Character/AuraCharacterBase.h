@@ -9,6 +9,9 @@
 #include "Interaction/CombatInterface.h"
 #include "AuraCharacterBase.generated.h"
 
+
+
+class UPassiveNiagaraComponent;
 class UDebuffNiagaraComponent;
 class UAnimMontage;
 class UAbilitySystemComponent;
@@ -40,6 +43,7 @@ class AURA_API AAuraCharacterBase : public ACharacter, public IAbilitySystemInte
 
 public:
 	AAuraCharacterBase();
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/* Ability System Access */
 	// Required by GAS so generic systems can resolve the character's ASC through the interface.
@@ -64,6 +68,8 @@ public:
 	virtual void Die(const FVector& DeathImpulse) override;
 	virtual ECharacterClass GetCharacterClass_Implementation() const override { return CharacterClass; }
 	virtual USkeletalMeshComponent* GetWeaponMesh_Implementation() override {return Weapon;}; 
+	virtual void SetBeingShocked_Implementation(bool bInBeingShocked) override;
+	virtual bool IsBeingShocked_Implementation() const override { return bIsBeingShocked; }
 
 	/* Death Presentation */
 	UFUNCTION(NetMulticast, Reliable)
@@ -80,6 +86,7 @@ public:
 	
 	virtual FOnAbilitySystemComponentRegistered& GetOnAscRegisteredDelegate()  override;
 	virtual FOnCharacterDie& GetOnCharacterDieDelegate()  override;
+	
 
 protected:
 	/* AActor Overrides */
@@ -99,6 +106,14 @@ protected:
 
 	// Applies the default startup attribute effects in primary -> secondary -> vital order.
 	virtual void InitDefaultAttributes();
+	
+	UFUNCTION()
+	virtual void OnRep_Stunned();
+	
+	UFUNCTION()
+	virtual void OnRep_Burned();
+	
+	virtual void OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
 
 protected:
 	/* Combat Authoring */
@@ -183,6 +198,22 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere,  Category = "Combat Effect")
 	TObjectPtr<UDebuffNiagaraComponent> BurnDebuffComponent;
+	
+	UPROPERTY(VisibleAnywhere,  Category = "Combat Effect")
+	TObjectPtr<UDebuffNiagaraComponent> StunDebuffComponent;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USceneComponent> EffectAttachComponent;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> HaloProtectionNiagaraComponent;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> LifeSiphonNiagaraComponent;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> ManaSiphonNiagaraComponent;
+	
 
 	// Number of active minions owned by this combatant, exposed through ICombatInterface.
 	int32 MinionCount = 0;
@@ -193,4 +224,17 @@ protected:
 	
 	FOnAbilitySystemComponentRegistered OnAscRegisteredDelegate;
 	FOnCharacterDie OnDeath;
+	
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Stunned)
+	bool bIsStunned = false;
+	
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Burned)
+	bool bIsBurned = false;
+	
+	UPROPERTY(BlueprintReadOnly,Replicated)
+	bool bIsBeingShocked =false;
+	
+	// Cached "alive" walk speed so hit react can temporarily stop movement and then restore it.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	float BaseSpeed = 600.f;
 };

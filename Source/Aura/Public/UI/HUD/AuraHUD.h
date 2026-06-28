@@ -142,5 +142,6 @@ private:
 	/** Spell Menu Controller - data provider for the popup spell tree/equipment menu. */
 	UPROPERTY()
 	TObjectPtr<UAuraSpellMenuWidgetController> SpellMenuWidgetController;
+	
 };
 

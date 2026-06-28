@@ -95,7 +95,7 @@ void UAuraOverlayWidgetController::BindAllDependencies()
 					FGameplayTag MessageTag = FGameplayTag::RequestGameplayTag(FName("Message"));
 					if (Tag.MatchesTag(MessageTag))
 					{
-						const FUIWidgetRow* Row = GetDataTableRowFromTag<FUIWidgetRow>(this->MessageWidgetDataTable, Tag);
+						FUIWidgetRow* Row = GetDataTableRowFromTag<FUIWidgetRow>(this->MessageWidgetDataTable, Tag);
 						if (Row)
 						{
 							OnSendMessageWidgetRow.Broadcast(*Row);
@@ -157,3 +157,4 @@ void UAuraOverlayWidgetController::OnAbilityEquippedCallback(const FGameplayTag&
 	CurrentSlotInfo->InputTag = SlotInputTag;
 	AbilityInfoDelegate.Broadcast(*CurrentSlotInfo);
 }
+

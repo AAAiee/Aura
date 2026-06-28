@@ -149,7 +149,14 @@ public:
 	DECLARE_GAMETAG_CUSTOM(Ability, Summon)
 	DECLARE_GAMETAG_CUSTOM(Ability, Fire_FireBolt)
 	DECLARE_GAMETAG_CUSTOM(Ability, Lightning_Electrocute)
+	DECLARE_GAMETAG_CUSTOM(Ability, Arcane_Shards)
 	DECLARE_GAMETAG_CUSTOM(Ability, HitReact)
+	
+	/* Passive Abilities*/
+	DECLARE_GAMETAG_CUSTOM(Ability, Passive_HaloOfProtection);
+	DECLARE_GAMETAG_CUSTOM(Ability, Passive_LifeSiphon);
+	DECLARE_GAMETAG_CUSTOM(Ability, Passive_ManaSiphon);
+	
 
 	/* Ability Status Tags */
 	DECLARE_GAMETAG_CUSTOM(Ability, Status_Locked)
@@ -184,6 +191,7 @@ public:
 	/* Cooldown Tags */
 	DECLARE_GAMETAG_CUSTOM(Cooldown,Fire_FireBolt)
 	DECLARE_GAMETAG_CUSTOM(Cooldown,Lightning_Electrocute)
+	DECLARE_GAMETAG_CUSTOM(Cooldown,Arcane_Shards)
 	
 
 	/* Combat Socket Tags */

@@ -34,8 +34,6 @@ public:
 	bool IsActiveInPool() const { return bIsActiveInPool; }
 
 protected:
-	virtual void BeginPlay() override;
-
 	/** IPoolableActor implementation - called by the pool when this actor is borrowed. */
 	virtual void OnTakenFromPool() override final;
 

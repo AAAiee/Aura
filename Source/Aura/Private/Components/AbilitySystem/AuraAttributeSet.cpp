@@ -133,13 +133,18 @@ void UAuraAttributeSet::HandleIncomingDamage(const FEffectProperties& Props)
 
 			SendXPEvent(Props);
 		}
-		else if (UAuraAbilitySystemLibrary::ShouldHitReact(AuraContextHandle))
+		else 
 		{
 			// Non-fatal damage routes through the shared hit-react tag so movement, animation, and
 			// gameplay abilities can all observe the same temporary combat state.
-			FGameplayTagContainer Tags;
-			Tags.AddTag(FAuraGameTagManager::Get().Combat_HitReact);
-			Props.TargetASC->TryActivateAbilitiesByTag(Tags);
+			ICombatInterface* TargetAvatarCombatInterface = Cast<ICombatInterface>(Props.TargetAvatarActor);
+			if (UAuraAbilitySystemLibrary::ShouldHitReact(AuraContextHandle) 
+				&& TargetAvatarCombatInterface && !ICombatInterface::Execute_IsBeingShocked(Props.TargetAvatarActor))
+			{
+				FGameplayTagContainer Tags;
+				Tags.AddTag(FAuraGameTagManager::Get().Combat_HitReact);
+				Props.TargetASC->TryActivateAbilitiesByTag(Tags);
+			}
 			
 			const FVector KnockBackForce = UAuraAbilitySystemLibrary::GetKnockBackForce(AuraContextHandle);
 			if (!KnockBackForce.IsNearlyZero(10.f))
@@ -192,8 +197,21 @@ void UAuraAttributeSet::HandleIncomingDamage(const FEffectProperties& Props)
 			// systems can query while this periodic effect is active on the target.
 			FInheritedTagContainer GrantedDebuffTags;
 			GrantedDebuffTags.AddTag(DebuffTypeTag);
+			if (DebuffTypeTag.MatchesTagExact(TagManager.Debuff_Stun))
+			{
+				FGameplayTagContainer TagsToCancel;
+				TagsToCancel.AddTag(TagManager.Ability_Fire_FireBolt);
+				TagsToCancel.AddTag(TagManager.Ability_Lightning_Electrocute);
+				Props.TargetASC->CancelAbilities(&TagsToCancel);
+				
+				GrantedDebuffTags.AddTag(TagManager.Player_BlockInputHeld);
+				GrantedDebuffTags.AddTag(TagManager.PLayer_BlockCursorTrace);
+				GrantedDebuffTags.AddTag(TagManager.PLayer_BlockInputPressed);
+				GrantedDebuffTags.AddTag(TagManager.PLayer_BlockInputReleased);
+			}
 			UTargetTagsGameplayEffectComponent& TargetTagsComponent = Effect->FindOrAddComponent<UTargetTagsGameplayEffectComponent>();
 			TargetTagsComponent.SetAndApplyTargetTagChanges(GrantedDebuffTags);
+			
 
 			// Periodic effects execute their modifier each tick. Writing to IncomingDamage here means
 			// every burn/stun/arcane tick reuses the normal damage post-processing path.
@@ -228,10 +246,17 @@ void UAuraAttributeSet::HandleIncomingXP(const FEffectProperties& Props)
 		const int32 NumLevelsUp = UpdatedPlayerLevel - CurrentPlayerLevel;
 		if (NumLevelsUp > 0)
 		{
-			const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, UpdatedPlayerLevel);
-			const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, UpdatedPlayerLevel);
-
 			IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelsUp);
+			
+			int32 AttributePointsReward = 0;
+			int32 SpellPointsReward = 0;
+			
+			for (int32 i = 0; i < NumLevelsUp; i++)
+			{
+				SpellPointsReward += IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, CurrentPlayerLevel + i);
+				AttributePointsReward += IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, CurrentPlayerLevel + i);
+			}
+
 			IPlayerInterface::Execute_AddToAttributePoint(Props.SourceCharacter, AttributePointsReward);
 			IPlayerInterface::Execute_AddToSpellPoint(Props.SourceCharacter, SpellPointsReward);
 

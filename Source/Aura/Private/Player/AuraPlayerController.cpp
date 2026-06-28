@@ -3,17 +3,22 @@
 #include "Player/AuraPlayerController.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Aura/Aura.h"
 #include "AuraGameTagManager.h"
 #include "Character/AuraCharacter.h"
 #include "Components/AbilitySystem/AuraAbilitySystemComponent.h"
+#include "Components/DecalComponent.h"
 #include "Components/Player/AutoMoveComponent.h"
+#include "Effect/MagicCircle.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "NiagaraFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Input/AuraInputComponent.h"
+#include "Interaction/EnemyInterface.h"
 #include "Interaction/Highlightable.h"
+#include "NiagaraFunctionLibrary.h"
+#include "InventoryManagement/Component/InvSS_InventoryComponent.h"
 #include "UI/HUD/AuraHUD.h"
 #include "UI/WidgetComponent/DamageWidgetComponent.h"
 
@@ -24,12 +29,15 @@ AAuraPlayerController::AAuraPlayerController()
 	AutoMoveComponent = CreateDefaultSubobject<UAutoMoveComponent>(TEXT("AutoMoveComponent"));
 }
 
+/* Player-Facing Presentation : ToggleAttributeMenuRequested() ShowMagicCircle() HideMagicCircle() Client_ShowDamageNumber() *****************************/
+
 void AAuraPlayerController::ToggleAttributeMenuRequested()
 {
 	if (!CachedAuraHUD)
 	{
 		return;
 	}
+
 	if (AutoMoveComponent->IsAutoMoving())
 	{
 		AutoMoveComponent->RequestCancelAutoMove();
@@ -44,6 +52,45 @@ void AAuraPlayerController::ToggleAttributeMenuRequested()
 		CachedAuraHUD->ShowAttributeMenu();
 	}
 }
+
+void AAuraPlayerController::ShowMagicCircle(UMaterialInterface* InMaterial)
+{
+	if (!IsValid(MagicCircle))
+	{
+		MagicCircle = GetWorld()->SpawnActor<AMagicCircle>(MagicCircleClass);
+		if (InMaterial != nullptr)
+		{
+			MagicCircle->MagicCircleDecal->SetMaterial(0, InMaterial);
+		}
+	}
+}
+
+void AAuraPlayerController::HideMagicCircle()
+{
+	if (IsValid(MagicCircle))
+	{
+		MagicCircle->Destroy();
+		MagicCircle = nullptr;
+	}
+}
+
+void AAuraPlayerController::ToggleInventoryMenu()
+{
+	GetInventoryComponent()->ToggleInventoryMenu();
+}
+
+UInvSS_InventoryComponent* AAuraPlayerController::GetInventoryComponent()
+{
+	if (!InventoryComponent.IsValid())
+	{
+		InventoryComponent = FindComponentByClass<UInvSS_InventoryComponent>();
+	}
+
+	check(InventoryComponent.IsValid())
+	return InventoryComponent.Get();
+}
+
+
 
 void AAuraPlayerController::Client_ShowDamageNumber_Implementation(float DamageAmount, ACharacter* TargetCharacter, bool bIsBlockedHit, bool bIsCriticalHit)
 {
@@ -65,21 +112,75 @@ void AAuraPlayerController::Client_ShowDamageNumber_Implementation(float DamageA
 	}
 }
 
+/* Controller Setup And Ticking : PlayerTick() BeginPlay() SetupInputComponent() OnPossess() MakePlayerFacingCameraLookAtDirection() *****************************/
+
+void AAuraPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	if (IsLocalController())
+	{
+		CursorTrace();
+		UpdateMagicCirclePosition();
+	}
+}
+
 void AAuraPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Pipeline:
+	// 1. Install the local input mapping context.
+	// 2. Configure mouse cursor behavior for game/UI play.
+	// 3. Align the possessed Aura character to the fixed combat camera direction.
 	InitializeInputContext();
 	InitializeMouseCursorMode();
 
-	CachedAuraHUD = Cast<AAuraHUD>(GetHUD());
+	if (!MakePlayerFacingCameraLookAtDirection())
+	{
+		return;
+	}
+	
+	InventoryComponent = FindComponentByClass<UInvSS_InventoryComponent>();
+	checkf(InventoryComponent.IsValid(), TEXT("InventoryComponent is not found on %s."), *GetName());
+}
 
+void AAuraPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	// Pipeline:
+	// 1. Resolve the Enhanced Input component into Aura's typed input component.
+	// 2. Bind native movement, UI, and targeting actions.
+	// 3. Bind Gameplay Ability input tags to pressed/released handlers.
+	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
+	UAuraInputComponent* AuraEnhancedInputComponent = CastChecked<UAuraInputComponent>(EnhancedInputComponent);
+
+	BindNativeInputActions(AuraEnhancedInputComponent);
+
+	check(InputConfigs);
+	AuraEnhancedInputComponent->BindAbilityActions(
+		InputConfigs,
+		this,
+		&AAuraPlayerController::AbilityInputTagTriggered,
+		&AAuraPlayerController::AbilityInputTagEnded,
+		&AAuraPlayerController::AbilityInputTagEnded);
+}
+
+void AAuraPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+}
+
+bool AAuraPlayerController::MakePlayerFacingCameraLookAtDirection()
+{
+	CachedAuraHUD = Cast<AAuraHUD>(GetHUD());
 	if (AAuraCharacter* AuraCharacter = Cast<AAuraCharacter>(GetPawn()))
 	{
 		USpringArmComponent* SpringArm = AuraCharacter->FindComponentByClass<USpringArmComponent>();
 		if (!SpringArm)
 		{
-			return;
+			return false;
 		}
 
 		const float CameraPitch = -40.f;
@@ -98,37 +199,10 @@ void AAuraPlayerController::BeginPlay()
 		SpringArm->SetWorldRotation(CameraRot);
 	}
 
+	return true;
 }
 
-void AAuraPlayerController::PlayerTick(float DeltaTime)
-{
-	Super::PlayerTick(DeltaTime);
-
-	if (IsLocalController())
-	{
-		CursorTrace();
-	}
-}
-
-void AAuraPlayerController::SetupInputComponent()
-{
-	Super::SetupInputComponent();
-
-	UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
-	UAuraInputComponent* AuraEnhancedInputComponent = CastChecked<UAuraInputComponent>(EnhancedInputComponent);
-
-	BindNativeInputActions(AuraEnhancedInputComponent);
-
-	check(InputConfigs);
-	AuraEnhancedInputComponent->BindAbilityActions(InputConfigs, this, &AAuraPlayerController::AbilityInputTagPressed, &AAuraPlayerController::AbilityInputTagReleased, &AAuraPlayerController::AbilityInputTagHeld);
-}
-
-
-void AAuraPlayerController::OnPossess(APawn* InPawn)
-{
-	Super::OnPossess(InPawn);
-
-}
+/* Input Setup : InitializeInputContext() InitializeMouseCursorMode() BindNativeInputActions() *****************************/
 
 void AAuraPlayerController::InitializeInputContext() const
 {
@@ -166,12 +240,19 @@ void AAuraPlayerController::BindNativeInputActions(UAuraInputComponent* AuraEnha
 	AuraEnhancedInputComponent->BindAction(MoveToCursorAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::OnMoveToCursor);
 	AuraEnhancedInputComponent->BindAction(AttackHelpAction, ETriggerEvent::Started, this, &AAuraPlayerController::OnAttackHelpPressed);
 	AuraEnhancedInputComponent->BindAction(AttackHelpAction, ETriggerEvent::Completed, this, &AAuraPlayerController::OnAttackHelpReleased);
+	AuraEnhancedInputComponent->BindAction(ToggleInventoryMenuAction, ETriggerEvent::Started, this, &AAuraPlayerController::OnToggleInventoryMenu);
 }
 
+/* UI Menu Flow : OnToggleAttributeMenu() ToggleInventoryMenu() IsAnyMenuOnScreen() *****************************/
 
 void AAuraPlayerController::OnToggleAttributeMenu(const FInputActionValue& ActionValues)
 {
 	ToggleAttributeMenuRequested();
+}
+
+void AAuraPlayerController::OnToggleInventoryMenu(const FInputActionValue& ActionValues)
+{
+	ToggleInventoryMenu();
 }
 
 bool AAuraPlayerController::IsAnyMenuOnScreen() const
@@ -185,6 +266,8 @@ bool AAuraPlayerController::IsAnyMenuOnScreen() const
 	// menu is visible. The HUD owns the actual widget lifetime; the controller only asks for state.
 	return CachedAuraHUD->IsSpellMenuOnScreen() || CachedAuraHUD->IsAttributeMenuOnScreen();
 }
+
+/* Movement Commands : Move() OnClickMove() OnMoveToCursor() CancelAutoMoveIfActive() TryGetCachedMoveTargetLocation() *****************************/
 
 void AAuraPlayerController::Move(const FInputActionValue& ActionValues)
 {
@@ -221,13 +304,12 @@ void AAuraPlayerController::OnClickMove(const FInputActionValue& ActionValues)
 	{
 		return;
 	}
-	
 
 	FVector MoveTargetLocation = FVector::ZeroVector;
 	if (TryGetCachedMoveTargetLocation(MoveTargetLocation))
 	{
 		AutoMoveComponent->RequestToMoveToLocation(MoveTargetLocation);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, OnClickMoveNiagaraSystem, MoveTargetLocation) ;
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, OnClickMoveNiagaraSystem, MoveTargetLocation);
 	}
 }
 
@@ -251,16 +333,6 @@ void AAuraPlayerController::OnMoveToCursor(const FInputActionValue& ActionValues
 	{
 		AutoMoveComponent->MoveDirectlyToLocation(MoveTargetLocation);
 	}
-}
-
-void AAuraPlayerController::OnAttackHelpPressed(const FInputActionValue& ActionValues)
-{
-	bIsAttackHelpKeyPressed = true;
-}
-
-void AAuraPlayerController::OnAttackHelpReleased(const FInputActionValue& ActionValues)
-{
-	bIsAttackHelpKeyPressed = false;
 }
 
 void AAuraPlayerController::CancelAutoMoveIfActive() const
@@ -287,25 +359,49 @@ bool AAuraPlayerController::TryGetCachedMoveTargetLocation(FVector& OutMoveTarge
 	return true;
 }
 
+/* Cursor Targeting : CursorTrace() UpdateCachedCursorHitResult() UpdateCurrentHighlightable() ApplyHighlightStateTransition() UpdateMagicCirclePosition() *****************************/
+
 void AAuraPlayerController::CursorTrace()
 {
 	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockCursorTrace))
 	{
-		if (LastHighlightable) LastHighlightable->UnhighLightActor();
-		if (CurrentHighlightable) CurrentHighlightable->UnhighLightActor(); 
+		if (LastHighlightable)
+		{
+			LastHighlightable->UnhighLightActor();
+		}
+		if (CurrentHighlightable)
+		{
+			CurrentHighlightable->UnhighLightActor();
+		}
 		LastHighlightable = nullptr;
 		CurrentHighlightable = nullptr;
 		return;
 	}
+
+	// Pipeline:
+	// 1. Trace under the cursor using the channel required by the current targeting mode.
+	// 2. Cache the hit result so movement and ability targeting consume the same point.
+	// 3. Update highlight state only when the magic circle is not taking over cursor targeting.
 	FHitResult CursorHitResult;
-	GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHitResult);
+	const ECollisionChannel TraceChannel = IsValid(MagicCircle) ? ECC_ExcludeEnemiesAndPlayers : ECC_Visibility;
+	GetHitResultUnderCursor(TraceChannel, false, CursorHitResult);
 	UpdateCachedCursorHitResult(CursorHitResult);
 
-	LastHighlightable = CurrentHighlightable;
-	UpdateCurrentHighlightable(CursorHitResult);
-	ApplyHighlightStateTransition();
+	if (!IsValid(MagicCircle))
+	{
+		LastHighlightable = CurrentHighlightable;
+		UpdateCurrentHighlightable(CursorHitResult);
+		ApplyHighlightStateTransition();
+	}
 
-	bIsTargeting = CurrentHighlightable != nullptr;
+	if (CachedCursorHitResult.bBlockingHit && CachedCursorHitResult.GetActor()->Implements<UEnemyInterface>())
+	{
+		bIsTargeting = true;
+	}
+	else
+	{
+		bIsTargeting = false;
+	}
 }
 
 void AAuraPlayerController::UpdateCachedCursorHitResult(const FHitResult& CursorHitResult)
@@ -329,7 +425,7 @@ void AAuraPlayerController::UpdateCurrentHighlightable(const FHitResult& CursorH
 	}
 }
 
-void AAuraPlayerController::ApplyHighlightStateTransition()
+void AAuraPlayerController::ApplyHighlightStateTransition() const
 {
 	if (LastHighlightable == CurrentHighlightable)
 	{
@@ -347,6 +443,26 @@ void AAuraPlayerController::ApplyHighlightStateTransition()
 	}
 }
 
+void AAuraPlayerController::UpdateMagicCirclePosition() const
+{
+	if (IsValid(MagicCircle))
+	{
+		MagicCircle->SetActorLocation(CachedCursorHitResult.ImpactPoint);
+	}
+}
+
+/* Ability Input : OnAttackHelpPressed() OnAttackHelpReleased() GetAuraASC() AbilityInputTagTriggered() AbilityInputTagEnded() CouldLaunchGameplayAbility() *****************************/
+
+void AAuraPlayerController::OnAttackHelpPressed(const FInputActionValue& ActionValues)
+{
+	bIsAttackHelpKeyPressed = true;
+}
+
+void AAuraPlayerController::OnAttackHelpReleased(const FInputActionValue& ActionValues)
+{
+	bIsAttackHelpKeyPressed = false;
+}
+
 UAuraAbilitySystemComponent* AAuraPlayerController::GetAuraASC()
 {
 	if (CachedASC)
@@ -362,45 +478,69 @@ UAuraAbilitySystemComponent* AAuraPlayerController::GetAuraASC()
 	return CachedASC;
 }
 
-void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+void AAuraPlayerController::AbilityInputTagTriggered(FGameplayTag InputTag)
 {
-	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
+	// Pipeline:
+	// 1. Validate the tag and resolve the current Aura ASC.
+	// 2. Respect block-input tags before forwarding player intent.
+	// 3. Consume repeated Triggered events until the matching release/end event arrives.
+	if (!ensureMsgf(InputTag.IsValid(), TEXT("AbilityInputTagTriggered received an invalid input tag.")))
 	{
 		return;
 	}
-	if (!CouldLaunchGameplayAbility())
+
+	UAuraAbilitySystemComponent* AuraASC = GetAuraASC();
+	if (!ensureMsgf(AuraASC, TEXT("AbilityInputTagTriggered could not resolve Aura ASC for [%s]."), *InputTag.ToString()))
 	{
 		return;
 	}
+
+	if (AuraASC->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputPressed))
+	{
+		return;
+	}
+
+	if (ConsumedTriggeredInputTags.Contains(InputTag))
+	{
+		return;
+	}
+
+	const bool bCanActivateInactiveAbility = CouldLaunchGameplayAbility();
+
+	// Mark consumed before forwarding. The ASC may satisfy WaitInputPress and end the ability
+	// immediately, and later Triggered events from the same hold must not reactivate it.
+	ConsumedTriggeredInputTags.Add(InputTag);
+	const bool bHandledByAbilitySystem = AuraASC->AbilityInputTagTriggered(InputTag, bCanActivateInactiveAbility);
+	if (!bHandledByAbilitySystem)
+	{
+		ConsumedTriggeredInputTags.Remove(InputTag);
+		return;
+	}
+
 	CancelAutoMoveIfActive();
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagPressed);
 }
 
-void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
+void AAuraPlayerController::AbilityInputTagEnded(FGameplayTag InputTag)
 {
-	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputReleased))
+	if (!ensureMsgf(InputTag.IsValid(), TEXT("AbilityInputTagEnded received an invalid input tag.")))
 	{
 		return;
 	}
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagReleased);
-}
 
-void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
-{
-	if (GetAuraASC() && GetAuraASC()->HasMatchingGameplayTag(FAuraGameTagManager::Get().Player_BlockInputHeld))
+	ConsumedTriggeredInputTags.Remove(InputTag);
+
+	UAuraAbilitySystemComponent* AuraASC = GetAuraASC();
+	if (!ensureMsgf(AuraASC, TEXT("AbilityInputTagEnded could not resolve Aura ASC for [%s]."), *InputTag.ToString()))
 	{
 		return;
 	}
-	
-	ForwardAbilityInputTag(InputTag, &UAuraAbilitySystemComponent::AbilityInputTagHeld);
-}
 
-void AAuraPlayerController::ForwardAbilityInputTag(FGameplayTag InputTag, void (UAuraAbilitySystemComponent::*InputHandler)(FGameplayTag))
-{
-	if (UAuraAbilitySystemComponent* AuraASC = GetAuraASC())
+	if (AuraASC->HasMatchingGameplayTag(FAuraGameTagManager::Get().PLayer_BlockInputReleased))
 	{
-		(AuraASC->*InputHandler)(InputTag);
+		return;
 	}
+
+	AuraASC->AbilityInputTagReleased(InputTag);
 }
 
 bool AAuraPlayerController::CouldLaunchGameplayAbility() const

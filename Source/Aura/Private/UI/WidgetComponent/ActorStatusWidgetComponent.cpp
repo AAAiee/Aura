@@ -11,7 +11,7 @@ UActorStatusWidgetComponent::UActorStatusWidgetComponent()
 	// Enemy status bars should behave like screen-facing overlays, not like collision-enabled 3D props.
 	SetWidgetSpace(EWidgetSpace::Screen);
 	SetDrawAtDesiredSize(true);
-	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	UPrimitiveComponent::SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SetGenerateOverlapEvents(false);
 }
 

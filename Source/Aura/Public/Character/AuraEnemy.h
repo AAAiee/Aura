@@ -37,6 +37,7 @@ public:
 	/* ICombatInterface */
 	FORCEINLINE virtual int32 GetPlayerLevel_Implementation() const override { return EnemyLevel; }
 	virtual void Die(const FVector& DeathImpulse) override final;
+	virtual void SetBeingShocked_Implementation(bool bInBeingShocked) override;
 
 	/* APawn / AActor */
 	virtual void PossessedBy(AController* NewController) override;
@@ -58,6 +59,8 @@ protected:
 	/** Enemy owns ASC directly, so Owner=this and Avatar=this. */
 	virtual void InitAbilityActorInfo() override;
 	virtual void InitDefaultAttributes() override;
+	
+	virtual void OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount) override;
 
 private:
 	/* Internal Helpers */
@@ -83,9 +86,6 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	bool bHitReacting = false;
 
-	// Cached "alive" walk speed so hit react can temporarily stop movement and then restore it.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	float BaseSpeed = 250.f;
 
 	// Current combat target exposed to AI and Blueprint combat logic through IEnemyInterface.
 	UPROPERTY(BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))

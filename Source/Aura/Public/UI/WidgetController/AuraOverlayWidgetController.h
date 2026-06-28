@@ -28,7 +28,7 @@ struct FUIWidgetRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Message = FText();
-
+	
 	/** Optional: a specific widget class to display for this message. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UAuraUserWidget> MessageWidgetClass = nullptr;
@@ -39,6 +39,7 @@ struct FUIWidgetRow : public FTableRowBase
 
 /* Dynamic multicast delegates that Blueprint widgets bind to for overlay updates. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageWidgetRowSignature, const FUIWidgetRow&, Row);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryMessageSignature, const FText&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateStatChanged, const float, NewStatValue);
 
 
@@ -109,6 +110,9 @@ private:
 	/** Fires when a GE with a "Message.*" tag is applied - Blueprint shows a popup widget. */
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
 	FOnMessageWidgetRowSignature OnSendMessageWidgetRow;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Delegate", meta = (AllowPrivateAccess = "true"))
+	FOnInventoryMessageSignature OnInventoryMessageRequestedDelegate;
 
 	// XP is not a GAS attribute, but the overlay only needs the same float broadcast shape.
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Delegate", meta = (AllowPrivateAccess = "true"))
