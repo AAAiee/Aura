@@ -15,6 +15,21 @@
 #include "Widgets/Utilis/InvSS_WidgetUtils.h"
 #include "Widgets/WidgetController/InvSS_InventoryWidgetController.h"
 
+
+void UInvSS_InventoryGrid::ShowCursor()
+{
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer) return;
+	OwningPlayer->SetMouseCursorWidget(EMouseCursor::Default, GetCursorVisibleWidget());
+}
+
+void UInvSS_InventoryGrid::HideCursor()
+{
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer) return;
+	OwningPlayer->SetMouseCursorWidget(EMouseCursor::Default, GetCursorHiddenWidget());
+}
+
 void UInvSS_InventoryGrid::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
@@ -39,16 +54,7 @@ void UInvSS_InventoryGrid::NativeTick(const FGeometry& MyGeometry, float InDelta
 void UInvSS_InventoryGrid::UpdateTileParameters(const FVector2D& MouseLocalPosition)
 {
 	// find out where the mouse is in the grid
-	FInvSS_TileParameters NewTileParameters;
-	NewTileParameters.TileCoordinates = UInvSS_WidgetUtils::GetGridCoordinatesFromLocalPosition(
-		MouseLocalPosition,
-		TileSize);
-	NewTileParameters.TileIndex = UInvSS_WidgetUtils::GetIndexFromPosition(
-		NewTileParameters.TileCoordinates,
-		RenderedGridColumns);
-	NewTileParameters.TileQuadrant = UInvSS_WidgetUtils::GetTileQuadrantFromLocalPosition(
-		MouseLocalPosition,
-		TileSize);
+	const FInvSS_TileParameters NewTileParameters = BuildTileParametersFromLocalPosition(MouseLocalPosition);
 
 	if (NewTileParameters == CurrentTileParameters) return;
 
@@ -57,19 +63,31 @@ void UInvSS_InventoryGrid::UpdateTileParameters(const FVector2D& MouseLocalPosit
 	OnTileParametersUpdated(CurrentTileParameters);
 }
 
+FInvSS_TileParameters UInvSS_InventoryGrid::BuildTileParametersFromLocalPosition(
+	const FVector2D& MouseLocalPosition) const
+{
+	check(RenderedGridColumns > 0);
+
+	FInvSS_TileParameters TileParameters;
+	TileParameters.TileCoordinates = UInvSS_WidgetUtils::GetGridCoordinatesFromLocalPosition(
+		MouseLocalPosition,
+		TileSize);
+	TileParameters.TileIndex = UInvSS_WidgetUtils::GetIndexFromPosition(
+		TileParameters.TileCoordinates,
+		RenderedGridColumns);
+	TileParameters.TileQuadrant = UInvSS_WidgetUtils::GetTileQuadrantFromLocalPosition(
+		MouseLocalPosition,
+		TileSize);
+
+	return TileParameters;
+}
+
 void UInvSS_InventoryGrid::OnTileParametersUpdated(FInvSS_TileParameters InTileParameters)
 {
 	if (!IsValid(HoverItem)) return ;
-	// find where the hovered item potentially lands based on current mouse pos
-	const FIntPoint GridDimension = HoverItem->GetHoveredItemGridDimensions();
-	const FIntPoint StartingCoordinate = UInvSS_WidgetUtils::CalculateItemStartingCoordinate(
-		InTileParameters.TileCoordinates,
-		GridDimension,
-		InTileParameters.TileQuadrant);
+	if (!UpdateDropQueryFromTileParameters(InTileParameters)) return;
 
-	// get the info about that specific area
-	ItemDropIndex = UInvSS_WidgetUtils::GetIndexFromPosition(StartingCoordinate, RenderedGridColumns);
-	CurrentQueryResult = CheckHoveredPosition(StartingCoordinate, GridDimension);
+	const FIntPoint GridDimension = HoverItem->GetHoveredItemGridDimensions();
 
 	// if that area is empty, highlight to show it is landable
 	if (CurrentQueryResult.bHasSpace)
@@ -91,6 +109,23 @@ void UInvSS_InventoryGrid::OnTileParametersUpdated(FInvSS_TileParameters InTileP
 	}
 }
 
+bool UInvSS_InventoryGrid::UpdateDropQueryFromTileParameters(const FInvSS_TileParameters& TileParameters)
+{
+	if (!IsValid(HoverItem)) return false;
+	check(RenderedGridColumns > 0);
+
+	// Convert the mouse tile into the hovered item's top-left slot, then query that footprint.
+	const FIntPoint GridDimension = HoverItem->GetHoveredItemGridDimensions();
+	const FIntPoint StartingCoordinate = UInvSS_WidgetUtils::CalculateItemStartingCoordinate(
+		TileParameters.TileCoordinates,
+		GridDimension,
+		TileParameters.TileQuadrant);
+
+	ItemDropIndex = UInvSS_WidgetUtils::GetIndexFromPosition(StartingCoordinate, RenderedGridColumns);
+	CurrentQueryResult = CheckHoveredPosition(StartingCoordinate, GridDimension);
+	return GridSlots.IsValidIndex(ItemDropIndex);
+}
+
 FInvSS_SpaceQueryResult UInvSS_InventoryGrid::CheckHoveredPosition(
 	const FIntPoint& Position,
 	const FIntPoint& Dimensions)
@@ -100,15 +135,10 @@ FInvSS_SpaceQueryResult UInvSS_InventoryGrid::CheckHoveredPosition(
 	const int32 TileIndexForPosition = UInvSS_WidgetUtils::GetIndexFromPosition(Position, RenderedGridColumns);
 	if (!InventoryWidgetController.IsValid()) return QueryResult;
 
-	const int32 IgnoredParentIndex = IsValid(HoverItem)
-		? HoverItem->GetPreviousGridIndex()
-		: INDEX_NONE;
-
 	InventoryWidgetController->QueryGridSpace(
 		ItemCategory,
 		TileIndexForPosition,
 		Dimensions,
-		IgnoredParentIndex,
 		QueryResult);
 
 	return QueryResult;
@@ -196,25 +226,64 @@ void UInvSS_InventoryGrid::OnSlottedItemClickedCallback(
 	check(GridSlots.IsValidIndex(InSlotIndex));
 	check(IsValid(SlottedItem));
 
-	if (IsValid(HoverItem)) return;
 	if (!UInvSS_InventoryStatics::IsLeftMouseButtonPressed(InMouseEvent)) return;
+
+	if (IsValid(HoverItem))
+	{
+		TryPutDownHeldItem(InMouseEvent);
+		return;
+	}
 
 	PickUpFromSlot(SlottedItem, InSlotIndex);
 }
 
 void UInvSS_InventoryGrid::OnGridSlotClickedCallback(int32 GridIndex, const FPointerEvent& MouseEvent)
 {
-	if (!IsValid(HoverItem)) return;
-	if (!GridSlots.IsValidIndex(ItemDropIndex)) return;
-	
-	if (CurrentQueryResult.ValidItem.IsValid() && GridSlots.IsValidIndex(CurrentQueryResult.ItemParentIndex))
-	{
-		//swap path
-		return;
-	}
-	// PutItemDownAtaIndex Path
+	TryPutDownHeldItem(MouseEvent);
+}
+
+bool UInvSS_InventoryGrid::TryPutDownHeldItem(const FPointerEvent& MouseEvent)
+{
+	if (!IsValid(HoverItem)) return false;
+	if (!UInvSS_InventoryStatics::IsLeftMouseButtonPressed(MouseEvent)) return false;
+	if (!RefreshDropQueryForHeldItem()) return false;
+	check(GridSlots.IsValidIndex(ItemDropIndex));
 	check(InventoryWidgetController.IsValid());
+	
+	if (CurrentQueryResult.ValidItem.IsValid())
+	{
+		check(GridSlots.IsValidIndex(CurrentQueryResult.ItemParentIndex));
+
+		//swap path
+		InventoryWidgetController->RequestInteractHeldItemWithItemUnderCursor(
+			ItemCategory,
+			CurrentQueryResult.ValidItem.Get()->GetItemInstanceId(),
+			CurrentQueryResult.ItemParentIndex,
+			ItemDropIndex); // Swap or stack
+		return true;
+	}
+
+	if (!CurrentQueryResult.bHasSpace) return false;
+
+	// PutItemDownAtaIndex Path
 	InventoryWidgetController->RequestPutDownHeldITemAtIndex(ItemCategory, ItemDropIndex);
+	return true;
+}
+
+bool UInvSS_InventoryGrid::RefreshDropQueryForHeldItem()
+{
+	if (!IsValid(HoverItem)) return false;
+	if (RenderedGridColumns <= 0) return false;
+	check(GridCanvasPanel);
+
+	FVector2D MouseLocalPosition;
+	if (!UInvSS_WidgetUtils::TryGetMousePositionInWidgetLocal(GridCanvasPanel.Get(), MouseLocalPosition))
+	{
+		return false;
+	}
+
+	const FInvSS_TileParameters TileParameters = BuildTileParametersFromLocalPosition(MouseLocalPosition);
+	return UpdateDropQueryFromTileParameters(TileParameters);
 }
 
 void UInvSS_InventoryGrid::OnGridSlotHoveredCallback(int32 GridIndex, const FPointerEvent& MouseEvent)
@@ -246,35 +315,23 @@ void UInvSS_InventoryGrid::PickUpFromSlot(UInvSS_SlottedItem* ClickedSlottedItem
 	InventoryWidgetController->RequestBeginDragItem(ItemCategory, GridIndex);
 }
 
-void UInvSS_InventoryGrid::AssignHoveredItem(UInvSS_SlottedItem* ClickedSlottedItem, const int32 PreviousGridIndex)
-{
-	check(IsValid(ClickedSlottedItem));
-
-	UInvSS_InventoryItem* InventoryItem = ClickedSlottedItem->GetInventoryItem();
-	check(IsValid(InventoryItem));
-
-	const int32 StackCount = ClickedSlottedItem->GetIsStackable()
-		? ClickedSlottedItem->GetStackCount()
-		: 0;
-
-	AssignHoveredItem(InventoryItem, PreviousGridIndex, StackCount);
-}
-
-void UInvSS_InventoryGrid::AssignHoveredItem(
-	UInvSS_InventoryItem* HoveredInventoryItem,
-	const int32 PreviousGridIndex,
+void UInvSS_InventoryGrid::AssignHoverItemFromHeldState(
+	UInvSS_InventoryItem* HeldItem,
+	const int32 SourceParentIndex,
 	const int32 StackCount)
 {
-	check(IsValid(HoveredInventoryItem));
+	check(IsValid(HeldItem));
+	check(SourceParentIndex != INDEX_NONE);
+	check(StackCount >= 0);
 
-	AssignHoveredItem(HoveredInventoryItem);
+	CreateOrUpdateHoverItemVisual(HeldItem);
 	check(IsValid(HoverItem));
 
-	HoverItem->UpdateHoverItemStackCount(HoveredInventoryItem->IsStackable() ? StackCount : 0);
-	HoverItem->SetPreviousGridIndex(PreviousGridIndex);
+	HoverItem->UpdateHoverItemStackCount(HeldItem->IsStackable() ? StackCount : 0);
+	HoverItem->SetPreviousGridIndex(SourceParentIndex);
 }
 
-void UInvSS_InventoryGrid::AssignHoveredItem(UInvSS_InventoryItem* HoveredInventoryItem)
+void UInvSS_InventoryGrid::CreateOrUpdateHoverItemVisual(UInvSS_InventoryItem* HoveredInventoryItem)
 {
 	check(IsValid(HoveredInventoryItem));
 
@@ -307,13 +364,11 @@ void UInvSS_InventoryGrid::AssignHoveredItem(UInvSS_InventoryItem* HoveredInvent
 
 void UInvSS_InventoryGrid::ClearHoveredItem()
 {
-	if (APlayerController* OwningPlayer = GetOwningPlayer())
-	{
-		OwningPlayer->SetMouseCursorWidget(EMouseCursor::Default, nullptr);
-	}
+	ShowCursor();
 
 	if (IsValid(HoverItem))
 	{
+		HoverItem->Reset();
 		HoverItem->RemoveFromParent();
 		HoverItem = nullptr;
 	}
@@ -330,17 +385,32 @@ void UInvSS_InventoryGrid::HandleInventoryHeldItemChanged(FInvSS_HeldItemState H
 	}
 
 	if (HeldItemState.SourceCategory != ItemCategory) return;
-	if (IsValid(HoverItem)) return;
 
+	const bool bWasAlreadyHoldingItem = IsValid(HoverItem);
+
+	ApplyValidHeldItemState(HeldItemState);
+
+	if (!bWasAlreadyHoldingItem)
+	{
+		RemoveHeldItemSourceVisual(HeldItemState);
+	}
+}
+
+void UInvSS_InventoryGrid::ApplyValidHeldItemState(const FInvSS_HeldItemState& HeldItemState)
+{
 	check(InventoryWidgetController.IsValid());
+	
 	UInvSS_InventoryItem* HeldItem = InventoryWidgetController->GetInventoryItemByID(HeldItemState.ItemId);
 	check(IsValid(HeldItem));
 
-	AssignHoveredItem(
+	AssignHoverItemFromHeldState(
 		HeldItem,
 		HeldItemState.SourceParentIndex,
 		HeldItemState.StackCount);
+}
 
+void UInvSS_InventoryGrid::RemoveHeldItemSourceVisual(const FInvSS_HeldItemState& HeldItemState)
+{
 	if (UInvSS_SlottedItem* SourceSlottedItem = SlottedItemsMap.FindRef(HeldItemState.SourceParentIndex))
 	{
 		RemoveItemFromGrid(SourceSlottedItem, HeldItemState.SourceParentIndex);

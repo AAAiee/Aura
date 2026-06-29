@@ -81,6 +81,12 @@ public:
 		FGuid& OutItemId,
 		int32& OutStackCount);
 	bool TryAddItemAtGivenIndex(EInvSS_ItemCategory ItemCategory, int32 Index, const FGuid& ItemGuid, int32 StackCount);
+	bool TryGetStackCountAtParentIndex(EInvSS_ItemCategory ItemCategory, int32 ParentIndex, int32& OutStackCount) const;
+	bool TryReplaceStackCountAtParentIndex(
+		EInvSS_ItemCategory ItemCategory,
+		int32 ParentIndex,
+		int32 NewStackCount,
+		int32& OutPreviousStackCount);
 	
 	const FInvSS_InventoryGridState* GetGridState(const EInvSS_ItemCategory Category) const;
 	FInvSS_InventoryGridState* GetMutableGridState(const EInvSS_ItemCategory Category);
@@ -98,11 +104,14 @@ private:
 	static int32 GetSlotStackAmount(const TArray<FInvSS_GridSlotState>& SlotStateArray, const int32 SlotIndex);
 	static int32 DetermineFillAmount(const TArray<FInvSS_GridSlotState>& SlotStateArray, const int32 SlotIndex,
 	                                 const int32 MaxStackSize, const bool bIsStackable, const int32 AmountToFill);
+	static bool CanPlaceItemAtEmptyIndex(const FInvSS_InventoryGridState& GridState, int32 Index,
+	                                     const FIntPoint& ItemGridDimensions);
+	static void WriteItemAtIndex(FInvSS_InventoryGridState& GridState, int32 Index, const FGuid& ItemGuid,
+	                             const FIntPoint& ItemGridDimensions, int32 StackCount);
 	
 	bool HasRoomAtIndex(const TArray<FInvSS_GridSlotState>& SlotStateArray, const FInvSS_GridConfig& GridConfig,
 	                    int32 StartIndex, const FIntPoint& GridDimensions, const TSet<int32>& CheckedSlotIndices,
 	                    const FGameplayTag& ItemTypeTag, int32 MaxStackSize, TSet<int32>& OutTentativeIndices) const;
-
 
 	bool CheckSlotConstraints(
 		const TArray<FInvSS_GridSlotState>& SlotStateArray,

@@ -78,11 +78,15 @@ public:
 		const EInvSS_ItemCategory ItemCategory,
 		const int32 StartIndex,
 		const FIntPoint& ItemDimensions,
-		const int32 IgnoredParentIndex,
 		FInvSS_SpaceQueryResult& OutResult
 		);
 	
 	void RequestPutDownHeldITemAtIndex(EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex);
+	void RequestInteractHeldItemWithItemUnderCursor(
+		EInvSS_ItemCategory ItemCategory,
+		const FGuid& ItemID,
+		int32 ItemParentIndex,
+		int32 HeldItemDropIndex);
 
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")

@@ -45,6 +45,8 @@ class INVENTORYSYSTEM_API UInvSS_InventoryGrid : public UInvSS_InvWidgetBase
 public:
 	FORCEINLINE EInvSS_ItemCategory GetItemCategory() const { return ItemCategory; }
 	void SetItemCategory(const EInvSS_ItemCategory InItemCategory);
+	void ShowCursor();
+	void HideCursor();
 
 protected:
 	/* UUserWidget begins */
@@ -54,7 +56,9 @@ protected:
 
 private:
 	void UpdateTileParameters(const FVector2D& MouseLocalPosition);
+	FInvSS_TileParameters BuildTileParametersFromLocalPosition(const FVector2D& MouseLocalPosition) const;
 	void OnTileParametersUpdated(FInvSS_TileParameters InTileParameters);
+	bool UpdateDropQueryFromTileParameters(const FInvSS_TileParameters& TileParameters);
 	FInvSS_SpaceQueryResult CheckHoveredPosition(const FIntPoint& Position, const FIntPoint& Dimensions);
 	void HighlightSlots(int32 StartIndex, FIntPoint Range, const EInvSS_GridSlotVisualState ToState);
 	void UnHighlightSlots(int32 StartIndex, FIntPoint Range);
@@ -90,32 +94,45 @@ private:
 
 	void RemoveItemFromGrid(UInvSS_SlottedItem* ClickedSlottedItem, int32 GridIndex);
 	void PickUpFromSlot(UInvSS_SlottedItem* ClickedSlottedItem, int32 GridIndex); 
-	void AssignHoveredItem(UInvSS_InventoryItem* HoveredInventoryItem);
-	void AssignHoveredItem(UInvSS_InventoryItem* HoveredInventoryItem, int32 PreviousGridIndex, int32 StackCount);
-	void AssignHoveredItem(UInvSS_SlottedItem* ClickedSlottedItem, int32 PreviousGridIndex);
+	bool TryPutDownHeldItem(const FPointerEvent& MouseEvent);
+	bool RefreshDropQueryForHeldItem();
+	void CreateOrUpdateHoverItemVisual(UInvSS_InventoryItem* HoveredInventoryItem);
+	void AssignHoverItemFromHeldState(UInvSS_InventoryItem* HeldItem, int32 SourceParentIndex, int32 StackCount);
 	void ClearHoveredItem();
+	void ApplyValidHeldItemState(const FInvSS_HeldItemState& HeldItemState);
+	void RemoveHeldItemSourceVisual(const FInvSS_HeldItemState& HeldItemState);
 	
 	UFUNCTION()
 	void OnSlottedItemClickedCallback(UInvSS_SlottedItem* SlottedItem, int32 InSlotIndex, const FPointerEvent& InMouseEvent);
-	
 	UFUNCTION()
 	void OnGridSlotClickedCallback(int32 GridIndex, const FPointerEvent& MouseEvent);
 	UFUNCTION()
 	void OnGridSlotHoveredCallback(int32 GridIndex, const FPointerEvent& MouseEvent);
 	UFUNCTION()
 	void OnGridSlotUnhoveredCallback(int32 GridIndex, const FPointerEvent& MouseEvent);
+	
+	
+	UUserWidget* GetCursorVisibleWidget();
+	UUserWidget* GetCursorHiddenWidget();
+
 
 	UFUNCTION()
 	void HandleInventoryHeldItemChanged(FInvSS_HeldItemState HeldItemState);
-
+	
 	UPROPERTY(EditAnywhere, Category = Inventory)
-	TSubclassOf<UInvSS_GridSlot> GridSlotClass;
+	TSubclassOf<UInvSS_GridSlot> GridSlotClass = nullptr;
 	
 	UPROPERTY(EditAnywhere, Category = Inventory)
 	TSubclassOf<UInvSS_SlottedItem> SlottedItemClass = nullptr;
 	
 	UPROPERTY(EditAnywhere, Category = Inventory)
-	TSubclassOf<UInvSS_HoverItem> HoveredItemClass; 
+	TSubclassOf<UInvSS_HoverItem> HoveredItemClass = nullptr; 
+	
+	UPROPERTY(EditAnywhere, Category = Inventory)
+	TSubclassOf<UUserWidget> VisibleCursorWidgetClass = nullptr;
+	
+	UPROPERTY(EditAnywhere, Category = Inventory)
+	TSubclassOf<UUserWidget> HiddenCursorWidgetClass = nullptr;
 	
 	UPROPERTY(EditAnywhere, Category = Inventory)
 	float TileSize;
@@ -137,12 +154,17 @@ private:
 	
 	UPROPERTY(Transient)
 	TObjectPtr<UInvSS_HoverItem> HoverItem;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> VisibleCursorWidget;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> HiddenCursorWidget;
 
 	int32 RenderedGridRows = 0;
 	int32 RenderedGridColumns = 0;
 	TArray<FInvSS_GridSlotRenderSnapshot> LastRenderedSlots;
 	bool bHasRenderedViewData = false;
-	
 	
 	FInvSS_TileParameters CurrentTileParameters;
 	FInvSS_TileParameters LastTileParameters;

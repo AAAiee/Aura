@@ -27,6 +27,16 @@ void UInvSS_HoverItem::UpdateHoverItemStackCount(const int32 InStackCount)
 	}
 }
 
+void UInvSS_HoverItem::Reset()
+{
+	StackCount = 0;
+	SetLinkedInventoryItem(nullptr);
+	SetPreviousGridIndex(INDEX_NONE);
+	SetIsStackable(false);
+	UpdateHoverItemStackCount(0);
+	SetImageBrush(FSlateNoResource());
+}
+
 FGameplayTag UInvSS_HoverItem::GetHoveredItemTypeTag() const
 {
 	if (LinkedInventoryItem.IsValid())

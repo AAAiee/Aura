@@ -14,9 +14,13 @@ Click the thumbnail below to watch the gameplay demo on YouTube.
 
 Direct link: [Aura Gameplay Systems Demo](https://youtu.be/y_uQL8ulQLg)
 
+### Inventory System Progress
+
+Current inventory-system development progress video: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
+
 ## My Contributions
 
-I implemented the core **C++ gameplay systems** shown in the demo, including **GAS-based abilities**, **damage calculation**, **spell UI flow**, **projectile behavior**, and **custom object pooling**. I also added several extensions beyond the tutorial baseline, including **draggable UI windows**, **confirmation-based spell assignment**, and **pooled projectile reset behavior**.
+I implemented the core **C++ gameplay systems** shown in the demo, including **GAS-based abilities**, **damage calculation**, **spell UI flow**, **projectile behavior**, and **custom object pooling**. I also added several extensions beyond the tutorial baseline, including **draggable UI windows**, **confirmation-based spell assignment**, **pooled projectile reset behavior**, and an in-progress **replicated spatial inventory system**.
 
 ## Project Status
 
@@ -30,6 +34,7 @@ This is an **in-progress gameplay systems prototype**, not a shipped game. The c
 | **Custom damage pipeline** | `GameplayEffectSpec`, `SetByCaller`, `ExecutionCalculation`, custom `GameplayEffectContext`, **resistances**, **block**, **crit**, **debuffs**, **knockback**, **XP** | [Damage ability base](Source/Aura/Private/Components/AbilitySystem/Ability/AuraDamageGameplayAbility.cpp), [Damage execution](Source/Aura/Private/Components/AbilitySystem/ExecCalc/ExecCalc_Damage.cpp), [Effect context](Source/Aura/Public/AuraAbilityTypes.h) |
 | **MVC-style UMG architecture** | **Gameplay state** routed through `WidgetController` classes and **delegate-driven Blueprint widgets** | [Base controller](Source/Aura/Public/UI/WidgetController/AuraWidgetController.h), [Spell menu controller](Source/Aura/Private/UI/WidgetController/AuraSpellMenuWidgetController.cpp), [Overlay controller](Source/Aura/Private/UI/WidgetController/AuraOverlayWidgetController.cpp) |
 | **Spell and attribute UI** | **Spell unlock**, **equip**, **level-up**, **input binding**, **attribute display**, and **confirmation-based assignment flow** | [Spell menu controller](Source/Aura/Private/UI/WidgetController/AuraSpellMenuWidgetController.cpp), [Attribute menu controller](Source/Aura/Private/UI/WidgetController/AttributeMenuWidgetController.cpp) |
+| **Replicated spatial inventory** | **Category-based inventory grids**, **item pickup validation**, **stacking**, **drag/drop**, **item swapping**, server-authoritative placement, `FastArray` item replication, replicated grid state, and WidgetController-driven UMG rendering | [Inventory component](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/Component/InvSS_InventoryComponent.h), [Grid manager](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/Grid/InvSS_InventoryGridManager.h), [Inventory widget controller](Plugins/InventorySystem/Source/InventorySystem/Public/Widgets/WidgetController/InvSS_InventoryWidgetController.h), [Inventory grid](Plugins/InventorySystem/Source/InventorySystem/Public/Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid.h) |
 | **Projectile gameplay** | **Moving projectiles**, **homing projectiles**, **multi-projectile FireBolt**, and **lightning propagation** | [FireBolt](Source/Aura/Private/Components/AbilitySystem/Ability/AuraFireBolt.cpp), [Electrocute](Source/Aura/Private/Components/AbilitySystem/Ability/AuraBeamSpell.cpp), [Projectile base](Source/Aura/Public/Effect/AuraProjectile.h) |
 | **Reusable projectile pooling** | Custom `SimpleObjectPool` plugin for **replicated projectile reuse** and **pooled actor lifecycle** | [Pool subsystem](Plugins/SimpleObjectPool/Source/SimpleObjectPool/Public/ObjectPoolSubsystem.h), [Pool implementation](Plugins/SimpleObjectPool/Source/SimpleObjectPool/Private/ObjectPoolSubsystem.cpp), [Pooled gameplay actor](Source/Aura/Public/Effect/AuraPooledGameplayActor.h) |
 | **Enemy behavior** | **Summon behavior**, **minion-gated re-summon logic**, and **FireBolt attack behavior** | [Summon ability](Source/Aura/Private/Components/AbilitySystem/Ability/AuraSummonAbility.cpp), [AI controller](Source/Aura/Public/AI/AuraAIController.h) |
@@ -59,6 +64,17 @@ Aura uses a **WidgetController-based UI flow**:
 
 This keeps **gameplay code**, **UI state**, and **widget presentation** separated.
 
+### Inventory System Prototype
+
+The inventory work is built as a separate **InventorySystem plugin** focused on replicated spatial item placement and UI separation:
+
+- **Inventory component:** owns the replicated item list, validates pickup/drop requests on authority, and exposes local UI delegates. ([header](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/Component/InvSS_InventoryComponent.h), [cpp](Plugins/InventorySystem/Source/InventorySystem/Private/InventoryManagement/Component/InvSS_InventoryComponent.cpp))
+- **Grid manager:** owns per-category grid state, slot occupancy, parent-slot indices, stack counts, and replicated grid revisions. ([header](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/Grid/InvSS_InventoryGridManager.h), [cpp](Plugins/InventorySystem/Source/InventorySystem/Private/InventoryManagement/Grid/InvSS_InventoryGridManager.cpp))
+- **FastArray item replication:** replicates inventory item entries while the grid manager replicates spatial placement separately. ([FastArray header](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/FastArray/InvSS_FastArray.h), [FastArray cpp](Plugins/InventorySystem/Source/InventorySystem/Private/InventoryManagement/FastArray/InvSS_FastArray.cpp))
+- **WidgetController UI flow:** converts inventory/grid state into view data for UMG widgets, keeping gameplay state out of the visual grid. ([controller](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/WidgetController/InvSS_InventoryWidgetController.cpp), [grid render](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid_Render.cpp), [grid interaction](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid_Interaction.cpp))
+
+Progress video: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
+
 ### Extensions Beyond Tutorial Scope
 
 This project includes **custom extensions** intended to push the prototype beyond the base learning material:
@@ -76,6 +92,7 @@ This project includes **custom extensions** intended to push the prototype beyon
 - UMG
 - GameplayTags
 - Behavior Trees
+- Replicated inventory architecture
 - Object pooling
 - Git / Git LFS
 - Rider / Visual Studio
@@ -88,7 +105,7 @@ This project includes **custom extensions** intended to push the prototype beyon
 
 ## Planned Work
 
-- Inventory system.
+- Continue inventory stack transfer, swap rules, and drag/drop polish.
 - Broader multiplayer support beyond the current replicated projectile systems.
 - More enemy archetypes and ability interactions.
 - Additional gameplay video breakdowns and feature-specific clips.

@@ -94,10 +94,21 @@ void UInvSS_InventoryWidgetController::RequestPutDownHeldITemAtIndex(const EInvS
 	InventoryComponent->Server_PutDownHeldItemAtIndex(ItemCategory, ItemParentIndex);
 }
 
+void UInvSS_InventoryWidgetController::RequestInteractHeldItemWithItemUnderCursor(
+	const EInvSS_ItemCategory ItemCategory,
+	const FGuid& ItemID,
+	const int32 ItemParentIndex,
+	const int32 HeldItemDropIndex)
+{
+	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
+	check(InventoryComponent);
+	
+	InventoryComponent->Server_RequestHeldItemInteractWithItemUnderCursor(ItemCategory, ItemID, ItemParentIndex, HeldItemDropIndex);
+}
 
 
 void UInvSS_InventoryWidgetController::QueryGridSpace(const EInvSS_ItemCategory ItemCategory, const int32 StartIndex,
-	const FIntPoint& ItemDimensions, const int32 IgnoredParentIndex, FInvSS_SpaceQueryResult& OutResult)
+                                                      const FIntPoint& ItemDimensions, FInvSS_SpaceQueryResult& OutResult)
 {
 
 	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
@@ -112,7 +123,6 @@ void UInvSS_InventoryWidgetController::QueryGridSpace(const EInvSS_ItemCategory 
 		[&](const FInvSS_GridSlotViewData& SlotViewData, const int32 SlotIndex) 
 		{
 			if (!SlotViewData.bOccupied) return;
-			if (SlotViewData.ParentIndex == IgnoredParentIndex) return;
 
 			BlockingParentIndices.Add( SlotViewData.ParentIndex);
 			OutResult.bHasSpace = false;

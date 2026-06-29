@@ -10,6 +10,7 @@
 #include "Item/Fragment/InvSS_ItemFragmentTag.h"
 #include "Net/UnrealNetwork.h"
 #include "Type/InvSS_GridTypes.h"
+#include "Widgets/HoverItem/InvSS_HoverItem.h"
 #include "Widgets/HUD/InvSS_InventoryUIManager.h"
 
 
@@ -72,14 +73,30 @@ void UInvSS_InventoryComponent::TryAddItem(UInvSS_ItemComponent* InItem)
 		Result.Item = NewItem;
 		GridManager->ApplyAvailability(NewItem, Result);
 		
-		if (OwningPlayerController.IsValid() &&
-	OwningPlayerController->IsLocalController())
+		if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
 		{
 			OnInventoryItemAddedDelegate.Broadcast(NewItem);
 		}
 	}
 
 	HandlePickupSourceAfterAdd(InItem, Result.Remainder);
+}
+
+void UInvSS_InventoryComponent::UpdateHeldItemStateFromItem(
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 ItemParentIndex,
+	const FGuid InventoryItemId,
+	const int32 StackCount)
+{
+	HeldItemState.ItemId = InventoryItemId;
+	HeldItemState.SourceCategory = ItemCategory;
+	HeldItemState.SourceParentIndex = ItemParentIndex;
+	HeldItemState.StackCount = StackCount;
+
+	if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
+	{
+		OnHeldItemChangedDelegate.Broadcast(HeldItemState);
+	}
 }
 
 void UInvSS_InventoryComponent::Server_BeginDragItem_Implementation(
@@ -106,10 +123,12 @@ void UInvSS_InventoryComponent::Server_BeginDragItem_Implementation(
 	check(RemovedStackCount >= 0);
 	check(GetInventoryItemByID(RemovedItemId));
 
-	HeldItemState.ItemId = RemovedItemId;
-	HeldItemState.SourceCategory = ItemCategory;
-	HeldItemState.SourceParentIndex = ItemParentIndex;
-	HeldItemState.StackCount = RemovedStackCount;
+	UpdateHeldItemStateFromItem(ItemCategory, ItemParentIndex, RemovedItemId, RemovedStackCount);
+}
+
+void UInvSS_InventoryComponent::ResetHeldItemState()
+{
+	HeldItemState.Reset();
 
 	if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
 	{
@@ -117,9 +136,8 @@ void UInvSS_InventoryComponent::Server_BeginDragItem_Implementation(
 	}
 }
 
-
 void UInvSS_InventoryComponent::Server_PutDownHeldItemAtIndex_Implementation(const EInvSS_ItemCategory ItemCategory,
-	int32 ItemParentIndex)
+                                                                             int32 ItemParentIndex)
 {
 	if (!HeldItemState.IsValid()) return;
 
@@ -135,17 +153,114 @@ void UInvSS_InventoryComponent::Server_PutDownHeldItemAtIndex_Implementation(con
 		return;
 	}
 
-	HeldItemState.Reset();
+	ResetHeldItemState();
+}
 
-	if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
+bool UInvSS_InventoryComponent::IsSameAndStackable(const UInvSS_InventoryItem* SlottedItemInPlace,
+                                                   const UInvSS_InventoryItem* HeldItem)
+{
+	bool IsSameItem =  SlottedItemInPlace == HeldItem;
+	bool IsStackable = SlottedItemInPlace->IsStackable();
+	bool IsSameType = SlottedItemInPlace->GetItemManifest().GetItemTypeTag() == HeldItem->GetItemManifest().GetItemTypeTag();
+	return IsSameItem && IsStackable && IsSameType;
+}
+
+void UInvSS_InventoryComponent::Server_RequestHeldItemInteractWithItemUnderCursor_Implementation(
+	const EInvSS_ItemCategory ItemCategory,
+	const FGuid& ItemID,
+	const int32 ItemParentIndex,
+	const int32 HeldItemDropIndex)
+{
+	if (!HeldItemState.IsValid()) return;
+	if (ItemParentIndex == INDEX_NONE) return;
+	if (HeldItemDropIndex == INDEX_NONE) return;
+	
+	const UInvSS_InventoryItem* SlottedItemInPlace = GetInventoryItemByID(ItemID);
+	const UInvSS_InventoryItem* HeldItem = GetInventoryItemByID(HeldItemState.ItemId);
+	check(SlottedItemInPlace && HeldItem);
+	
+	if (IsSameAndStackable(SlottedItemInPlace, HeldItem))
 	{
-		OnHeldItemChangedDelegate.Broadcast(HeldItemState);
+		// Add stack path
+		UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
+		check(GridManager);
+		
+		const FInvSS_StackableFragment* ItemStackableFragment = GetFragment<FInvSS_StackableFragment>(
+			SlottedItemInPlace,
+			ItemFragmentTag::StackableFragment);
+		check(ItemStackableFragment);
+
+		const int32 MaxItemStackSize = ItemStackableFragment->GetMaxStackSize();
+		int32 SlottedItemStackCount = 0;
+		if (!GridManager->TryGetStackCountAtParentIndex(ItemCategory, ItemParentIndex, SlottedItemStackCount))
+		{
+			return;
+		}
+
+		const int32 HoveredItemStackCount = HeldItemState.StackCount;
+		if (ShouldSwapStackCount(MaxItemStackSize - SlottedItemStackCount, MaxItemStackSize, HoveredItemStackCount))
+		{
+			SwapStackCount(*GridManager, ItemCategory, ItemParentIndex, HoveredItemStackCount);
+			return;
+		}
+		
+	}
+	else
+	{
+		//Swap path
+		// Remove the target item, place the original held item at its drop index, then hold the removed target item.
+		const FInvSS_HeldItemState OriginalHeldItemState = HeldItemState;
+		UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
+		check(GridManager);
+		
+		FGuid RemovedItemID;
+		int32 RemovedStackCount = 0;
+		if (!GridManager->TryRemoveItemAtParentIndex(
+			ItemCategory,
+			ItemParentIndex,
+			RemovedItemID,
+			RemovedStackCount))
+		{
+			return;
+		}
+
+		if (RemovedItemID != ItemID)
+		{
+			const bool bRolledBack = GridManager->TryAddItemAtGivenIndex(
+				ItemCategory,
+				ItemParentIndex,
+				RemovedItemID,
+				RemovedStackCount);
+			check(bRolledBack);
+			return;
+		}
+
+		if (!GridManager->TryAddItemAtGivenIndex(
+			ItemCategory,
+			HeldItemDropIndex,
+			OriginalHeldItemState.ItemId,
+			OriginalHeldItemState.StackCount))
+		{
+			const bool bRolledBack = GridManager->TryAddItemAtGivenIndex(
+				ItemCategory,
+				ItemParentIndex,
+				RemovedItemID,
+				RemovedStackCount);
+			check(bRolledBack);
+			return;
+		}
+
+		UpdateHeldItemStateFromItem(
+			ItemCategory,
+			ItemParentIndex,
+			RemovedItemID,
+			RemovedStackCount);
 	}
 }
 
-
-
-bool UInvSS_InventoryComponent::TryFindRoomForItem(const UInvSS_ItemComponent* ItemComponent, FInvSS_BagAvailabilityResult& OutResult) const
+bool UInvSS_InventoryComponent::TryFindRoomForItem(
+	const UInvSS_ItemComponent* ItemComponent,
+	FInvSS_BagAvailabilityResult& OutResult) const
 {
 	check(ItemComponent);
 
@@ -169,16 +284,6 @@ void UInvSS_InventoryComponent::Client_ShowInventoryMessage_Implementation(const
 	if (GetOrCreateInventoryUIManager())
 	{
 		OnInventoryMessageRequestedDelegate.Broadcast(Message);
-	}
-}
-
-void UInvSS_InventoryComponent::SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount)
-{
-	if (!IsValid(InItem)) return;
-
-	if (FInvSS_StackableFragment* StackFragment = InItem->GetItemManifest().GetMutableFragmentOfTypeWithTag<FInvSS_StackableFragment>(ItemFragmentTag::StackableFragment))
-	{
-		StackFragment->SetStackCount(StackCount);
 	}
 }
 
@@ -210,7 +315,6 @@ void UInvSS_InventoryComponent::OnRep_HeldItemState()
 	OnHeldItemChangedDelegate.Broadcast(HeldItemState);
 }
 
-
 void UInvSS_InventoryComponent::HandlePickupSourceAfterAdd(UInvSS_ItemComponent* InItemComponent, const int32 Remainder)
 {
 	check(InItemComponent);
@@ -223,6 +327,50 @@ void UInvSS_InventoryComponent::HandlePickupSourceAfterAdd(UInvSS_ItemComponent*
 
 	InItemComponent->TrySetStackCount(Remainder);
 }
+
+void UInvSS_InventoryComponent::SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount)
+{
+	if (!IsValid(InItem)) return;
+
+	if (FInvSS_StackableFragment* StackFragment = InItem->GetItemManifest().GetMutableFragmentOfTypeWithTag<FInvSS_StackableFragment>(ItemFragmentTag::StackableFragment))
+	{
+		StackFragment->SetStackCount(StackCount);
+	}
+}
+
+bool UInvSS_InventoryComponent::ShouldSwapStackCount(const int32 RoomToFill, const int32 MaxItemStackSize,
+	const int32 HoveredItemStackCount)
+{
+	return RoomToFill == 0 && HoveredItemStackCount < MaxItemStackSize; 
+}
+
+bool UInvSS_InventoryComponent::SwapStackCount(
+	UInvSS_InventoryGridManager& GridManager,
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 SlottedItemParentIndex,
+	const int32 HoveredItemStackCount)
+{
+	if (!HeldItemState.IsValid()) return false;
+
+	int32 SlottedItemStackCount = 0;
+	if (!GridManager.TryReplaceStackCountAtParentIndex(
+		ItemCategory,
+		SlottedItemParentIndex,
+		HoveredItemStackCount,
+		SlottedItemStackCount))
+	{
+		return false;
+	}
+	
+	HeldItemState.StackCount = SlottedItemStackCount;
+	if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
+	{
+		OnHeldItemChangedDelegate.Broadcast(HeldItemState);
+	}
+	return true;
+}
+
+
 
 void UInvSS_InventoryComponent::ToggleInventoryMenu()
 {

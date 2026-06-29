@@ -21,6 +21,7 @@ class INVENTORYSYSTEM_API UInvSS_HoverItem : public UInvSS_InvWidgetBase
 public:
 	void SetImageBrush(const FSlateBrush& Brush) const; 
 	void UpdateHoverItemStackCount(const int32 InStackCount); 
+	void Reset();
 	
 	FGameplayTag GetHoveredItemTypeTag() const;
 	FORCEINLINE int32 GetHoveredItemStackCount() const { return StackCount;}

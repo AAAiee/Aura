@@ -32,3 +32,43 @@ void UInvSS_InventoryGrid::NativeWidgetControllerSet()
 	InventoryWidgetController->OnInventoryHeldItemChanged.AddUniqueDynamic(this, &ThisClass::HandleInventoryHeldItemChanged);
 	RefreshFromViewData(ItemCategory);
 }
+
+UUserWidget* UInvSS_InventoryGrid::GetCursorVisibleWidget()
+{
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!IsValid(OwningPlayer)) return nullptr;
+
+	if (IsValid(VisibleCursorWidget))
+	{
+		return VisibleCursorWidget;
+	}
+
+	check(VisibleCursorWidgetClass);
+
+	VisibleCursorWidget = CreateWidget<UUserWidget>(
+		OwningPlayer,
+		VisibleCursorWidgetClass);
+
+	return VisibleCursorWidget;
+}
+
+UUserWidget* UInvSS_InventoryGrid::GetCursorHiddenWidget()
+{
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!IsValid(OwningPlayer)) return nullptr;
+
+	if (IsValid(HiddenCursorWidget))
+	{
+		return HiddenCursorWidget;
+	}
+
+	check(HiddenCursorWidgetClass);
+
+	HiddenCursorWidget = CreateWidget<UUserWidget>(
+		OwningPlayer,
+		HiddenCursorWidgetClass);
+
+	return HiddenCursorWidget;
+}
+
+
