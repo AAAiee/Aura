@@ -16,7 +16,15 @@ Direct link: [Aura Gameplay Systems Demo](https://youtu.be/y_uQL8ulQLg)
 
 ### Inventory System Progress
 
-Current inventory-system development progress video: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
+Click the thumbnail below to watch the inventory-system progress video on YouTube.
+
+<p align="center">
+  <a href="https://youtu.be/yDnlkwCP5xw">
+    <img src="https://img.youtube.com/vi/yDnlkwCP5xw/maxresdefault.jpg" alt="Replicated spatial inventory progress video" width="860">
+  </a>
+</p>
+
+Direct link: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
 
 ## My Contributions
 
