@@ -35,6 +35,11 @@ public:
 	FInvSS_ItemManifest GetItemManifest() const { return ItemManifest; }
 
 	/**
+	 * @brief Initializes this pickup component with manifest data on authority.
+	 */
+	void InitializeItemManifest(const FInvSS_ItemManifest& InItemManifest);
+
+	/**
 	 * @brief Attempts to set the stack count on the manifest's stackable fragment.
 	 *
 	 * @return True when this item has a stackable fragment and the count was updated.

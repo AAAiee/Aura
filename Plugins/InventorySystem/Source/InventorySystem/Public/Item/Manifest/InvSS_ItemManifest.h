@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Iris/ReplicationSystem/ReplicationFragment.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Type/InvSS_GridTypes.h"
 #include "InvSS_ItemManifest.generated.h"
 
+class AActor;
 struct FInvSS_ItemFragment;
 class UInvSS_InventoryItem;
 
@@ -27,10 +27,10 @@ struct INVENTORYSYSTEM_API FInvSS_ItemManifest
 	 * @brief Creates a runtime inventory item object from this manifest.
 	 */
 	UInvSS_InventoryItem* Manifest(UObject* Outer) const;
-
 	EInvSS_ItemCategory GetItemCategory() const { return ItemCategory; }
 	FText GetItemDisplayName() const { return ItemDisplayName; }
 	FGameplayTag GetItemTypeTag() const { return ItemTypeTag; }
+	TSubclassOf<AActor> GetWorldItemActorClass() const { return WorldItemActorClass; }
 
 	/**
 	 * @brief Returns a typed fragment with the exact requested fragment tag.
@@ -56,8 +56,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Item Info", NotReplicated)
 	FText ItemDisplayName = FText::GetEmpty();
 
-	UPROPERTY(EditAnywhere, Category = "Item Info")
+	UPROPERTY(EditAnywhere, Category = "Item Info", meta = (Categories = "GameItems"))
 	FGameplayTag ItemTypeTag;
+
+	UPROPERTY(EditAnywhere, Category = "World")
+	TSubclassOf<AActor> WorldItemActorClass = nullptr;
 };
 
 template <typename T>

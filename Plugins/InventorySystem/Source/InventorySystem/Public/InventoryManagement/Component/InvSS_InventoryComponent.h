@@ -11,6 +11,7 @@
 class UInvSS_InventoryUIManager;
 class UInvSS_ItemComponent;
 class UInvSS_InventoryItem;
+class AActor;
 struct FInvSS_BagAvailabilityResult;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInventoryItemChangeSignature, UInvSS_InventoryItem*, InChangedItem);
@@ -67,6 +68,18 @@ public:
 		const int32 ItemParentIndex,
 		const int32 HeldItemDropIndex);
 	
+	UFUNCTION(Server, Reliable)
+	void Server_RequestBeginSplit(const EInvSS_ItemCategory ItemCategory, const int32 SlotIndex, const int32 SplitBarVal);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestDropItem(const EInvSS_ItemCategory ItemCategory, const int32 ParentIndex);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestDropHeldItem();
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestConsumeItem(const EInvSS_ItemCategory ItemCategory, const int32 ParentIndex);
+	
 	UFUNCTION(BlueprintCallable, Category = "Inventory Menu")
 	void ToggleInventoryMenu();
 
@@ -102,9 +115,16 @@ private:
 	void EnsureDefaultGridManagerConfigs();
 	bool IsSameAndStackable(const UInvSS_InventoryItem* SlottedItemInPlace, const UInvSS_InventoryItem* HeldItem);
 	bool TryFindRoomForItem(const UInvSS_ItemComponent* ItemComponent, FInvSS_BagAvailabilityResult& OutResult) const;
-	void UpdateHeldItemStateFromItem(EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex, FGuid RemovedItemId,
-	                                 int32 RemovedStackCount);
+	void UpdateHeldItemStateFromItem(EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex, FGuid InventoryItemId,
+	                                 int32 StackCount);
 	void ResetHeldItemState();
+	void NotifyHeldItemStateChanged();
+	bool TryBuildDroppedItemManifest(const UInvSS_InventoryItem* DroppedItem, int32 DroppedStackCount,
+	                                 FInvSS_ItemManifest& OutManifest) const;
+	bool TryBuildDropTransform(FTransform& OutTransform) const;
+	AActor* SpawnDroppedItemActorDeferred(const FInvSS_ItemManifest& DroppedManifest,
+	                                      const FTransform& SpawnTransform) const;
+	void RemoveStackFromInventoryListIfNecessary(UInvSS_InventoryItem* InItem, int32 StackCountToRemove);
 
 	UFUNCTION()
 	void OnInventoryGridChange(EInvSS_ItemCategory InventoryCategory) const;
@@ -115,13 +135,30 @@ private:
 	
 	static void HandlePickupSourceAfterAdd(UInvSS_ItemComponent* InItemComponent, const int32 Remainder);
 	static void SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount);
-	
-	bool ShouldSwapStackCount(const int32 RoomToFill,  const int32 MaxItemStackSize, const int32 HoveredItemStackCount );
+
 	bool SwapStackCount(
 		UInvSS_InventoryGridManager& GridManager,
 		EInvSS_ItemCategory ItemCategory,
 		int32 SlottedItemParentIndex,
 		int32 HoveredItemStackCount);
+	bool ConsumeHoveredItemStackCount(
+		UInvSS_InventoryGridManager& GridManager,
+		EInvSS_ItemCategory ItemCategory,
+		int32 SlottedItemParentIndex,
+		int32 HoveredItemStackCount, int32 SlotItemStackCount);
+	bool FillInStack(UInvSS_InventoryGridManager& GridManager, EInvSS_ItemCategory ItemCategory, int32 SlottedItemParentIndex, int32
+	                 ItemMaxStackSize, int32 HoveredItemStackCount);
+	bool TryReplaceSlottedItemStackCount(
+		UInvSS_InventoryGridManager& GridManager,
+		EInvSS_ItemCategory ItemCategory,
+		int32 SlottedItemParentIndex,
+		int32 NewSlottedItemStackCount,
+		int32& OutPreviousSlottedItemStackCount);
+	
+	
+	static bool ShouldConsumeHoverItemStack(const int32 HoverItemCount , const int32 RoomCanFillAtSlot);
+	static bool ShouldFillInStack(const int32 HoveredItemStackCount, const int32 RoomAvailable);
+	static bool ShouldSwapStackCount(const int32 RoomToFill,  const int32 MaxItemStackSize, const int32 HoveredItemStackCount );
 
 private:
 	UPROPERTY()

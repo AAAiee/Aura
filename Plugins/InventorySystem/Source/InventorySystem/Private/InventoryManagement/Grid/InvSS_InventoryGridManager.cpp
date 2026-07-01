@@ -395,6 +395,27 @@ bool UInvSS_InventoryGridManager::TryGetStackCountAtParentIndex(
 	if (ParentSlot.ParentIndex != ParentIndex) return false;
 
 	OutStackCount = ParentSlot.SlotStackCount;
+	check(OutStackCount >= 0);
+	return true;
+}
+
+bool UInvSS_InventoryGridManager::TryGetItemIdAtParentIndex(
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 ParentIndex,
+	FGuid& OutItemId) const
+{
+	OutItemId.Invalidate();
+
+	const FInvSS_InventoryGridState* GridState = GetGridState(ItemCategory);
+	if (!GridState) return false;
+	if (!GridState->SlotStates.IsValidIndex(ParentIndex)) return false;
+
+	const FInvSS_GridSlotState& ParentSlot = GridState->SlotStates[ParentIndex];
+	if (!ParentSlot.OccupiedByItem()) return false;
+	if (ParentSlot.ParentIndex != ParentIndex) return false;
+
+	OutItemId = ParentSlot.ID_InventoryItemAtThisSlot;
+	check(OutItemId.IsValid());
 	return true;
 }
 

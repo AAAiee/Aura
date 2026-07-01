@@ -101,6 +101,7 @@ private:
 	void ClearHoveredItem();
 	void ApplyValidHeldItemState(const FInvSS_HeldItemState& HeldItemState);
 	void RemoveHeldItemSourceVisual(const FInvSS_HeldItemState& HeldItemState);
+	bool IsHeldItemSourceStillOccupied(const FInvSS_HeldItemState& HeldItemState);
 	
 	UFUNCTION()
 	void OnSlottedItemClickedCallback(UInvSS_SlottedItem* SlottedItem, int32 InSlotIndex, const FPointerEvent& InMouseEvent);

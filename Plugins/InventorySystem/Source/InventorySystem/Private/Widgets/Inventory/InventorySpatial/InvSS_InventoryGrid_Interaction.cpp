@@ -226,15 +226,19 @@ void UInvSS_InventoryGrid::OnSlottedItemClickedCallback(
 	check(GridSlots.IsValidIndex(InSlotIndex));
 	check(IsValid(SlottedItem));
 
-	if (!UInvSS_InventoryStatics::IsLeftMouseButtonPressed(InMouseEvent)) return;
-
-	if (IsValid(HoverItem))
+	if (UInvSS_InventoryStatics::IsLeftMouseButtonPressed(InMouseEvent))
 	{
-		TryPutDownHeldItem(InMouseEvent);
-		return;
+		if (IsValid(HoverItem))
+		{
+			TryPutDownHeldItem(InMouseEvent);
+			return;
+		}
+		PickUpFromSlot(SlottedItem, InSlotIndex);
 	}
-
-	PickUpFromSlot(SlottedItem, InSlotIndex);
+	else if (UInvSS_InventoryStatics::IsRightMouseButtonPressed(InMouseEvent))
+	{
+		InventoryWidgetController->ShowItemPopUpWindow(ItemCategory, InSlotIndex);
+	}
 }
 
 void UInvSS_InventoryGrid::OnGridSlotClickedCallback(int32 GridIndex, const FPointerEvent& MouseEvent)
@@ -411,8 +415,24 @@ void UInvSS_InventoryGrid::ApplyValidHeldItemState(const FInvSS_HeldItemState& H
 
 void UInvSS_InventoryGrid::RemoveHeldItemSourceVisual(const FInvSS_HeldItemState& HeldItemState)
 {
+	if (IsHeldItemSourceStillOccupied(HeldItemState))
+	{
+		return;
+	}
+
 	if (UInvSS_SlottedItem* SourceSlottedItem = SlottedItemsMap.FindRef(HeldItemState.SourceParentIndex))
 	{
 		RemoveItemFromGrid(SourceSlottedItem, HeldItemState.SourceParentIndex);
 	}
+}
+
+bool UInvSS_InventoryGrid::IsHeldItemSourceStillOccupied(const FInvSS_HeldItemState& HeldItemState)
+{
+	check(InventoryWidgetController.IsValid());
+
+	const FInvSS_InventoryGridViewData* ViewData = InventoryWidgetController->GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return false;
+	if (!ViewData->Slots.IsValidIndex(HeldItemState.SourceParentIndex)) return false;
+
+	return ViewData->Slots[HeldItemState.SourceParentIndex].bOccupied;
 }

@@ -3,9 +3,13 @@
 
 #include "Widgets/HUD/InvSS_InventoryUIManager.h"
 
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "InventoryManagement/Component/InvSS_InventoryComponent.h"
 #include "Widgets/HUD/InvSS_InfoMessageWidget.h"
 #include "Widgets/Inventory/InventoryBase/InvSS_InventoryBase.h"
+#include "Widgets/PopUpWidget/InvSS_ItemPopUp.h"
 #include "Widgets/WidgetController/InvSS_InventoryWidgetController.h"
 
 void UInvSS_InventoryUIManager::OnInitialize(APlayerController* InPlayerController,
@@ -130,3 +134,64 @@ void UInvSS_InventoryUIManager::ShowPopUpMessageWidget(const FText& InText)
 	InventoryMessageWidget->SetPositionInViewport(FinalShowPosition, true);
 	InventoryMessageWidget->SetMessage(InText);
 }
+
+void UInvSS_InventoryUIManager::ShowItemPopUpWindow(const EInvSS_ItemCategory ItemCategory,
+													const int32 WindowAppearAtSlotIndex,
+													const bool bIsItemStackable,
+													const int32 SlotStackCount,
+													const bool bCanConsume) 
+{
+	if (!OwningPlayerController.IsValid()) return;
+	
+	UCanvasPanel* RootCanvasPanel =  InventoryMenu->GetCanvasPanel();
+	check(RootCanvasPanel);
+	
+	if (!IsValid(ItemPopUpWindow))
+	{
+		check(ItemPopUpWindowClass);
+		ItemPopUpWindow = CreateWidget<UInvSS_ItemPopUp>(OwningPlayerController.Get(), ItemPopUpWindowClass);
+		ItemPopUpWindow->SetWidgetController(InventoryWidgetController);
+		check(ItemPopUpWindow);
+	}
+
+	// Basic properties needed to pass down
+	ItemPopUpWindow->ResetOptions();
+	ItemPopUpWindow->SetGridIndex(WindowAppearAtSlotIndex);
+	ItemPopUpWindow->SetItemCategory(ItemCategory);
+	ItemPopUpWindow->SetVisibility(ESlateVisibility::Visible);
+	
+	// if the item is stackable and the stack count at the given slot is > 1 (so we have meaningful split) 
+	if (const int32 SliderMax = SlotStackCount - 1; bIsItemStackable && SliderMax  > 0)
+	{
+		ItemPopUpWindow->SetSliderParams(SliderMax, FMath::Max(1, SlotStackCount /2.0f));
+	}
+	else
+	// otherwise just collapse the split button and bar, they are not needed in this interaction
+	{
+		ItemPopUpWindow->CollapseSplitButton();
+	}
+	
+	// Consume is available only for items with authored consume behavior.
+	if (!bCanConsume)
+	{
+		ItemPopUpWindow->CollapseConsumeButton();
+	}
+
+	// if the window is not in the panel, add it back
+	if (!ItemPopUpWindow->GetParent())
+	{
+		RootCanvasPanel->AddChildToCanvas(ItemPopUpWindow);
+	}
+	
+	//configure its location
+	if (UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(ItemPopUpWindow))
+	{
+		// Get mouse local position in the canvas panel
+		const FVector2D MouseViewportPosition =
+			UWidgetLayoutLibrary::GetMousePositionOnViewport(OwningPlayerController.Get());
+		
+		CanvasSlot->SetPosition(MouseViewportPosition);
+		CanvasSlot->SetSize(ItemPopUpWindow->GetBoxSize());
+	}
+}
+

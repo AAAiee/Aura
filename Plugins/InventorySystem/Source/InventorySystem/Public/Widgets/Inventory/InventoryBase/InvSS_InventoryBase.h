@@ -6,6 +6,7 @@
 #include "Widgets/Inventory/InvSS_InvWidgetBase.h"
 #include "InvSS_InventoryBase.generated.h"
 
+class UCanvasPanel;
 /**
  * UInvSS_InventoryBase
  *
@@ -19,4 +20,11 @@ UCLASS()
 class INVENTORYSYSTEM_API UInvSS_InventoryBase : public UInvSS_InvWidgetBase
 {
 	GENERATED_BODY()
+	
+public:
+	UCanvasPanel* GetCanvasPanel() const { return CanvasPanel_MenuRoot; }
+	
+protected:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UCanvasPanel> CanvasPanel_MenuRoot;
 };

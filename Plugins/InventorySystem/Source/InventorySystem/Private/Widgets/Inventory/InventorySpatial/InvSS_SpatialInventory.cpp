@@ -5,8 +5,10 @@
 
 #include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
+#include "InventoryManagement/Utils/InvSS_InventoryStatics.h"
 #include "Type/InvSS_GridTypes.h"
 #include "Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid.h"
+#include "Widgets/WidgetController/InvSS_InventoryWidgetController.h"
 
 void UInvSS_SpatialInventory::NativeOnInitialized()
 {
@@ -38,6 +40,24 @@ void UInvSS_SpatialInventory::NativeWidgetControllerSet()
 	Grid_Consumables->SetWidgetController(GetWidgetController());
 	Grid_Craftables->SetWidgetController(GetWidgetController());
 	Grid_Equippables->SetWidgetController(GetWidgetController());
+}
+
+FReply UInvSS_SpatialInventory::NativeOnMouseButtonDown(
+	const FGeometry& InGeometry,
+	const FPointerEvent& InMouseEvent)
+{
+	if (UInvSS_InventoryStatics::IsLeftMouseButtonPressed(InMouseEvent))
+	{
+		UInvSS_InventoryWidgetController* InventoryWidgetController =
+			CastChecked<UInvSS_InventoryWidgetController>(GetWidgetController());
+
+		if (InventoryWidgetController->RequestDropHeldItem())
+		{
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void UInvSS_SpatialInventory::ShowEquippables()

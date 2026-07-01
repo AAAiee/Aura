@@ -11,6 +11,8 @@
 UInvSS_ItemComponent::UInvSS_ItemComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	
+	SetIsReplicatedByDefault(true);
 }
 
 bool UInvSS_ItemComponent::TrySetStackCount(const int32 InStackCount)
@@ -23,6 +25,14 @@ bool UInvSS_ItemComponent::TrySetStackCount(const int32 InStackCount)
 
 	StackFragment->SetStackCount(InStackCount);
 	return true;
+}
+
+void UInvSS_ItemComponent::InitializeItemManifest(const FInvSS_ItemManifest& InItemManifest)
+{
+	check(GetOwner());
+	check(GetOwner()->HasAuthority());
+
+	ItemManifest = InItemManifest;
 }
 
 void UInvSS_ItemComponent::PickUp() const

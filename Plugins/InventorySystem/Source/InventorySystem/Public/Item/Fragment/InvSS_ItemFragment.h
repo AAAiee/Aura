@@ -4,6 +4,9 @@
 #include "NativeGameplayTags.h"
 #include "InvSS_ItemFragment.generated.h"
 
+class APlayerController;
+class UGameplayEffect;
+
 /**
  * Base manifest fragment used to tag item-specific data blocks.
  */
@@ -23,7 +26,7 @@ public:
 	FGameplayTag GetFragmentTag() const { return FragmentTag; }
 
 private:
-	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	UPROPERTY(EditAnywhere, Category = "Item Properties", meta = (Categories = "ItemFragmentTag"))
 	FGameplayTag FragmentTag = FGameplayTag::EmptyTag;
 };
 
@@ -87,4 +90,23 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Item Properties")
 	int32 StackCount{1};
+};
+
+/**
+ * Stores consume behavior for stackable consumable items.
+ */
+USTRUCT(BlueprintType)
+struct FInvSS_ConsumableFragment : public FInvSS_ItemFragment
+{
+	GENERATED_BODY()
+
+public:
+	bool OnConsume(APlayerController* PlayerController) const;
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	TSubclassOf<UGameplayEffect> GameplayEffectClass = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties", meta = (ClampMin = "1.0"))
+	float EffectLevel = 1.f;
 };

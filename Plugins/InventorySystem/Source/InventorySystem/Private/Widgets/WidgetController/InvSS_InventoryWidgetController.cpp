@@ -7,6 +7,8 @@
 #include "InventoryManagement/Grid/InvSS_InventoryGridManager.h"
 #include "InventoryManagement/Utils/InvSS_InventoryStatics.h"
 #include "Item/InvSS_InventoryItem.h"
+#include "Item/Fragment/InvSS_ItemFragment.h"
+#include "Item/Fragment/InvSS_ItemFragmentTag.h"
 #include "Widgets/HUD/InvSS_InventoryUIManager.h"
 #include "Widgets/Utilis/InvSS_WidgetUtils.h"
 
@@ -104,6 +106,97 @@ void UInvSS_InventoryWidgetController::RequestInteractHeldItemWithItemUnderCurso
 	check(InventoryComponent);
 	
 	InventoryComponent->Server_RequestHeldItemInteractWithItemUnderCursor(ItemCategory, ItemID, ItemParentIndex, HeldItemDropIndex);
+}
+
+void UInvSS_InventoryWidgetController::ShowItemPopUpWindow(const EInvSS_ItemCategory ItemCategory, const int32 InSlotIndex)
+{
+	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return;
+
+	if (ViewData->Slots.IsValidIndex(InSlotIndex) && ViewData->Slots[InSlotIndex].bOccupied)
+	{
+		const FInvSS_GridSlotViewData& SlotViewData = ViewData->Slots[InSlotIndex];
+		if (!IsValid(SlotViewData.Item)) return;
+
+		const int32 StackCountAtSlot = SlotViewData.StackCount;
+		const bool bIsStackable = SlotViewData.Item->IsStackable();
+		const bool bCanConsume = ItemCategory == EInvSS_ItemCategory::Consumable
+			&& GetFragment<FInvSS_ConsumableFragment>(SlotViewData.Item, ItemFragmentTag::ConsumableFragment);
+
+		GetUIManager()->ShowItemPopUpWindow(
+			ItemCategory,
+			InSlotIndex,
+			bIsStackable,
+			StackCountAtSlot,
+			bCanConsume);
+	}
+}
+
+void UInvSS_InventoryWidgetController::RequestBeginSplit(const EInvSS_ItemCategory ItemCategory, const int32 InSlotIndex, const int32 SplitBarVal)
+{
+	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
+	check(InventoryComponent);
+	
+	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return;
+	if (!ViewData->Slots.IsValidIndex(InSlotIndex)) return;
+	
+	const FInvSS_GridSlotViewData& SlotViewData = ViewData->Slots[InSlotIndex];
+	if (!SlotViewData.bParentSlot) return;
+	if (!IsValid(SlotViewData.Item)) return;
+	if (!SlotViewData.Item->IsStackable()) return;
+	if (SplitBarVal <= 0 || SplitBarVal >= SlotViewData.StackCount) return;
+
+	InventoryComponent->Server_RequestBeginSplit(ItemCategory, InSlotIndex, SplitBarVal); 
+}
+
+void UInvSS_InventoryWidgetController::RequestDropItem(
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 ParentIndex)
+{
+	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
+	check(InventoryComponent);
+
+	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return;
+	if (!ViewData->Slots.IsValidIndex(ParentIndex)) return;
+	if (!ViewData->Slots[ParentIndex].bParentSlot) return;
+
+	InventoryComponent->Server_RequestDropItem(ItemCategory, ParentIndex);
+}
+
+void UInvSS_InventoryWidgetController::RequestConsumeItem(
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 ParentIndex)
+{
+	if (ItemCategory != EInvSS_ItemCategory::Consumable) return;
+
+	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
+	check(InventoryComponent);
+
+	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return;
+	if (!ViewData->Slots.IsValidIndex(ParentIndex)) return;
+
+	const FInvSS_GridSlotViewData& SlotViewData = ViewData->Slots[ParentIndex];
+	if (!SlotViewData.bParentSlot) return;
+	if (!IsValid(SlotViewData.Item)) return;
+	if (!SlotViewData.Item->IsStackable()) return;
+	if (SlotViewData.StackCount <= 0) return;
+	if (!GetFragment<FInvSS_ConsumableFragment>(SlotViewData.Item, ItemFragmentTag::ConsumableFragment)) return;
+
+	InventoryComponent->Server_RequestConsumeItem(ItemCategory, ParentIndex);
+}
+
+bool UInvSS_InventoryWidgetController::RequestDropHeldItem()
+{
+	if (!CachedHeldItemState.IsValid()) return false;
+
+	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
+	check(InventoryComponent);
+
+	InventoryComponent->Server_RequestDropHeldItem();
+	return true;
 }
 
 
@@ -236,5 +329,6 @@ void UInvSS_InventoryWidgetController::HandleInventoryGridChanged(EInvSS_ItemCat
 
 void UInvSS_InventoryWidgetController::HandleInventoryHeldItemChanged(FInvSS_HeldItemState HeldItemState)
 {
+	CachedHeldItemState = HeldItemState;
 	OnInventoryHeldItemChanged.Broadcast(HeldItemState);
 }

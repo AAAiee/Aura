@@ -81,6 +81,7 @@ public:
 		FGuid& OutItemId,
 		int32& OutStackCount);
 	bool TryAddItemAtGivenIndex(EInvSS_ItemCategory ItemCategory, int32 Index, const FGuid& ItemGuid, int32 StackCount);
+	bool TryGetItemIdAtParentIndex(EInvSS_ItemCategory ItemCategory, int32 ParentIndex, FGuid& OutItemId) const;
 	bool TryGetStackCountAtParentIndex(EInvSS_ItemCategory ItemCategory, int32 ParentIndex, int32& OutStackCount) const;
 	bool TryReplaceStackCountAtParentIndex(
 		EInvSS_ItemCategory ItemCategory,

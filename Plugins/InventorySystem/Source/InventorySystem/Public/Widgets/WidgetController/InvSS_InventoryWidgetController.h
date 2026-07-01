@@ -87,6 +87,11 @@ public:
 		const FGuid& ItemID,
 		int32 ItemParentIndex,
 		int32 HeldItemDropIndex);
+	void ShowItemPopUpWindow(const EInvSS_ItemCategory ItemCategory, const int32 InSlotIndex);
+	void RequestBeginSplit(EInvSS_ItemCategory, int32 InSlotIndex, int32 SplitBarVal);
+	void RequestDropItem(EInvSS_ItemCategory ItemCategory, int32 ParentIndex);
+	void RequestConsumeItem(EInvSS_ItemCategory ItemCategory, int32 ParentIndex);
+	bool RequestDropHeldItem();
 
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
@@ -124,5 +129,6 @@ private:
 	UPROPERTY(Transient)
 	TMap<EInvSS_ItemCategory, FInvSS_InventoryGridViewData> CachedGridViewData;
 
+	FInvSS_HeldItemState CachedHeldItemState;
 	TSet<EInvSS_ItemCategory> DirtyGridCategories;
 };

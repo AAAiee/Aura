@@ -6,6 +6,7 @@
 #include "Widgets/Inventory/InventoryBase/InvSS_InventoryBase.h"
 #include "InvSS_SpatialInventory.generated.h"
 
+class UCanvasPanel;
 class UButton;
 class UWidgetSwitcher;
 class UInvSS_InventoryGrid;
@@ -22,11 +23,13 @@ UCLASS()
 class INVENTORYSYSTEM_API UInvSS_SpatialInventory : public UInvSS_InventoryBase
 {
 	GENERATED_BODY()
+	
 
 protected:
 	/* UUserWidget begins */
 	virtual void NativeOnInitialized() override;
 	virtual void NativeWidgetControllerSet() override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	/* UUserWidget ends */
 
 private:

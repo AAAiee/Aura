@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Type/InvSS_GridTypes.h"
 #include "UObject/Object.h"
 #include "InvSS_InventoryUIManager.generated.h"
 
@@ -10,6 +11,7 @@ class UInvSS_InfoMessageWidget;
 class UInvSS_InventoryBase;
 class UInvSS_InventoryComponent;
 class UInvSS_InventoryWidgetController;
+class UInvSS_ItemPopUp;
 
 /**
  * UInvSS_InventoryUIManager
@@ -41,16 +43,21 @@ public:
 	 * @brief Shows or updates the inventory popup message widget.
 	 */
 	void ShowPopUpMessageWidget(const FText& InText);
+	void ShowItemPopUpWindow(EInvSS_ItemCategory ItemCategory, int32 WindowAppearAtSlotIndex, bool bIsItemStackable,
+	                         int32 SlotStackCount, bool bCanConsume);
 
 protected:
 	UPROPERTY()
 	TSubclassOf<UInvSS_InventoryBase> InventoryClass = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Inventory Menu")
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<UInvSS_InventoryWidgetController> InventoryWidgetControllerClass = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Inventory Menu")
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<UInvSS_InfoMessageWidget> InventoryMessageWidgetClass = nullptr;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
+	TSubclassOf<UInvSS_ItemPopUp>  ItemPopUpWindowClass = nullptr;
 
 private:
 	void ConstructInventoryMenu();
@@ -70,4 +77,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInvSS_InfoMessageWidget> InventoryMessageWidget = nullptr;
+	
+	UPROPERTY(Transient) 
+	TObjectPtr<UInvSS_ItemPopUp> ItemPopUpWindow = nullptr;
 };
