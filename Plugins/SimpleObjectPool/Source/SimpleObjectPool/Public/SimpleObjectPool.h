@@ -9,7 +9,18 @@
 /** Module log category used by the pool subsystem and startup/shutdown code. */
 DECLARE_LOG_CATEGORY_EXTERN(LogSimpleObjectPool, Log, All);
 
-/** Minimal plugin module; runtime pool state is owned by UObjectPoolSubsystem per world. */
+/**
+ * FSimpleObjectPoolModule
+ *
+ * Registers the SimpleObjectPool runtime module and its log category.
+ *
+ * Runtime pool state intentionally lives in UObjectPoolSubsystem per world, so
+ * module startup and shutdown stay lightweight.
+ *
+ * Important functions:
+ *   - StartupModule() - Emits module startup diagnostics.
+ *   - ShutdownModule() - Leaves world-specific cleanup to UObjectPoolSubsystem.
+ */
 class FSimpleObjectPoolModule : public IModuleInterface
 {
 public:

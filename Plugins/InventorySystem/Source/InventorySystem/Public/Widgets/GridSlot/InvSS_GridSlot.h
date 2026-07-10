@@ -8,6 +8,9 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInvSS_GridSlotEventSignature, int32, TileIndex, const FPointerEvent&, MouseEvent);
 
+/**
+ * Visual state applied to one inventory grid slot.
+ */
 UENUM(BlueprintType)
 enum class EInvSS_GridSlotVisualState : uint8
 {
@@ -34,11 +37,11 @@ public:
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	
-	int32 GetTileIndex() const { return TileIndex; }
-	bool IsBaseState(const EInvSS_GridSlotVisualState State) const { return BaseVisualState == State; };
-	
-	void SetTileIndex(const int32 Index) { TileIndex = Index; }
+
+	int32 GetTileIndex() const;
+	bool IsBaseState(EInvSS_GridSlotVisualState State) const;
+
+	void SetTileIndex(int32 InIndex);
 	void SetBaseVisualState(EInvSS_GridSlotVisualState InState);
 	void SetTemporaryVisualState(EInvSS_GridSlotVisualState InState);
 	void RestoreBaseVisualState();
@@ -46,8 +49,8 @@ public:
 	void SetUnoccupiedState();
 	void SetSelectedState();
 	void SetGrayedOutState();
-	
-	
+
+
 	FInvSS_GridSlotEventSignature OnGridSlotClicked;
 	FInvSS_GridSlotEventSignature OnGridSlotHovered;
 	FInvSS_GridSlotEventSignature OnGridSlotUnhovered;
@@ -56,7 +59,7 @@ private:
 	void ApplyVisualState(EInvSS_GridSlotVisualState InState);
 
 	int32 TileIndex = INDEX_NONE;
-	
+
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UImage> Image_GridSlot;
 

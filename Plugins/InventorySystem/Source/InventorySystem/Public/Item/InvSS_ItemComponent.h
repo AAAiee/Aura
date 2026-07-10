@@ -32,7 +32,7 @@ public:
 	/**
 	 * @brief Returns the item manifest stored on this pickup component.
 	 */
-	FInvSS_ItemManifest GetItemManifest() const { return ItemManifest; }
+	FInvSS_ItemManifest GetItemManifest() const;
 
 	/**
 	 * @brief Initializes this pickup component with manifest data on authority.

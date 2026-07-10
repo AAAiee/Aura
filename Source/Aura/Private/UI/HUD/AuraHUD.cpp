@@ -80,29 +80,6 @@ void AAuraHUD::ShowAttributeMenu()
 	AttributeMenu->ShowAttributeMenu();
 }
 
-void AAuraHUD::CloseAttributeMenu()
-{
-	if (AttributeMenuWidget)
-	{
-		// We hide instead of destroying so the dragged position survives repeated open/close cycles.
-		AttributeMenuWidget->CloseAttributeMenu();
-	}
-}
-
-void AAuraHUD::ShowSpellMenu()
-{
-	UAuraSpellMenuWidget* SpellMenu = CreateSpellMenuWidgetIfNeeded();
-	SpellMenu->ShowSpellMenu();
-}
-
-void AAuraHUD::CloseSpellMenu()
-{
-	if (SpellMenuWidget)
-	{
-		SpellMenuWidget->CloseSpellMenu();
-	}
-}
-
 UAuraAttributeMenuWidget* AAuraHUD::CreateAttributeMenuWidgetIfNeeded()
 {
 	checkf(AttributeMenuWidgetClass, TEXT("Forget to set AttributeMenuWidgetClass in HUD!"));
@@ -124,6 +101,21 @@ UAuraAttributeMenuWidget* AAuraHUD::CreateAttributeMenuWidgetIfNeeded()
 	return AttributeMenuWidget;
 }
 
+void AAuraHUD::CloseAttributeMenu()
+{
+	if (AttributeMenuWidget)
+	{
+		// We hide instead of destroying so the dragged position survives repeated open/close cycles.
+		AttributeMenuWidget->CloseAttributeMenu();
+	}
+}
+
+void AAuraHUD::ShowSpellMenu()
+{
+	UAuraSpellMenuWidget* SpellMenu = CreateSpellMenuWidgetIfNeeded();
+	SpellMenu->ShowSpellMenu();
+}
+
 UAuraSpellMenuWidget* AAuraHUD::CreateSpellMenuWidgetIfNeeded()
 {
 	checkf(SpellMenuWidgetClass, TEXT("Forget to set SpellMenuWidgetClass in HUD!"));
@@ -143,6 +135,14 @@ UAuraSpellMenuWidget* AAuraHUD::CreateSpellMenuWidgetIfNeeded()
 
 	OnSpellMenuWidgetInstanceConstructed.Broadcast();
 	return SpellMenuWidget;
+}
+
+void AAuraHUD::CloseSpellMenu()
+{
+	if (SpellMenuWidget)
+	{
+		SpellMenuWidget->CloseSpellMenu();
+	}
 }
 
 bool AAuraHUD::IsAttributeMenuOnScreen() const

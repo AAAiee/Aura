@@ -84,6 +84,36 @@ UAuraSpellMenuWidgetController* UAuraAbilitySystemLibrary::GetSpellMenuWidgetCon
 	return AuraHUD->GetSpellMenuWidgetController(Params);
 }
 
+bool UAuraAbilitySystemLibrary::MakeWidgetControllerParameters(const UObject* WorldContextObject, FWidgetControllerParameters& OutParams, AAuraHUD*& OutAuraHUD)
+{
+	check(WorldContextObject);
+
+	check(GEngine);
+	APlayerController* LocalPlayerController = GEngine->GetFirstLocalPlayerController(WorldContextObject->GetWorld());
+
+	if (!LocalPlayerController)
+	{
+		return false;
+	}
+
+	OutAuraHUD = Cast<AAuraHUD>(LocalPlayerController->GetHUD());
+	AAuraPlayerState* PS = LocalPlayerController->GetPlayerState<AAuraPlayerState>();
+	if (!OutAuraHUD || !PS)
+	{
+		return false;
+	}
+
+	UAuraAbilitySystemComponent* ASC = Cast<UAuraAbilitySystemComponent>(PS->GetAbilitySystemComponent());
+	UAuraAttributeSet* AttributeSet = Cast<UAuraAttributeSet>(PS->GetAttributeSet());
+	if (!ASC || !AttributeSet)
+	{
+		return false;
+	}
+
+	OutParams = FWidgetControllerParameters(LocalPlayerController, PS, ASC, AttributeSet);
+	return true;
+}
+
 void UAuraAbilitySystemLibrary::InitializeDefaultAttributes(const UObject* WorldContextObject, ECharacterClass CharacterClass, UAbilitySystemComponent* ASC, float Level)
 {
 	check(ASC);
@@ -280,7 +310,7 @@ bool UAuraAbilitySystemLibrary::IsCriticalHit(const FGameplayEffectContextHandle
 
 bool UAuraAbilitySystemLibrary::IsRadialDamage(const FGameplayEffectContextHandle& EffectHandle)
 {
-	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsRadialDamage")))
 	{
 		return AuraContext->GetIsRadialDamage();
 	}
@@ -290,7 +320,7 @@ bool UAuraAbilitySystemLibrary::IsRadialDamage(const FGameplayEffectContextHandl
 
 float UAuraAbilitySystemLibrary::GetRadialDamageInnerRadius(const FGameplayEffectContextHandle& EffectHandle)
 {
-	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::GetRadialDamageInnerRadius")))
 	{
 		return AuraContext->GetRadialDamageInnerRadius();
 	}
@@ -299,7 +329,7 @@ float UAuraAbilitySystemLibrary::GetRadialDamageInnerRadius(const FGameplayEffec
 
 float UAuraAbilitySystemLibrary::GetRadialDamageOuterRadius(const FGameplayEffectContextHandle& EffectHandle)
 {
-	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::GetRadialDamageOuterRadius")))
 	{
 		return AuraContext->GetRadialDamageOuterRadius();
 	}
@@ -308,7 +338,7 @@ float UAuraAbilitySystemLibrary::GetRadialDamageOuterRadius(const FGameplayEffec
 
 FVector UAuraAbilitySystemLibrary::GetRadialDamageOrigin(const FGameplayEffectContextHandle& EffectHandle)
 {
-	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::IsCriticalHit")))
+	if (const FAuraGameplayEffectContext* AuraContext = GetAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::GetRadialDamageOrigin")))
 	{
 		return AuraContext->GetRadialDamageOrigin();
 	}
@@ -490,7 +520,7 @@ void UAuraAbilitySystemLibrary::SetIsRadialDamage(FGameplayEffectContextHandle& 
 void UAuraAbilitySystemLibrary::SetRadialDamageInnerRadius(FGameplayEffectContextHandle& EffectHandle,
                                                            float InInnerRadius)
 {
-	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetKnockBackForce")))
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetRadialDamageInnerRadius")))
 	{
 		AuraContext->SetRadialDamageInnerRadius(InInnerRadius);
 	}
@@ -499,7 +529,7 @@ void UAuraAbilitySystemLibrary::SetRadialDamageInnerRadius(FGameplayEffectContex
 void UAuraAbilitySystemLibrary::SetRadialDamageOuterRadius(FGameplayEffectContextHandle& EffectHandle,
 	float InOuterRadius)
 {
-	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetKnockBackForce")))
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetRadialDamageOuterRadius")))
 	{
 		AuraContext->SetRadialDamageOuterRadius(InOuterRadius);
 	}
@@ -508,11 +538,10 @@ void UAuraAbilitySystemLibrary::SetRadialDamageOuterRadius(FGameplayEffectContex
 void UAuraAbilitySystemLibrary::SetRadialDamageOrigin(FGameplayEffectContextHandle& EffectHandle,
 	const FVector& InOrigin)
 {
-	FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetRadialDamageOrigin"));
-		if (AuraContext)
-		{
-			AuraContext->SetRadialDamageOrigin(InOrigin);
-		}
+	if (FAuraGameplayEffectContext* AuraContext = GetMutableAuraEffectContext(EffectHandle, TEXT("AuraAbilitySystemLibrary::SetRadialDamageOrigin")))
+	{
+		AuraContext->SetRadialDamageOrigin(InOrigin);
+	}
 }
 
 void UAuraAbilitySystemLibrary::GetLivePlayersWithinRadius(const UObject* WorldContextObject, TArray<AActor*>& OutOverlapActors, const TArray<AActor*>& ActorToIgnore, float Radius, const FVector& SphereOrigin)
@@ -687,34 +716,4 @@ TArray<FVector> UAuraAbilitySystemLibrary::EvenlyRotatedVectors(const FVector& F
 		}
 	}
 	return Vectors;
-}
-
-bool UAuraAbilitySystemLibrary::MakeWidgetControllerParameters(const UObject* WorldContextObject, FWidgetControllerParameters& OutParams, AAuraHUD*& OutAuraHUD)
-{
-	check(WorldContextObject);
-
-	check(GEngine);
-	APlayerController* LocalPlayerController = GEngine->GetFirstLocalPlayerController(WorldContextObject->GetWorld());
-
-	if (!LocalPlayerController)
-	{
-		return false;
-	}
-
-	OutAuraHUD = Cast<AAuraHUD>(LocalPlayerController->GetHUD());
-	AAuraPlayerState* PS = LocalPlayerController->GetPlayerState<AAuraPlayerState>();
-	if (!OutAuraHUD || !PS)
-	{
-		return false;
-	}
-
-	UAuraAbilitySystemComponent* ASC = Cast<UAuraAbilitySystemComponent>(PS->GetAbilitySystemComponent());
-	UAuraAttributeSet* AttributeSet = Cast<UAuraAttributeSet>(PS->GetAttributeSet());
-	if (!ASC || !AttributeSet)
-	{
-		return false;
-	}
-
-	OutParams = FWidgetControllerParameters(LocalPlayerController, PS, ASC, AttributeSet);
-	return true;
 }

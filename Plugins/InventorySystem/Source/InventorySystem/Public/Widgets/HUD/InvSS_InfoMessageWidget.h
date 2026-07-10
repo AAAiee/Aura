@@ -34,7 +34,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetMessage(const FText& Message);
 
-	FVector2f GetMessagePositionOnScreen() const { return PositionFactorOnScreen; }
+	FVector2f GetMessagePositionOnScreen() const;
 
 protected:
 	/* UUserWidget begins */

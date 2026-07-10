@@ -117,43 +117,35 @@ public:
 	virtual FAuraGameplayEffectContext* Duplicate() const override;
 
 	/* Combat Result Flags */
-	/** True when ExecCalc_Damage resolved this hit as a critical hit. Used for damage text styling. */
-	bool IsCriticalHit() const { return bIsCriticalHit; }
-	/** True when ExecCalc_Damage resolved this hit as blocked. Used for damage text styling. */
-	bool IsBlockedHit() const { return bIsBlockedHit; }
-	/** True when the target should trigger the shared hit-react ability after damage lands. */
-	bool ShouldHitReact() const { return bShouldHitReact; }
-	/** True when the server-side debuff roll succeeded and the AttributeSet should build a timed effect. */
-	bool IsSuccessfulDebuff() const { return bIsSuccessfulDebuff; }
-	/** Periodic damage value copied from the incoming spec for the dynamic debuff effect. */
-	float GetDebuffDamage() const { return DebuffDamage; }
-	/** Duration copied from the incoming spec for the dynamic debuff effect. */
-	float GetDebuffDuration() const { return DebuffDuration; }
-	/** Tick frequency copied from the incoming spec for the dynamic debuff effect. */
-	float GetDebuffFrequency() const { return DebuffFrequency; }
-	/** Damage type that won the debuff roll; the AttributeSet maps it to the matching Debuff.* tag. */
-	TSharedPtr<FGameplayTag> GetDamageTypeTag() const { return DebuffDamageTypeTag; }
-	FVector GetDeathImpulse() const { return DeathImpulse; }
-	FVector GetKnockBackForce() const {return KnockBackForce; }
-	bool GetIsRadialDamage() const { return bIsRadialDamage; }
-	float GetRadialDamageInnerRadius() const { return RadialDamageInnerRadius; }
-	float GetRadialDamageOuterRadius() const { return RadialDamageOuterRadius; }
-	FVector GetRadialDamageOrigin() const { return RadialDamageOrigin; }
+	bool IsCriticalHit() const;
+	bool IsBlockedHit() const;
+	bool ShouldHitReact() const;
+	bool IsSuccessfulDebuff() const;
+	float GetDebuffDamage() const;
+	float GetDebuffDuration() const;
+	float GetDebuffFrequency() const;
+	TSharedPtr<FGameplayTag> GetDamageTypeTag() const;
+	FVector GetDeathImpulse() const;
+	FVector GetKnockBackForce() const;
+	bool GetIsRadialDamage() const;
+	float GetRadialDamageInnerRadius() const;
+	float GetRadialDamageOuterRadius() const;
+	FVector GetRadialDamageOrigin() const;
 
-	void SetCriticalHit(bool bInIsCriticalHit) { bIsCriticalHit = bInIsCriticalHit; }
-	void SetBlockedHit(bool bInIsBlockedHit) { bIsBlockedHit = bInIsBlockedHit; }
-	void SetShouldHitReact(bool bInShouldHitReact) { bShouldHitReact = bInShouldHitReact; }
-	void SetSuccessfulDebuff(bool bInIsSuccessfulDebuff) { bIsSuccessfulDebuff = bInIsSuccessfulDebuff; }
-	void SetDebuffDamage(float InDebuffDamage) { DebuffDamage = InDebuffDamage; }
-	void SetDebuffDuration(float InDebuffDuration) { DebuffDuration = InDebuffDuration; }
-	void SetDebuffFrequency(float InDebuffFrequency) { DebuffFrequency = InDebuffFrequency; }
-	void SetDamageTypeTag(const FGameplayTag& InDamageTypeTag) { DebuffDamageTypeTag = MakeShared<FGameplayTag>(InDamageTypeTag); }
-	void SetDeathImpulse(const FVector& InDeathImpulse) { DeathImpulse = InDeathImpulse; }
-	void SetKnockBackForce(const FVector& InKnockBackForce) { KnockBackForce = InKnockBackForce; }
-	void SetIsRadialDamage(bool bInIsRadialDamage) { bIsRadialDamage = bInIsRadialDamage; }
-	void SetRadialDamageInnerRadius(float InRadialDamageInnerRadius) { RadialDamageInnerRadius = InRadialDamageInnerRadius; }
-	void SetRadialDamageOuterRadius(float InRadialDamageOuterRadius) { RadialDamageOuterRadius = InRadialDamageOuterRadius; }
-	void SetRadialDamageOrigin(const FVector& InRadialDamageOrigin) { RadialDamageOrigin = InRadialDamageOrigin; }
+	void SetCriticalHit(const bool bInIsCriticalHit);
+	void SetBlockedHit(const bool bInIsBlockedHit);
+	void SetShouldHitReact(const bool bInShouldHitReact);
+	void SetSuccessfulDebuff(const bool bInIsSuccessfulDebuff);
+	void SetDebuffDamage(const float InDebuffDamage);
+	void SetDebuffDuration(const float InDebuffDuration);
+	void SetDebuffFrequency(const float InDebuffFrequency);
+	void SetDamageTypeTag(const FGameplayTag& InDamageTypeTag);
+	void SetDeathImpulse(const FVector& InDeathImpulse);
+	void SetKnockBackForce(const FVector& InKnockBackForce);
+	void SetIsRadialDamage(const bool bInIsRadialDamage);
+	void SetRadialDamageInnerRadius(const float InRadialDamageInnerRadius);
+	void SetRadialDamageOuterRadius(const float InRadialDamageOuterRadius);
+	void SetRadialDamageOrigin(const FVector& InRadialDamageOrigin);
 
 protected:
 	/* Replicated Metadata */

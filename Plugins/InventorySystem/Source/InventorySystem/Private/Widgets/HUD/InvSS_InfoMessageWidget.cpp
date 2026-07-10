@@ -37,3 +37,8 @@ void UInvSS_InfoMessageWidget::SetMessage(const FText& Message)
 			bIsMessageAlive = false;
 		}, MessageLifeTime, false);
 }
+
+FVector2f UInvSS_InfoMessageWidget::GetMessagePositionOnScreen() const
+{
+	return PositionFactorOnScreen;
+}

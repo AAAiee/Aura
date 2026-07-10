@@ -20,6 +20,11 @@ void AAuraPooledGameplayActor::RequestReturnToPool()
 	UE_LOG(LogTemp, Warning, TEXT("AuraPooledGameplayActor::RequestReturnToPool called without a valid pool subsystem for %s"), *GetName());
 }
 
+bool AAuraPooledGameplayActor::IsActiveInPool() const
+{
+	return bIsActiveInPool;
+}
+
 void AAuraPooledGameplayActor::OnTakenFromPool()
 {
 	bIsActiveInPool = true;

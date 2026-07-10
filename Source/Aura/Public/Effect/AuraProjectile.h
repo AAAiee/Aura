@@ -11,6 +11,13 @@ class UAudioComponent;
 class UNiagaraSystem;
 class USoundBase;
 
+/**
+ * Base pooled projectile actor for Aura damage abilities.
+ *
+ * Abilities configure DamageEffectParameters before launch. The projectile owns replicated active
+ * state, overlap resolution, impact presentation, and pool return behavior while subclasses provide
+ * the concrete collision shape.
+ */
 UCLASS(Abstract)
 class AURA_API AAuraProjectile : public AAuraPooledGameplayActor
 {

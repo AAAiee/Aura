@@ -10,11 +10,50 @@
 #include "Net/UnrealNetwork.h"
 #include "Widgets/Utilis/InvSS_WidgetUtils.h"
 
+int32 FInvSS_GridConfig::NumSlots() const
+{
+	return Rows * Columns;
+}
+
+bool FInvSS_GridSlotState::OccupiedByItem() const
+{
+	return ID_InventoryItemAtThisSlot.IsValid();
+}
+
 void FInvSS_GridSlotState::Reset()
 {
 	ID_InventoryItemAtThisSlot.Invalidate();
 	ParentIndex = INDEX_NONE;
 	SlotStackCount = 0;
+}
+
+bool UInvSS_InventoryGridManager::IsSupportedForNetworking() const
+{
+	return true;
+}
+
+void UInvSS_InventoryGridManager::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	UObject::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ThisClass, GridStatesArray);
+}
+
+void UInvSS_InventoryGridManager::Initialize(const TArray<FInvSS_GridConfig>& InConfigArray)
+{
+	check(InConfigArray.Num() > 0);
+
+	for (const FInvSS_GridConfig& Config : InConfigArray)
+	{
+		FInvSS_InventoryGridState& GridState = GridStatesArray.AddDefaulted_GetRef();
+		GridState.GridConfiguration = Config;
+		GridState.ReplicationRevision = 0;
+		GridState.SlotStates.SetNum(Config.NumSlots());
+	}
+}
+
+UInvSS_InventoryComponent* UInvSS_InventoryGridManager::GetInventoryComponent() const
+{
+	return GetTypedOuter<UInvSS_InventoryComponent>();
 }
 
 bool UInvSS_InventoryGridManager::TryAddItemAtGivenIndex(
@@ -46,7 +85,7 @@ bool UInvSS_InventoryGridManager::TryAddItemAtGivenIndex(
 		ItemGuid,
 		ItemGridDimensions,
 		Item->IsStackable() ? StackCount : 0);
-	
+
 	MarkGridStateDirty(*GridState);
 	OnGridChanged.Broadcast(ItemCategory);
 	return true;
@@ -103,30 +142,6 @@ void UInvSS_InventoryGridManager::WriteItemAtIndex(
 	GridState.SlotStates[Index].SlotStackCount = StackCount;
 }
 
-void UInvSS_InventoryGridManager::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
-{
-	UObject::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ThisClass, GridStatesArray);
-}
-
-void UInvSS_InventoryGridManager::Initialize( const TArray<FInvSS_GridConfig>& InConfigArray)
-{
-	check(InConfigArray.Num() > 0 );
-	
-	for (const FInvSS_GridConfig& Config : InConfigArray)
-	{
-		FInvSS_InventoryGridState& GridState = GridStatesArray.AddDefaulted_GetRef();
-		GridState.GridConfiguration = Config;
-		GridState.ReplicationRevision = 0;
-		GridState.SlotStates.SetNum(Config.NumSlots());
-	}
-}
-
-UInvSS_InventoryComponent* UInvSS_InventoryGridManager::GetInventoryComponent() const
-{
-	return GetTypedOuter<UInvSS_InventoryComponent>();
-}
-
 bool UInvSS_InventoryGridManager::FindRoomForItem(
 	const FInvSS_ItemManifest& InItemManifest,
 	UInvSS_InventoryItem* ExistingStackItem,
@@ -141,11 +156,11 @@ bool UInvSS_InventoryGridManager::FindRoomForItem(
 	const int32 MaxStackSize = StackableFragment ? StackableFragment->GetMaxStackSize() : 1;
 	int32 AmountToFill = StackableFragment ? StackableFragment->GetStackCount() : 1;
 	const FIntPoint ItemGridDimensions = GetItemGridDimensions(InItemManifest);
-	
+
 	const EInvSS_ItemCategory ItemCategory = InItemManifest.GetItemCategory();
 	const TArray<FInvSS_GridSlotState>* SlotsStateArray = GetSlotStateArrayByType(ItemCategory);
 	const FInvSS_GridConfig* GridConfig = GetGridConfigByType(ItemCategory);
-	checkf(SlotsStateArray && GridConfig, TEXT("No matching Inventory Grid for Item Category: %s "), *UEnum::GetValueAsString(ItemCategory)); 
+	checkf(SlotsStateArray && GridConfig, TEXT("No matching Inventory Grid for Item Category: %s "), *UEnum::GetValueAsString(ItemCategory));
 	const FIntPoint GridDimensions(GridConfig->Columns, GridConfig->Rows);
 
 	TSet<int32> CheckedSlotIndices;
@@ -190,38 +205,6 @@ bool UInvSS_InventoryGridManager::FindRoomForItem(
 	return OutResult.TotalRoomToFill > 0;
 }
 
-void UInvSS_InventoryGridManager::OnRep_GridStates()
-{
-	for (const FInvSS_InventoryGridState& GridState : GridStatesArray)
-	{
-		if (ShouldBroadcastReplicatedGridState(GridState))
-		{
-			OnGridChanged.Broadcast(GridState.GridConfiguration.Category);
-		}
-	}
-}
-
-void UInvSS_InventoryGridManager::MarkGridStateDirty(FInvSS_InventoryGridState& GridState)
-{
-	++GridState.ReplicationRevision;
-}
-
-bool UInvSS_InventoryGridManager::ShouldBroadcastReplicatedGridState(
-	const FInvSS_InventoryGridState& GridState)
-{
-	const EInvSS_ItemCategory Category = GridState.GridConfiguration.Category;
-	const uint32 NewRevision = GridState.ReplicationRevision;
-
-	const uint32* LastSeenRevision = LastSeenGridRevisions.Find(Category);
-	if (LastSeenRevision && *LastSeenRevision == NewRevision)
-	{
-		return false;
-	}
-
-	LastSeenGridRevisions.Add(Category, NewRevision);
-	return true;
-}
-
 FIntPoint UInvSS_InventoryGridManager::GetItemGridDimensions(const FInvSS_ItemManifest& InItemManifest)
 {
 	const FInvSS_GridFragment* GridFragment = InItemManifest.GetFragmentOfTypeWithTag<FInvSS_GridFragment>(ItemFragmentTag::GridFragment);
@@ -234,7 +217,7 @@ bool UInvSS_InventoryGridManager::HasRoomAtIndex(
 	const int32 StartIndex,
 	const FIntPoint& GridDimensions,
 	const TSet<int32>& CheckedSlotIndices,
-	const FGameplayTag& ItemTypeTag, 
+	const FGameplayTag& ItemTypeTag,
 	const int32 MaxStackSize,
 	TSet<int32>& OutTentativeIndices
 	) const
@@ -266,14 +249,14 @@ bool UInvSS_InventoryGridManager::CheckSlotConstraints(
 	const int32 MaxStackSize) const
 {
 	const UInvSS_InventoryComponent* InventoryComponent = GetInventoryComponent();
-	check(InventoryComponent); 
+	check(InventoryComponent);
 	if (CheckedSlotIndices.Contains(SubIndex)) return false;
 	if (!SlotStateArray.IsValidIndex(SubIndex)) return false;
 	if (!SlotStateArray[SubIndex].OccupiedByItem()) return true;
 	if (SlotStateArray[SubIndex].ParentIndex != StartIndex) return false;
 
 	const FGuid& ID_InventoryItemAtSubIndex =  SlotStateArray[SubIndex].ID_InventoryItemAtThisSlot;
-	const UInvSS_InventoryItem* Item = InventoryComponent->GetInventoryItemByID(ID_InventoryItemAtSubIndex); 
+	const UInvSS_InventoryItem* Item = InventoryComponent->GetInventoryItemByID(ID_InventoryItemAtSubIndex);
 	if (!IsValid(Item) || !Item->IsStackable()) return false;
 	if (!Item->GetItemManifest().GetItemTypeTag().MatchesTagExact(ItemTypeTag)) return false;
 	if (GetSlotStackAmount(SlotStateArray, SubIndex) >= MaxStackSize) return false;
@@ -304,7 +287,7 @@ int32 UInvSS_InventoryGridManager::DetermineFillAmount(const TArray<FInvSS_GridS
 void UInvSS_InventoryGridManager::ApplyAvailability(UInvSS_InventoryItem* InItem, const FInvSS_BagAvailabilityResult& InResult)
 {
 	if (!IsValid(InItem)) return;
-	
+
 	const EInvSS_ItemCategory ItemCategory = InItem->GetItemManifest().GetItemCategory();
 	FInvSS_InventoryGridState* GridState = GetMutableGridState(ItemCategory);
 	checkf(GridState, TEXT("No matching Inventory Grid for Item Category: %s "), *UEnum::GetValueAsString(ItemCategory));
@@ -315,7 +298,7 @@ void UInvSS_InventoryGridManager::ApplyAvailability(UInvSS_InventoryItem* InItem
 	{
 		const int32 ParentIndex = Availability.SlotIndex;
 		checkf(GridState->SlotStates.IsValidIndex(ParentIndex), TEXT("Result contains  invalid availability data"));
-		
+
 		checkf(UInvSS_WidgetUtils::IsRangeInGridBounds(ParentIndex, GridDimensions, ItemGridDimensions),
 			TEXT("Availability result contains an invalid item footprint."));
 
@@ -444,6 +427,38 @@ bool UInvSS_InventoryGridManager::TryReplaceStackCountAtParentIndex(
 	return true;
 }
 
+void UInvSS_InventoryGridManager::OnRep_GridStates()
+{
+	for (const FInvSS_InventoryGridState& GridState : GridStatesArray)
+	{
+		if (ShouldBroadcastReplicatedGridState(GridState))
+		{
+			OnGridChanged.Broadcast(GridState.GridConfiguration.Category);
+		}
+	}
+}
+
+bool UInvSS_InventoryGridManager::ShouldBroadcastReplicatedGridState(
+	const FInvSS_InventoryGridState& GridState)
+{
+	const EInvSS_ItemCategory Category = GridState.GridConfiguration.Category;
+	const uint32 NewRevision = GridState.ReplicationRevision;
+
+	const uint32* LastSeenRevision = LastSeenGridRevisions.Find(Category);
+	if (LastSeenRevision && *LastSeenRevision == NewRevision)
+	{
+		return false;
+	}
+
+	LastSeenGridRevisions.Add(Category, NewRevision);
+	return true;
+}
+
+void UInvSS_InventoryGridManager::MarkGridStateDirty(FInvSS_InventoryGridState& GridState)
+{
+	++GridState.ReplicationRevision;
+}
+
 const FInvSS_InventoryGridState* UInvSS_InventoryGridManager::GetGridState(const EInvSS_ItemCategory Category) const
 {
 	check(GridStatesArray.Num() > 0);
@@ -451,7 +466,7 @@ const FInvSS_InventoryGridState* UInvSS_InventoryGridManager::GetGridState(const
 	{
 		if (GridState.GridConfiguration.Category == Category)
 		{
-			return &GridState; 
+			return &GridState;
 		}
 	}
 	return nullptr;
@@ -464,7 +479,7 @@ FInvSS_InventoryGridState* UInvSS_InventoryGridManager::GetMutableGridState(cons
 	{
 		if (GridState.GridConfiguration.Category == Category)
 		{
-			return &GridState; 
+			return &GridState;
 		}
 	}
 	return nullptr;
@@ -489,4 +504,9 @@ const FInvSS_GridConfig* UInvSS_InventoryGridManager::GetGridConfigByType(
 {
 	const FInvSS_InventoryGridState* GridState = GetGridState(Category);
 	return GridState ? &GridState->GridConfiguration : nullptr;
+}
+
+const TArray<FInvSS_InventoryGridState>& UInvSS_InventoryGridManager::GetGridStatesArray() const
+{
+	return GridStatesArray;
 }

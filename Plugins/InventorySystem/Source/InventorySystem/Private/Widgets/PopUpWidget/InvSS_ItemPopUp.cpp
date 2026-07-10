@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 
 #include "InvSS_ItemPopUp.h"
@@ -22,6 +22,11 @@ int32 UInvSS_ItemPopUp::GetSplitAmount() const
 	return FMath::FloorToInt32(Slider_Split->GetValue());
 }
 
+int32 UInvSS_ItemPopUp::GetGridIndex() const
+{
+	return GridIndex;
+}
+
 void UInvSS_ItemPopUp::SetSliderParams(const float Max, const float Value) const
 {
 	Slider_Split->SetMaxValue(Max);
@@ -30,13 +35,23 @@ void UInvSS_ItemPopUp::SetSliderParams(const float Max, const float Value) const
 	Text_SplitAmount->SetText(FText::AsNumber(FMath::FloorToInt32(Value)));
 }
 
+void UInvSS_ItemPopUp::SetGridIndex(const int32 InIndex)
+{
+	GridIndex = InIndex;
+}
+
+void UInvSS_ItemPopUp::SetItemCategory(const EInvSS_ItemCategory InCategory)
+{
+	ItemCategory = InCategory;
+}
+
 void UInvSS_ItemPopUp::NativeWidgetControllerSet()
 {
 	Button_Split->OnClicked.AddDynamic(this, &UInvSS_ItemPopUp::SplitButtonClicked);
 	Button_Drop->OnClicked.AddDynamic(this, &UInvSS_ItemPopUp::DropButtonClicked);
 	Button_Consume->OnClicked.AddDynamic(this, &UInvSS_ItemPopUp::ConsumeButtonClicked);
-	Slider_Split->OnValueChanged.AddDynamic(this, &UInvSS_ItemPopUp::OnSliderChange); 
-	
+	Slider_Split->OnValueChanged.AddDynamic(this, &UInvSS_ItemPopUp::OnSliderChange);
+
 	CachedInventoryWidgetController = CastChecked<UInvSS_InventoryWidgetController>(WidgetController);
 }
 
@@ -44,9 +59,9 @@ void UInvSS_ItemPopUp::SplitButtonClicked()
 {
 	if (ItemCategory == EInvSS_ItemCategory::None || GridIndex == INDEX_NONE) return;
 	if (!CachedInventoryWidgetController.IsValid()) return;
-	
+
 	const int32 CurrentSplitBarVal = FMath::FloorToInt32(Slider_Split->GetValue());
-	CachedInventoryWidgetController->RequestBeginSplit(ItemCategory,GridIndex, CurrentSplitBarVal); 
+	CachedInventoryWidgetController->RequestBeginSplit(ItemCategory,GridIndex, CurrentSplitBarVal);
 	RemoveFromParent();
 }
 
@@ -77,7 +92,7 @@ void UInvSS_ItemPopUp::ResetOptions()
 {
 	GridIndex = INDEX_NONE;
 	ItemCategory = EInvSS_ItemCategory::None;
-	
+
 	Button_Split->SetVisibility(ESlateVisibility::Visible);
 	Slider_Split->SetVisibility(ESlateVisibility::Visible);
 	Text_SplitAmount->SetVisibility(ESlateVisibility::Visible);

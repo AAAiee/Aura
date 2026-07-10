@@ -25,7 +25,7 @@ void UInvSS_SpatialInventory::NativeOnInitialized()
 	Button_Consumable->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowConsumables);
 	Button_Craftable->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowCraftables);
 	Button_Equippable->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowEquippables);
-	
+
 	Grid_Consumables->SetItemCategory(EInvSS_ItemCategory::Consumable);
 	Grid_Craftables->SetItemCategory(EInvSS_ItemCategory::Craftable);
 	Grid_Equippables->SetItemCategory(EInvSS_ItemCategory::Equippable);

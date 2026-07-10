@@ -4,7 +4,6 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "NiagaraMeshRendererProperties.h"
 
 void UAuraDamageGameplayAbility::CauseDamage(AActor* TargetActor)
 {
@@ -95,7 +94,6 @@ FDamageEffectParameters UAuraDamageGameplayAbility::MakeDamageEffectParametersFr
 			Parameters.DeathImpulse = DeathImpulseRotation.Vector() * DeathImpulseMagnitude;
 		}
 	}
-	
 	
 	/* Calculate a default value for death impulse and knockback force if target is valid*/
 	if (bIsRadialDamage)

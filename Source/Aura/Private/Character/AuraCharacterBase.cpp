@@ -65,6 +65,16 @@ void AAuraCharacterBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProper
 	DOREPLIFETIME(AAuraCharacterBase, bIsBeingShocked);
 }
 
+UAbilitySystemComponent* AAuraCharacterBase::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
+UAttributeSet* AAuraCharacterBase::GetAttributeSet() const
+{
+	return AttributeSet;
+}
+
 void AAuraCharacterBase::AddStartupGameAbilities()
 {
 	// Startup abilities are authoritative gameplay state, so only the server grants them.
@@ -107,6 +117,16 @@ AActor* AAuraCharacterBase::GetAvatar_Implementation()
 	return this;
 }
 
+TArray<FTaggedMontage> AAuraCharacterBase::GetAttackMontages_Implementation() const
+{
+	return AttackMontages;
+}
+
+UNiagaraSystem* AAuraCharacterBase::GetBloodEffect_Implementation() const
+{
+	return BloodEffect;
+}
+
 FTaggedMontage AAuraCharacterBase::GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const
 {
 	for (const FTaggedMontage& TaggedMontage : AttackMontages)
@@ -121,6 +141,16 @@ FTaggedMontage AAuraCharacterBase::GetTaggedMontageForTag_Implementation(const F
 	return FTaggedMontage();
 }
 
+int32 AAuraCharacterBase::GetMinionCount_Implementation() const
+{
+	return MinionCount;
+}
+
+void AAuraCharacterBase::IncrementMinionCount_Implementation(int32 IncrementBy)
+{
+	MinionCount += IncrementBy;
+}
+
 void AAuraCharacterBase::Die(const FVector& DeathImpulse)
 {
 	// The authority-side entry point detaches the weapon first so the death presentation is no
@@ -129,11 +159,6 @@ void AAuraCharacterBase::Die(const FVector& DeathImpulse)
 	Weapon->DetachFromComponent(DetachmentRules);
 
 	MulticastHandleDeath(DeathImpulse);
-}
-
-void AAuraCharacterBase::SetBeingShocked_Implementation(bool bInBeingShocked)
-{
-	bIsBeingShocked = bInBeingShocked;
 }
 
 void AAuraCharacterBase::MulticastHandleDeath_Implementation(const FVector& DeathImpulse)
@@ -192,6 +217,26 @@ void AAuraCharacterBase::Dissolve()
 	}
 }
 
+ECharacterClass AAuraCharacterBase::GetCharacterClass_Implementation() const
+{
+	return CharacterClass;
+}
+
+USkeletalMeshComponent* AAuraCharacterBase::GetWeaponMesh_Implementation()
+{
+	return Weapon;
+}
+
+void AAuraCharacterBase::SetBeingShocked_Implementation(bool bInBeingShocked)
+{
+	bIsBeingShocked = bInBeingShocked;
+}
+
+bool AAuraCharacterBase::IsBeingShocked_Implementation() const
+{
+	return bIsBeingShocked;
+}
+
 FOnAbilitySystemComponentRegistered& AAuraCharacterBase::GetOnAscRegisteredDelegate()
 {
 	return  OnAscRegisteredDelegate;
@@ -220,6 +265,18 @@ void AAuraCharacterBase::BeginPlay()
 	MontageTagToSocketLocation.Add(FAuraGameTagManager::Get().CombatSocket_TailTip, TailTipSocketName);
 }
 
+void AAuraCharacterBase::InitAbilityActorInfo()
+{
+}
+
+void AAuraCharacterBase::InitDefaultAttributes()
+{
+	// Default attribute effects are ordered so later sets can depend on values initialized earlier.
+	ApplyGameEffectToSelf(PrimaryAttributeInitGE, 1.0f);
+	ApplyGameEffectToSelf(SecondaryAttributeInitGE, 1.0f);
+	ApplyGameEffectToSelf(VitalAttributeInitGE, 1.0f);
+}
+
 void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const
 {
 	checkf(GameplayEffectClass, TEXT("GameplayEffectClass should be set in blueprint"));
@@ -231,14 +288,6 @@ void AAuraCharacterBase::ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> Game
 	{
 		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
-}
-
-void AAuraCharacterBase::InitDefaultAttributes()
-{
-	// Default attribute effects are ordered so later sets can depend on values initialized earlier.
-	ApplyGameEffectToSelf(PrimaryAttributeInitGE, 1.0f);
-	ApplyGameEffectToSelf(SecondaryAttributeInitGE, 1.0f);
-	ApplyGameEffectToSelf(VitalAttributeInitGE, 1.0f);
 }
 
 void AAuraCharacterBase::OnRep_Stunned()

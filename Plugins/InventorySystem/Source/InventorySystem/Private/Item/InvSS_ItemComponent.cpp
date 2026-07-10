@@ -11,8 +11,13 @@
 UInvSS_ItemComponent::UInvSS_ItemComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	
+
 	SetIsReplicatedByDefault(true);
+}
+
+FInvSS_ItemManifest UInvSS_ItemComponent::GetItemManifest() const
+{
+	return ItemManifest;
 }
 
 bool UInvSS_ItemComponent::TrySetStackCount(const int32 InStackCount)

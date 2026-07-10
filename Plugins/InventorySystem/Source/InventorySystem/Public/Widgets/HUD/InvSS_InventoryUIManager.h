@@ -7,11 +7,13 @@
 #include "UObject/Object.h"
 #include "InvSS_InventoryUIManager.generated.h"
 
+class UInvSS_ItemDescriptionWindow;
 class UInvSS_InfoMessageWidget;
 class UInvSS_InventoryBase;
 class UInvSS_InventoryComponent;
 class UInvSS_InventoryWidgetController;
 class UInvSS_ItemPopUp;
+struct FInvSS_GridSlotViewData;
 
 /**
  * UInvSS_InventoryUIManager
@@ -27,7 +29,7 @@ class INVENTORYSYSTEM_API UInvSS_InventoryUIManager : public UObject
 	GENERATED_BODY()
 
 public:
-	UInvSS_InventoryUIManager() = default; 
+	UInvSS_InventoryUIManager() = default;
 
 	/**
 	 * @brief Caches local UI dependencies and constructs the inventory menu.
@@ -45,6 +47,10 @@ public:
 	void ShowPopUpMessageWidget(const FText& InText);
 	void ShowItemPopUpWindow(EInvSS_ItemCategory ItemCategory, int32 WindowAppearAtSlotIndex, bool bIsItemStackable,
 	                         int32 SlotStackCount, bool bCanConsume);
+	void HideItemPopUpWindow();
+
+	void ShowItemDescriptionWindow(EInvSS_ItemCategory ItemCategory, const FInvSS_GridSlotViewData& SlotViewData);
+	void HideItemDescriptionWindow();
 
 protected:
 	UPROPERTY()
@@ -55,9 +61,16 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<UInvSS_InfoMessageWidget> InventoryMessageWidgetClass = nullptr;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<UInvSS_ItemPopUp>  ItemPopUpWindowClass = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
+	TSubclassOf<UInvSS_ItemDescriptionWindow> ItemDescriptionWindowWidgetClass = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
+	float DescriptionTimerDelay = 0.5f;
+
 
 private:
 	void ConstructInventoryMenu();
@@ -77,7 +90,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInvSS_InfoMessageWidget> InventoryMessageWidget = nullptr;
-	
-	UPROPERTY(Transient) 
+
+	UPROPERTY(Transient)
 	TObjectPtr<UInvSS_ItemPopUp> ItemPopUpWindow = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInvSS_ItemDescriptionWindow> ItemDescriptionWindowWidget;
+
+	FTimerHandle ItemDescriptionWindowDelayTimerHandle;
 };

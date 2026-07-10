@@ -28,9 +28,9 @@ public:
 	 * @brief Converts a flat array index into a 2D grid coordinate.
 	 */
 	static FIntPoint GetPositionFromIndex(const int32 InIndex, const int32 InTotalColumns);
-	
+
 	static FVector2D GetWidgetPosition(UWidget* Widget);
-	
+
 	static FVector2D GetWidgetSize(const UWidget* Widget);
 
 	static bool TryGetMousePositionInWidgetLocal(const UWidget* Widget, FVector2D& OutLocalPosition);
@@ -43,8 +43,13 @@ public:
 		const FIntPoint& Coordinate,
 		const FIntPoint& Dimensions,
 		EInvSS_TileQuadrant Quadrant);
-	
+
 	static bool IsRangeInGridBounds(int32 StartIndex, const FIntPoint& GridDimensions, const FIntPoint& Extent);
-	
+
 	static bool IsPositionInBounds(const FVector2D& BoundaryPos, const FVector2D& BoundarySize, const FVector2D& Position);
+
+	static FVector2D GetClampedWidgetPosition(
+		const FVector2D& BoundarySize,
+		const FVector2D& WidgetSize,
+		const FVector2D& DesiredPosition);
 };

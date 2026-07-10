@@ -77,10 +77,10 @@ public:
 
 	/** Override to broadcast current attribute values to the UI on startup. */
 	UFUNCTION(BlueprintCallable)
-	virtual void BroadcastInitialValues() {}
+	virtual void BroadcastInitialValues();
 
 	/** Override to bind delegates to ASC attribute changes, GE events, etc. */
-	virtual void BindAllDependencies() {}
+	virtual void BindAllDependencies();
 
 	UFUNCTION(BlueprintPure)
 	AActor* GetAvatarActor() const;

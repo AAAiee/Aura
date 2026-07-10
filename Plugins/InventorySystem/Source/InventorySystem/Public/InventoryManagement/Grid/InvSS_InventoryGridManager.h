@@ -10,6 +10,9 @@
 
 class UInvSS_InventoryComponent;
 
+/**
+ * Static layout configuration for one inventory category grid.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_GridConfig
 {
@@ -23,17 +26,20 @@ struct FInvSS_GridConfig
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory", meta = (ClampMin = "1"))
 	int32 Columns = 8;
-	
-	int32 NumSlots() const { return Rows * Columns;}
+
+	int32 NumSlots() const;
 };
 
+/**
+ * Replicated model state for one spatial slot in an inventory category grid.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_GridSlotState
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FGuid ID_InventoryItemAtThisSlot; 
+	FGuid ID_InventoryItemAtThisSlot;
 
 	UPROPERTY()
 	int32 ParentIndex = INDEX_NONE;
@@ -41,10 +47,13 @@ struct FInvSS_GridSlotState
 	UPROPERTY()
 	int32 SlotStackCount = 0;
 
-	bool OccupiedByItem() const { return ID_InventoryItemAtThisSlot.IsValid(); }
+	bool OccupiedByItem() const;
 	void Reset();
 };
 
+/**
+ * Replicated spatial layout for one inventory category.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_InventoryGridState
 {
@@ -55,18 +64,32 @@ struct FInvSS_InventoryGridState
 
 	UPROPERTY()
 	uint32 ReplicationRevision = 0;
-	
-	UPROPERTY() 
+
+	UPROPERTY()
 	TArray<FInvSS_GridSlotState> SlotStates;
 };
 
+/**
+ * UInvSS_InventoryGridManager
+ *
+ * Owns replicated spatial inventory layout data for one inventory component.
+ *
+ * The manager is the model-side counterpart to inventory grid widgets. It validates room,
+ * writes slot occupancy, tracks per-category grid revision changes, and broadcasts category
+ * changes so local UI can redraw from replicated state.
+ *
+ * Networking:
+ *   - Server mutates GridStatesArray.
+ *   - Clients receive GridStatesArray through UObject subobject replication.
+ *   - OnRep_GridStates broadcasts only categories whose replication revision changed.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class INVENTORYSYSTEM_API UInvSS_InventoryGridManager : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool IsSupportedForNetworking() const override { return true; }
+	virtual bool IsSupportedForNetworking() const override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	void Initialize(const TArray<FInvSS_GridConfig>& InConfigArray);
 	bool FindRoomForItem(
@@ -74,7 +97,7 @@ public:
 		UInvSS_InventoryItem* ExistingStackItem,
 		FInvSS_BagAvailabilityResult& OutResult) const;
 	void ApplyAvailability(UInvSS_InventoryItem* InItem, const FInvSS_BagAvailabilityResult& InResult);
-	
+
 	bool TryRemoveItemAtParentIndex(
 		EInvSS_ItemCategory Category,
 		int32 ParentIndex,
@@ -88,18 +111,18 @@ public:
 		int32 ParentIndex,
 		int32 NewStackCount,
 		int32& OutPreviousStackCount);
-	
+
 	const FInvSS_InventoryGridState* GetGridState(const EInvSS_ItemCategory Category) const;
 	FInvSS_InventoryGridState* GetMutableGridState(const EInvSS_ItemCategory Category);
 	const TArray<FInvSS_GridSlotState>* GetSlotStateArrayByType(const EInvSS_ItemCategory Category) const;
 	TArray<FInvSS_GridSlotState>* GetMutableSlotStateArrayByType(const EInvSS_ItemCategory Category);
 	const FInvSS_GridConfig* GetGridConfigByType(const EInvSS_ItemCategory Category) const;
-	const TArray<FInvSS_InventoryGridState>& GetGridStatesArray() const { return GridStatesArray; }
+	const TArray<FInvSS_InventoryGridState>& GetGridStatesArray() const;
 	UInvSS_InventoryComponent* GetInventoryComponent() const;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInvSS_GridChangedSignature, EInvSS_ItemCategory);
 	FInvSS_GridChangedSignature OnGridChanged;
-	
+
 private:
 	static FIntPoint GetItemGridDimensions(const FInvSS_ItemManifest& InItemManifest);
 	static int32 GetSlotStackAmount(const TArray<FInvSS_GridSlotState>& SlotStateArray, const int32 SlotIndex);
@@ -109,7 +132,7 @@ private:
 	                                     const FIntPoint& ItemGridDimensions);
 	static void WriteItemAtIndex(FInvSS_InventoryGridState& GridState, int32 Index, const FGuid& ItemGuid,
 	                             const FIntPoint& ItemGridDimensions, int32 StackCount);
-	
+
 	bool HasRoomAtIndex(const TArray<FInvSS_GridSlotState>& SlotStateArray, const FInvSS_GridConfig& GridConfig,
 	                    int32 StartIndex, const FIntPoint& GridDimensions, const TSet<int32>& CheckedSlotIndices,
 	                    const FGameplayTag& ItemTypeTag, int32 MaxStackSize, TSet<int32>& OutTentativeIndices) const;
@@ -126,7 +149,7 @@ private:
 
 	UFUNCTION()
 	void OnRep_GridStates();
-	
+
 	UPROPERTY(ReplicatedUsing = OnRep_GridStates)
 	TArray<FInvSS_InventoryGridState> GridStatesArray;
 

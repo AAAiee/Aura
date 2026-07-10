@@ -13,6 +13,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInvSS_ItemChangedSignature, UInvSS_
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInvSS_InventoryGridChangedSignature, EInvSS_ItemCategory, InItemCategory);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInvSS_HeldItemChangedSignature, FInvSS_HeldItemState, HeldItemState);
 
+/**
+ * Widget-friendly view of one inventory grid slot.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_GridSlotViewData
 {
@@ -37,6 +40,9 @@ struct FInvSS_GridSlotViewData
 	bool bParentSlot = false;
 };
 
+/**
+ * Cached widget-friendly view of one category grid.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_InventoryGridViewData
 {
@@ -80,7 +86,7 @@ public:
 		const FIntPoint& ItemDimensions,
 		FInvSS_SpaceQueryResult& OutResult
 		);
-	
+
 	void RequestPutDownHeldITemAtIndex(EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex);
 	void RequestInteractHeldItemWithItemUnderCursor(
 		EInvSS_ItemCategory ItemCategory,
@@ -92,6 +98,9 @@ public:
 	void RequestDropItem(EInvSS_ItemCategory ItemCategory, int32 ParentIndex);
 	void RequestConsumeItem(EInvSS_ItemCategory ItemCategory, int32 ParentIndex);
 	bool RequestDropHeldItem();
+
+	void RequestShowItemDescription(UInvSS_InventoryItem* InventoryItem, int32 ParentIndex);
+	void RequestHideItemDescription();
 
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
@@ -125,6 +134,7 @@ private:
 	bool RebuildGridViewData(EInvSS_ItemCategory ItemCategory);
 	void InvalidateGridViewData(EInvSS_ItemCategory ItemCategory);
 	void InvalidateAllGridViewData();
+	void HideTransientItemWindows();
 
 	UPROPERTY(Transient)
 	TMap<EInvSS_ItemCategory, FInvSS_InventoryGridViewData> CachedGridViewData;

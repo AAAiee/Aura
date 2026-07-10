@@ -5,6 +5,11 @@
 
 #include "UI/WidgetController/AttributeMenuWidgetController.h"
 
+FVector2D UAuraAttributeMenuWidget::GetInitialPosition() const
+{
+	return FVector2D(OnScreenPositionX, OnScreenPositionY);
+}
+
 void UAuraAttributeMenuWidget::ShowAttributeMenu()
 {
 	// The HUD creates the widget once; showing it again only restores visibility.

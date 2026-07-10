@@ -22,6 +22,13 @@ void UAuraWidgetController::SetWidgetControllerParams(const FWidgetControllerPar
 	CachedAttributeSet = Parameters.AttributeSet;
 }
 
+void UAuraWidgetController::BroadcastInitialValues()
+{
+}
+
+void UAuraWidgetController::BindAllDependencies()
+{
+}
 
 AActor* UAuraWidgetController::GetAvatarActor() const
 {

@@ -4,6 +4,7 @@
 #include "NativeGameplayTags.h"
 #include "InvSS_ItemFragment.generated.h"
 
+class UInvSS_CompositeBase;
 class APlayerController;
 class UGameplayEffect;
 
@@ -23,12 +24,28 @@ public:
 	FInvSS_ItemFragment(const FInvSS_ItemFragment&) = default;
 	virtual ~FInvSS_ItemFragment() = default;
 
-	FGameplayTag GetFragmentTag() const { return FragmentTag; }
+	FGameplayTag GetFragmentTag() const;
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Item Properties", meta = (Categories = "ItemFragmentTag"))
 	FGameplayTag FragmentTag = FGameplayTag::EmptyTag;
 };
+
+/**
+ * Base fragment for item data that can assimilate into an item description composite widget.
+ */
+USTRUCT(BlueprintType)
+struct FInvSS_InventoryItemFragment : public FInvSS_ItemFragment
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool Assimilate(UInvSS_CompositeBase* Composite) const;
+
+protected:
+	bool MatchesFragmentTag(const UInvSS_CompositeBase* CompositeBase) const;
+};
+
 
 /**
  * Stores spatial grid size and padding for inventory rendering and placement.
@@ -39,8 +56,8 @@ struct FInvSS_GridFragment : public FInvSS_ItemFragment
 	GENERATED_BODY()
 
 public:
-	FIntPoint GetGridSize() const { return GridSize; }
-	float GetGridPadding() const { return GridPadding; }
+	FIntPoint GetGridSize() const;
+	float GetGridPadding() const;
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Item Properties")
@@ -54,21 +71,76 @@ private:
  * Stores the icon texture used by slotted inventory item widgets.
  */
 USTRUCT(BlueprintType)
-struct FInvSS_ImageFragment : public FInvSS_ItemFragment
+struct FInvSS_ImageFragment : public FInvSS_InventoryItemFragment
 {
 	GENERATED_BODY()
 
 public:
-	FORCEINLINE const UTexture2D* GetImage() const { return Image; }
-	FORCEINLINE UTexture2D* GetImageResource() const { return Image.Get(); }
-	TObjectPtr<UTexture2D> GetMutableImage() { return Image; }
+	virtual bool Assimilate(UInvSS_CompositeBase* Composite) const override;
+	FORCEINLINE const UTexture2D* GetImage() const { return Icon; }
+	FORCEINLINE UTexture2D* GetImageResource() const { return Icon.Get(); }
+	TObjectPtr<UTexture2D> GetMutableImage();
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Item Properties")
-	TObjectPtr<UTexture2D> Image{nullptr};
+	TObjectPtr<UTexture2D> Icon{nullptr};
 
+	UPROPERTY(EditAnywhere,Category = "Item Properties")
 	FVector2D IconDimensions{44.4f, 44.4f};
 };
+
+
+/**
+ * Stores text content for item description composite widgets.
+ */
+USTRUCT(BlueprintType)
+struct FInvSS_TextFragment : public FInvSS_InventoryItemFragment
+{
+	GENERATED_BODY()
+
+	void SetText(const FText& InText);
+	FText GetText() const;
+	virtual bool Assimilate(UInvSS_CompositeBase* Composite) const override;
+
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	FText FragmentText;
+};
+
+
+/**
+ * Stores a label/value pair for numeric item description rows.
+ */
+USTRUCT(BlueprintType)
+struct FInvSS_LabeledNumberFragment : public FInvSS_InventoryItemFragment
+{
+	GENERATED_BODY()
+
+	virtual bool Assimilate(UInvSS_CompositeBase* Composite) const override;
+
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	FText Text_Label{};
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	float  Text_Value{};
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	bool bCollapsedLabel{false};
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	bool bCollapsedValue{false};
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	int32 MinFractionalDigits{1};
+
+	UPROPERTY(EditAnywhere, Category = "Item Properties")
+	int32 MaxFractionalDigits{1};
+};
+
+
 
 /**
  * Stores stack size rules and the pickup stack count.

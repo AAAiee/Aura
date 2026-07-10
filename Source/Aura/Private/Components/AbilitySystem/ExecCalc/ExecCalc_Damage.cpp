@@ -8,7 +8,6 @@
 #include "Components/AbilitySystem/AuraAttributeSet.h"
 #include "Engine/CurveTable.h"
 #include "Interaction/CombatInterface.h"
-#include "Kismet/GameplayStatics.h"
 
 // Centralizes every captured attribute this execution needs so the constructor and Execute()
 // stay in sync on which combat stats participate in damage resolution.

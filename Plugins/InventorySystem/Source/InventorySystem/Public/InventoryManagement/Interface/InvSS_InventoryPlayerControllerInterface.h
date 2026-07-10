@@ -8,6 +8,9 @@
 
 class UInvSS_InventoryComponent;
 
+/**
+ * Reflection shell for player controllers that expose inventory access.
+ */
 UINTERFACE(MinimalAPI, BlueprintType, NotBlueprintable)
 class UInvSS_InventoryPlayerControllerInterface : public UInterface
 {

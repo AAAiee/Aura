@@ -193,16 +193,6 @@ void AAuraEnemy::InitDefaultAttributes()
 	UAuraAbilitySystemLibrary::InitializeDefaultAttributes(this, CharacterClass, AbilitySystemComponent, EnemyLevel);
 }
 
-void AAuraEnemy::OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
-{
-	Super::OnStunTagChanged(CallbackTag, NewCount);
-	
-	if (AuraAIController && AuraAIController->GetBlackboardComponent())
-	{
-		AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("IsStunned"), bIsStunned);
-	}
-}
-
 void AAuraEnemy::InitializeStatusWidget()
 {
 	check(HealthBarComponent);
@@ -211,6 +201,16 @@ void AAuraEnemy::InitializeStatusWidget()
 	// to the actor-facing ASC and AttributeSet that already replicate authoritative combat data.
 	const FWidgetControllerParameters Parameters(nullptr, nullptr, AbilitySystemComponent, AttributeSet);
 	HealthBarComponent->InitializeWidgetController(Parameters);
+}
+
+void AAuraEnemy::OnStunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	Super::OnStunTagChanged(CallbackTag, NewCount);
+
+	if (AuraAIController && AuraAIController->GetBlackboardComponent())
+	{
+		AuraAIController->GetBlackboardComponent()->SetValueAsBool(FName("IsStunned"), bIsStunned);
+	}
 }
 
 void AAuraEnemy::OnHitReactTagChanged(const FGameplayTag GameplayTag, int32 NewCount)

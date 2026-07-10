@@ -23,7 +23,7 @@ public:
 
 	/** Editor-configured default spawn point used the first time the HUD creates the widget. */
 	UFUNCTION(BlueprintPure)
-	FVector2D GetInitialPosition() const { return FVector2D(OnScreenPositionX, OnScreenPositionY); }
+	FVector2D GetInitialPosition() const;
 
 	/** Broadcast when HUD show/hide changes this floating window's visible state. */
 	UPROPERTY(BlueprintAssignable, Category = "Spell Menu")

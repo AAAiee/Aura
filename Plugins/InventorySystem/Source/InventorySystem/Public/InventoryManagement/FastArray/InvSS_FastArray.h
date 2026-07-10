@@ -67,10 +67,10 @@ public:
 	 * @brief Finds the first valid item with the exact item type tag.
 	 */
 	UInvSS_InventoryItem* FindFirstItemByType(const FGameplayTag& ItemType) const;
-	
-	const UInvSS_InventoryItem* FindItemByID(const FGuid& ID) const; 
+
+	const UInvSS_InventoryItem* FindItemByID(const FGuid& ID) const;
 	UInvSS_InventoryItem* FindMutableItemByID(const FGuid& ID);
-	
+
 
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParams)
 	{

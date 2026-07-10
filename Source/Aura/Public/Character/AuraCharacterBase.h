@@ -9,8 +9,6 @@
 #include "Interaction/CombatInterface.h"
 #include "AuraCharacterBase.generated.h"
 
-
-
 class UPassiveNiagaraComponent;
 class UDebuffNiagaraComponent;
 class UAnimMontage;
@@ -46,11 +44,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/* Ability System Access */
-	// Required by GAS so generic systems can resolve the character's ASC through the interface.
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
-
-	// Convenience accessor used by widgets and gameplay code that need the concrete AttributeSet pointer.
-	UAttributeSet* GetAttributeSet() const { return AttributeSet; }
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	UAttributeSet* GetAttributeSet() const;
 
 	/* Startup */
 	void AddStartupGameAbilities();
@@ -60,16 +55,16 @@ public:
 	virtual UAnimMontage* GetHitReactMontage_Implementation() override;
 	virtual bool IsDead_Implementation() const override;
 	virtual AActor* GetAvatar_Implementation() override;
-	virtual TArray<FTaggedMontage> GetAttackMontages_Implementation() const override { return AttackMontages; }
-	virtual UNiagaraSystem* GetBloodEffect_Implementation() const override { return BloodEffect; }
+	virtual TArray<FTaggedMontage> GetAttackMontages_Implementation() const override;
+	virtual UNiagaraSystem* GetBloodEffect_Implementation() const override;
 	virtual FTaggedMontage GetTaggedMontageForTag_Implementation(const FGameplayTag& MontageTag) const override;
-	virtual int32 GetMinionCount_Implementation() const override { return MinionCount; }
-	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override { MinionCount += IncrementBy; }
+	virtual int32 GetMinionCount_Implementation() const override;
+	virtual void IncrementMinionCount_Implementation(int32 IncrementBy) override;
 	virtual void Die(const FVector& DeathImpulse) override;
-	virtual ECharacterClass GetCharacterClass_Implementation() const override { return CharacterClass; }
-	virtual USkeletalMeshComponent* GetWeaponMesh_Implementation() override {return Weapon;}; 
+	virtual ECharacterClass GetCharacterClass_Implementation() const override;
+	virtual USkeletalMeshComponent* GetWeaponMesh_Implementation() override;
 	virtual void SetBeingShocked_Implementation(bool bInBeingShocked) override;
-	virtual bool IsBeingShocked_Implementation() const override { return bIsBeingShocked; }
+	virtual bool IsBeingShocked_Implementation() const override;
 
 	/* Death Presentation */
 	UFUNCTION(NetMulticast, Reliable)
@@ -84,8 +79,8 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void StartWeaponDissolveTimeline(UMaterialInstanceDynamic* MaterialInstance);
 	
-	virtual FOnAbilitySystemComponentRegistered& GetOnAscRegisteredDelegate()  override;
-	virtual FOnCharacterDie& GetOnCharacterDieDelegate()  override;
+	virtual FOnAbilitySystemComponentRegistered& GetOnAscRegisteredDelegate() override;
+	virtual FOnCharacterDie& GetOnCharacterDieDelegate() override;
 	
 
 protected:
@@ -99,7 +94,7 @@ protected:
 	 * - Enemy:  Owner = this, Avatar = this
 	 * ORDER MATTERS: must be called before any GE is applied or UI is initialized.
 	 */
-	virtual void InitAbilityActorInfo() {}
+	virtual void InitAbilityActorInfo();
 
 	// Applies a Gameplay Effect to the character's own ASC at the requested level.
 	void ApplyGameEffectToSelf(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const;

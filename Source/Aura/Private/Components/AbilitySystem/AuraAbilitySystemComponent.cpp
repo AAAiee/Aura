@@ -301,6 +301,20 @@ void UAuraAbilitySystemComponent::UpgradeAttribute(const FGameplayTag& Attribute
 	}
 }
 
+void UAuraAbilitySystemComponent::Server_UpgradeAttribute_Implementation(const FGameplayTag& AttributeTag, int32 Delta)
+{
+	// Send a Gameplay Event for passive gameplay abilities that listen for attribute upgrades.
+	FGameplayEventData PayLoad;
+	PayLoad.EventMagnitude = Delta;
+	PayLoad.EventTag = AttributeTag;
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetAvatarActor(), AttributeTag, PayLoad);
+
+	// Attribute points live on the player progression interface, not the ASC.
+	check(GetAvatarActor()->Implements<UPlayerInterface>());
+
+	IPlayerInterface::Execute_AddToAttributePoint(GetAvatarActor(), -Delta);
+}
+
 void UAuraAbilitySystemComponent::UpdateAbilityStatus(int32 Level)
 {
 	UAbilityInfo* AbilityInfo = UAuraAbilitySystemLibrary::GetAbilityInfo(GetAvatarActor());
@@ -328,6 +342,11 @@ void UAuraAbilitySystemComponent::UpdateAbilityStatus(int32 Level)
 			Client_UpdateAbilitySpecStatus(Info.AbilityTag, EligibleStatusTag, 1);
 		}
 	}
+}
+
+void UAuraAbilitySystemComponent::Client_UpdateAbilitySpecStatus_Implementation(const FGameplayTag& AbilityTag, const FGameplayTag& StatusTag, int32 AbilityLevel)
+{
+	OnAbilityStatusChanged.Broadcast(AbilityTag, StatusTag, AbilityLevel);
 }
 
 void UAuraAbilitySystemComponent::Server_SpendSpellPoints_Implementation(const FGameplayTag& AbilityTag)
@@ -407,17 +426,6 @@ void UAuraAbilitySystemComponent::Server_EquipAbility_Implementation(const FGame
 			MarkAbilitySpecDirty(*AbilitySpec);
 		}
 		Client_EquipAbility(InAbilityTag, AuraGameTagManager.Ability_Status_Equipped, InSlotInputTag, PrevInputTag);
-	}
-}
-
-void UAuraAbilitySystemComponent::OnRep_ActivateAbilities()
-{
-	Super::OnRep_ActivateAbilities();
-
-	if (!bStartUpAbilitiesGiven)
-	{
-		bStartUpAbilitiesGiven = true;
-		OnAbilityGiven.Broadcast();
 	}
 }
 
@@ -523,6 +531,17 @@ FGameplayAbilitySpec* UAuraAbilitySystemComponent::GetSpecWithSlotInputTag(const
 	return nullptr;
 }
 
+void UAuraAbilitySystemComponent::OnRep_ActivateAbilities()
+{
+	Super::OnRep_ActivateAbilities();
+
+	if (!bStartUpAbilitiesGiven)
+	{
+		bStartUpAbilitiesGiven = true;
+		OnAbilityGiven.Broadcast();
+	}
+}
+
 
 /**
  * Client RPC implementation - runs on the owning client.
@@ -540,23 +559,4 @@ void UAuraAbilitySystemComponent::Client_OnEffectAppliedToSelf_Implementation(UA
 	FGameplayTagContainer TagContainer;
 	GameEffectSpec.GetAllAssetTags(TagContainer);
 	OnGatherEffectAssetTags.Broadcast(TagContainer);
-}
-
-void UAuraAbilitySystemComponent::Server_UpgradeAttribute_Implementation(const FGameplayTag& AttributeTag, int32 Delta)
-{
-	// Send a Gameplay Event for passive gameplay abilities that listen for attribute upgrades.
-	FGameplayEventData PayLoad;
-	PayLoad.EventMagnitude = Delta;
-	PayLoad.EventTag = AttributeTag;
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetAvatarActor(), AttributeTag, PayLoad);
-
-	// Attribute points live on the player progression interface, not the ASC.
-	check(GetAvatarActor()->Implements<UPlayerInterface>());
-
-	IPlayerInterface::Execute_AddToAttributePoint(GetAvatarActor(), -Delta);
-}
-
-void UAuraAbilitySystemComponent::Client_UpdateAbilitySpecStatus_Implementation(const FGameplayTag& AbilityTag, const FGameplayTag& StatusTag, int32 AbilityLevel)
-{
-	OnAbilityStatusChanged.Broadcast(AbilityTag, StatusTag, AbilityLevel);
 }

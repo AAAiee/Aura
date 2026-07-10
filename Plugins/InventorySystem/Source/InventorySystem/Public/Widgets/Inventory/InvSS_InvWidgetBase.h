@@ -26,7 +26,7 @@ public:
 	virtual void SetWidgetController(UObject* InWidgetController);
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
-	UObject* GetWidgetController() const { return WidgetController; }
+	UObject* GetWidgetController() const;
 
 protected:
 	/**

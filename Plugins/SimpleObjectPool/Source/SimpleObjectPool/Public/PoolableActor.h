@@ -4,7 +4,11 @@
 #include "UObject/Interface.h"
 #include "PoolableActor.generated.h"
 
-// Reflection shell for actors that want lifecycle callbacks from UObjectPoolSubsystem.
+/**
+ * UPoolableActor
+ *
+ * Reflection shell for actors that want lifecycle callbacks from UObjectPoolSubsystem.
+ */
 UINTERFACE(BlueprintType)
 class SIMPLEOBJECTPOOL_API UPoolableActor : public UInterface
 {
@@ -12,7 +16,12 @@ class SIMPLEOBJECTPOOL_API UPoolableActor : public UInterface
 };
 
 /**
- * Optional interface for pooled actors that need to reset or reinitialize per-use state.
+ * IPoolableActor
+ *
+ * Optional interface for actors that need pool lifecycle callbacks.
+ *
+ * Actors implement this when they need to reset transient gameplay state on
+ * borrow or clean up active behavior before returning to the inactive pool.
  */
 class SIMPLEOBJECTPOOL_API IPoolableActor
 {
@@ -20,8 +29,8 @@ class SIMPLEOBJECTPOOL_API IPoolableActor
 
 public:
 	/** Called after the pool activates the actor for gameplay use. */
-	virtual void OnTakenFromPool() {}
+	virtual void OnTakenFromPool();
 
 	/** Called before or while the actor is parked back in the inactive pool. */
-	virtual void OnReturnedToPool() {}
+	virtual void OnReturnedToPool();
 };

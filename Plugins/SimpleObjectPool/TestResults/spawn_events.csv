@@ -1,0 +1,14 @@
+ThreadId,ThreadName,TimerId,TimerName,StartTime,EndTime,Duration,Depth
+2,GameThread,7074,SimpleObjectPoolBenchmark_ColdInitializePool,173.653179,173.766327,0.113147700,4
+2,GameThread,7077,SimpleObjectPoolBenchmark_BorrowFromPoolWave,173.766338,173.776161,0.009823400,4
+2,GameThread,7161,SimpleObjectPoolBenchmark_ReturnToPoolWave,175.508725,175.512417,0.003691200,5
+2,GameThread,7196,SimpleObjectPoolBenchmark_SpawnActorWave,205.051064,205.16274,0.111676300,4
+2,GameThread,7197,SimpleObjectPoolBenchmark_DestroyActorWave,206.928991,206.957012,0.028021300,5
+2,GameThread,7196,SimpleObjectPoolBenchmark_SpawnActorWave,207.934773,208.117222,0.182449400,5
+2,GameThread,7197,SimpleObjectPoolBenchmark_DestroyActorWave,209.945755,209.972738,0.026983100,5
+2,GameThread,7196,SimpleObjectPoolBenchmark_SpawnActorWave,210.950099,211.140975,0.190876800,5
+2,GameThread,7197,SimpleObjectPoolBenchmark_DestroyActorWave,212.972,212.998902,0.026901500,5
+2,GameThread,7196,SimpleObjectPoolBenchmark_SpawnActorWave,213.976891,214.173672,0.196781200,5
+2,GameThread,7197,SimpleObjectPoolBenchmark_DestroyActorWave,215.987471,216.015336,0.027865500,5
+2,GameThread,7196,SimpleObjectPoolBenchmark_SpawnActorWave,216.993296,217.184228,0.190931500,5
+2,GameThread,7197,SimpleObjectPoolBenchmark_DestroyActorWave,219.009914,219.038144,0.028230600,5

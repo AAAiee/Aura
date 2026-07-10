@@ -165,3 +165,144 @@ FAuraGameplayEffectContext* FAuraGameplayEffectContext::Duplicate() const
 
 	return NewContext;
 }
+
+/* Gameplay Effect Context Access : IsCriticalHit() SetCriticalHit() *****************************/
+bool FAuraGameplayEffectContext::IsCriticalHit() const
+{
+	return bIsCriticalHit;
+}
+
+bool FAuraGameplayEffectContext::IsBlockedHit() const
+{
+	return bIsBlockedHit;
+}
+
+bool FAuraGameplayEffectContext::ShouldHitReact() const
+{
+	return bShouldHitReact;
+}
+
+bool FAuraGameplayEffectContext::IsSuccessfulDebuff() const
+{
+	return bIsSuccessfulDebuff;
+}
+
+float FAuraGameplayEffectContext::GetDebuffDamage() const
+{
+	return DebuffDamage;
+}
+
+float FAuraGameplayEffectContext::GetDebuffDuration() const
+{
+	return DebuffDuration;
+}
+
+float FAuraGameplayEffectContext::GetDebuffFrequency() const
+{
+	return DebuffFrequency;
+}
+
+TSharedPtr<FGameplayTag> FAuraGameplayEffectContext::GetDamageTypeTag() const
+{
+	return DebuffDamageTypeTag;
+}
+
+FVector FAuraGameplayEffectContext::GetDeathImpulse() const
+{
+	return DeathImpulse;
+}
+
+FVector FAuraGameplayEffectContext::GetKnockBackForce() const
+{
+	return KnockBackForce;
+}
+
+bool FAuraGameplayEffectContext::GetIsRadialDamage() const
+{
+	return bIsRadialDamage;
+}
+
+float FAuraGameplayEffectContext::GetRadialDamageInnerRadius() const
+{
+	return RadialDamageInnerRadius;
+}
+
+float FAuraGameplayEffectContext::GetRadialDamageOuterRadius() const
+{
+	return RadialDamageOuterRadius;
+}
+
+FVector FAuraGameplayEffectContext::GetRadialDamageOrigin() const
+{
+	return RadialDamageOrigin;
+}
+
+void FAuraGameplayEffectContext::SetCriticalHit(const bool bInIsCriticalHit)
+{
+	bIsCriticalHit = bInIsCriticalHit;
+}
+
+void FAuraGameplayEffectContext::SetBlockedHit(const bool bInIsBlockedHit)
+{
+	bIsBlockedHit = bInIsBlockedHit;
+}
+
+void FAuraGameplayEffectContext::SetShouldHitReact(const bool bInShouldHitReact)
+{
+	bShouldHitReact = bInShouldHitReact;
+}
+
+void FAuraGameplayEffectContext::SetSuccessfulDebuff(const bool bInIsSuccessfulDebuff)
+{
+	bIsSuccessfulDebuff = bInIsSuccessfulDebuff;
+}
+
+void FAuraGameplayEffectContext::SetDebuffDamage(const float InDebuffDamage)
+{
+	DebuffDamage = InDebuffDamage;
+}
+
+void FAuraGameplayEffectContext::SetDebuffDuration(const float InDebuffDuration)
+{
+	DebuffDuration = InDebuffDuration;
+}
+
+void FAuraGameplayEffectContext::SetDebuffFrequency(const float InDebuffFrequency)
+{
+	DebuffFrequency = InDebuffFrequency;
+}
+
+void FAuraGameplayEffectContext::SetDamageTypeTag(const FGameplayTag& InDamageTypeTag)
+{
+	DebuffDamageTypeTag = MakeShared<FGameplayTag>(InDamageTypeTag);
+}
+
+void FAuraGameplayEffectContext::SetDeathImpulse(const FVector& InDeathImpulse)
+{
+	DeathImpulse = InDeathImpulse;
+}
+
+void FAuraGameplayEffectContext::SetKnockBackForce(const FVector& InKnockBackForce)
+{
+	KnockBackForce = InKnockBackForce;
+}
+
+void FAuraGameplayEffectContext::SetIsRadialDamage(const bool bInIsRadialDamage)
+{
+	bIsRadialDamage = bInIsRadialDamage;
+}
+
+void FAuraGameplayEffectContext::SetRadialDamageInnerRadius(const float InRadialDamageInnerRadius)
+{
+	RadialDamageInnerRadius = InRadialDamageInnerRadius;
+}
+
+void FAuraGameplayEffectContext::SetRadialDamageOuterRadius(const float InRadialDamageOuterRadius)
+{
+	RadialDamageOuterRadius = InRadialDamageOuterRadius;
+}
+
+void FAuraGameplayEffectContext::SetRadialDamageOrigin(const FVector& InRadialDamageOrigin)
+{
+	RadialDamageOrigin = InRadialDamageOrigin;
+}

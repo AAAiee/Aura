@@ -170,6 +170,18 @@ void AAuraCharacter::LevelUp_Implementation()
 	MultiCastLevelUpEffect();
 }
 
+void AAuraCharacter::MultiCastLevelUpEffect_Implementation()
+{
+	if (LevelUpNiagaraComponent)
+	{
+		const FVector CameraLocation = TopDownCameraComponent->GetComponentLocation();
+		const FVector NiagaraSystemLocation = LevelUpNiagaraComponent->GetComponentLocation();
+		const FRotator ToCameraRotation = (CameraLocation - NiagaraSystemLocation).Rotation();
+		LevelUpNiagaraComponent->SetWorldRotation(ToCameraRotation);
+		LevelUpNiagaraComponent->Activate(true);
+	}
+}
+
 void AAuraCharacter::ShowMagicCircle_Implementation(UMaterialInterface* DecalMaterial)
 {
 	if (AAuraPlayerController* AuraPC = GetController<AAuraPlayerController>())
@@ -250,16 +262,4 @@ void AAuraCharacter::OnRep_Stunned()
 
 void AAuraCharacter::OnRep_Burned()
 {
-}
-
-void AAuraCharacter::MultiCastLevelUpEffect_Implementation()
-{
-	if (LevelUpNiagaraComponent)
-	{
-		const FVector CameraLocation = TopDownCameraComponent->GetComponentLocation();
-		const FVector NiagaraSystemLocation = LevelUpNiagaraComponent->GetComponentLocation();
-		const FRotator ToCameraRotation = (CameraLocation - NiagaraSystemLocation).Rotation();
-		LevelUpNiagaraComponent->SetWorldRotation(ToCameraRotation);
-		LevelUpNiagaraComponent->Activate(true);
-	}
 }

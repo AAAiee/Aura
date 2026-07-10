@@ -20,6 +20,7 @@ UObjectPoolSubsystem::UObjectPoolSubsystem()
 
 void UObjectPoolSubsystem::Deinitialize()
 {
+	// World teardown must cancel delayed returns before pooled actors and lookup maps are discarded.
 	if (UWorld* World = GetWorld())
 	{
 		for (TPair<TWeakObjectPtr<AActor>, FTimerHandle>& ActiveTimerPair : ActiveReturnTimers)
@@ -45,6 +46,30 @@ const UObjectPoolConfigDataAsset* UObjectPoolSubsystem::GetPoolConfig() const
 	return LoadPoolConfigIfNeeded();
 }
 
+const UObjectPoolConfigDataAsset* UObjectPoolSubsystem::LoadPoolConfigIfNeeded() const
+{
+	if (CachedPoolConfig.IsValid())
+	{
+		return CachedPoolConfig.Get();
+	}
+
+	const UObjectPoolDeveloperSettings* DeveloperSettings = GetDefault<UObjectPoolDeveloperSettings>();
+	if (!DeveloperSettings)
+	{
+		return nullptr;
+	}
+
+	const TSoftObjectPtr<UObjectPoolConfigDataAsset>& ConfigReference = DeveloperSettings->DefaultPoolConfig;
+	if (ConfigReference.IsNull())
+	{
+		return nullptr;
+	}
+
+	UObjectPoolConfigDataAsset* LoadedConfig = ConfigReference.LoadSynchronous();
+	CachedPoolConfig = LoadedConfig;
+	return LoadedConfig;
+}
+
 void UObjectPoolSubsystem::InitializePool(TSubclassOf<AActor> InActorClass, int32 InInitialSize)
 {
 	checkf(InInitialSize > 0, TEXT("ObjectPoolSubsystem: Initial pool size must be greater than zero."));
@@ -58,6 +83,8 @@ void UObjectPoolSubsystem::InitializePool(TSubclassOf<AActor> InActorClass, int3
 
 	TArray<FPoolItem> PoolItems;
 	PoolItems.Reserve(InInitialSize);
+
+	// Initial actors are spawned once, parked at the hidden transform, and then reused by borrow requests.
 	for (int32 Index = 0; Index < InInitialSize; ++Index)
 	{
 		AActor* SpawnedActor = SpawnPooledActor(InActorClass);
@@ -148,6 +175,10 @@ AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, c
 {
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem: Actor class must not be null."));
 
+	// Pipeline:
+	// 1. Use an existing pool when it has already been initialized manually or from config.
+	// 2. Initialize from config when no pool exists yet.
+	// 3. Borrow using the resolved recycle policy so auto-return behavior stays centralized.
 	// Preserve the original "manual pool + optional config" behavior:
 	//   - If a pool already exists, borrow from it even when there is no config entry.
 	//   - If no pool exists yet, fall back to config-driven initialization.
@@ -167,21 +198,33 @@ AActor* UObjectPoolSubsystem::GetPooledActor(TSubclassOf<AActor> InActorClass, c
 	return BorrowPooledActor(InActorClass, InSpawnTransform, RecyclePolicy.bShouldAutomaticallyReturn, RecyclePolicy.RecycleDelay);
 }
 
-AActor* UObjectPoolSubsystem::GetPooledActorWithRecyclePolicy(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform, bool bInShouldAutomaticallyReturnPool, float InRecycleDelayTime)
+AActor* UObjectPoolSubsystem::GetPooledActorWithRecyclePolicy(
+	TSubclassOf<AActor> InActorClass,
+	const FTransform& InSpawnTransform,
+	bool bInShouldAutomaticallyReturnPool,
+	float InRecycleDelayTime)
 {
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem: Actor class must not be null."));
-	checkf(IsPoolInitialized(InActorClass) || EnsurePoolInitializedFromConfig(InActorClass), TEXT("ObjectPoolSubsystem: No pool exists for class %s, and config-based initialization failed."), *InActorClass->GetName());
+	checkf(
+		IsPoolInitialized(InActorClass) || EnsurePoolInitializedFromConfig(InActorClass),
+		TEXT("ObjectPoolSubsystem: No pool exists for class %s, and config-based initialization failed."),
+		*InActorClass->GetName());
 
 	return BorrowPooledActor(InActorClass, InSpawnTransform, bInShouldAutomaticallyReturnPool, InRecycleDelayTime);
 }
 
-AActor* UObjectPoolSubsystem::BorrowPooledActor(TSubclassOf<AActor> InActorClass, const FTransform& InSpawnTransform, bool bInShouldAutomaticallyReturnPool, float InRecycleDelayTime)
+AActor* UObjectPoolSubsystem::BorrowPooledActor(
+	TSubclassOf<AActor> InActorClass,
+	const FTransform& InSpawnTransform,
+	bool bInShouldAutomaticallyReturnPool,
+	float InRecycleDelayTime)
 {
 	checkf(InActorClass, TEXT("ObjectPoolSubsystem: Actor class must not be null."));
 
 	TArray<FPoolItem>* TargetPool = Pool.Find(InActorClass);
 	checkf(TargetPool, TEXT("ObjectPoolSubsystem: No pool exists for class %s. Initialize the pool before borrowing actors."), *InActorClass->GetName());
 
+	// Prefer reusing an inactive valid actor before expanding the pool.
 	for (FPoolItem& Item : *TargetPool)
 	{
 		if (!Item.bInUse && IsValid(Item.ActorInstance))
@@ -189,7 +232,6 @@ AActor* UObjectPoolSubsystem::BorrowPooledActor(TSubclassOf<AActor> InActorClass
 			Item.bInUse = true;
 			AActor* FreeActor = Item.ActorInstance.Get();
 			ActivateActor(FreeActor, InSpawnTransform, bInShouldAutomaticallyReturnPool, InRecycleDelayTime);
-			LogPoolState(TEXT("Borrowed actor from pool"), InActorClass, *TargetPool, FreeActor);
 			return FreeActor;
 		}
 	}
@@ -198,6 +240,7 @@ AActor* UObjectPoolSubsystem::BorrowPooledActor(TSubclassOf<AActor> InActorClass
 	const int32 CurrentCount = TargetPool->Num();
 	const int32 NumToSpawn = FMath::Max(1, FMath::CeilToInt(CurrentCount * GrowthFactor));
 
+	// Pool expansion activates the first new actor for the current borrow and parks the rest.
 	AActor* SpawnedActorToReturn = nullptr;
 	for (int32 Index = 0; Index < NumToSpawn; ++Index)
 	{
@@ -249,7 +292,11 @@ void UObjectPoolSubsystem::ReturnActorToPool(AActor* InActor)
 	TArray<FPoolItem>* TargetPool = Pool.Find(*ActorClass);
 	if (!TargetPool)
 	{
-		ensureMsgf(false, TEXT("ObjectPoolSubsystem: No pool exists for class %s while returning actor %s."), *(*ActorClass)->GetName(), *InActor->GetName());
+		ensureMsgf(
+			false,
+			TEXT("ObjectPoolSubsystem: No pool exists for class %s while returning actor %s."),
+			*(*ActorClass)->GetName(),
+			*InActor->GetName());
 		return;
 	}
 
@@ -264,7 +311,6 @@ void UObjectPoolSubsystem::ReturnActorToPool(AActor* InActor)
 
 			Item.bInUse = false;
 			DeactivateActor(InActor);
-			LogPoolState(TEXT("Returned actor to pool"), *ActorClass, *TargetPool, InActor);
 			return;
 		}
 	}
@@ -326,22 +372,22 @@ void UObjectPoolSubsystem::ClearReturnTimer(AActor* InActor)
 	}
 }
 
-void UObjectPoolSubsystem::DeactivateActor(AActor* SpawnedActor, bool bNotifyPoolableActor)
+void UObjectPoolSubsystem::DeactivateActor(AActor* InSpawnedActor, bool bNotifyPoolableActor)
 {
-	checkf(IsValid(SpawnedActor), TEXT("ObjectPoolSubsystem: Cannot deactivate an invalid actor."));
+	checkf(IsValid(InSpawnedActor), TEXT("ObjectPoolSubsystem: Cannot deactivate an invalid actor."));
 
-	ClearReturnTimer(SpawnedActor);
+	ClearReturnTimer(InSpawnedActor);
 	if (bNotifyPoolableActor)
 	{
-		NotifyActorReturnedToPool(SpawnedActor);
+		NotifyActorReturnedToPool(InSpawnedActor);
 	}
 
-	SpawnedActor->SetActorEnableCollision(false);
-	SpawnedActor->SetActorTickEnabled(false);
-	SpawnedActor->SetActorHiddenInGame(true);
-	SpawnedActor->SetActorTransform(HiddenTransform);
+	InSpawnedActor->SetActorEnableCollision(false);
+	InSpawnedActor->SetActorTickEnabled(false);
+	InSpawnedActor->SetActorHiddenInGame(true);
+	InSpawnedActor->SetActorTransform(HiddenTransform);
 
-	if (APawn* PawnActor = Cast<APawn>(SpawnedActor))
+	if (APawn* PawnActor = Cast<APawn>(InSpawnedActor))
 	{
 		if (AController* PawnController = PawnActor->GetController())
 		{
@@ -350,17 +396,21 @@ void UObjectPoolSubsystem::DeactivateActor(AActor* SpawnedActor, bool bNotifyPoo
 	}
 }
 
-void UObjectPoolSubsystem::ActivateActor(AActor* FreeActor, const FTransform& SpawnTransform, bool bShouldAutomaticallyReturnPool, float RecycleDelayTime)
+void UObjectPoolSubsystem::ActivateActor(
+	AActor* InFreeActor,
+	const FTransform& InSpawnTransform,
+	bool bInShouldAutomaticallyReturnPool,
+	float InRecycleDelayTime)
 {
-	checkf(IsValid(FreeActor), TEXT("ObjectPoolSubsystem: Cannot activate an invalid actor."));
+	checkf(IsValid(InFreeActor), TEXT("ObjectPoolSubsystem: Cannot activate an invalid actor."));
 
-	ClearReturnTimer(FreeActor);
-	FreeActor->SetActorTransform(SpawnTransform);
-	FreeActor->SetActorTickEnabled(true);
-	FreeActor->SetActorHiddenInGame(false);
-	FreeActor->SetActorEnableCollision(true);
+	ClearReturnTimer(InFreeActor);
+	InFreeActor->SetActorTransform(InSpawnTransform);
+	InFreeActor->SetActorTickEnabled(true);
+	InFreeActor->SetActorHiddenInGame(false);
+	InFreeActor->SetActorEnableCollision(true);
 
-	if (APawn* PawnActor = Cast<APawn>(FreeActor))
+	if (APawn* PawnActor = Cast<APawn>(InFreeActor))
 	{
 		UWorld* World = GetWorld();
 		checkf(World, TEXT("ObjectPoolSubsystem: World must not be null."));
@@ -375,8 +425,8 @@ void UObjectPoolSubsystem::ActivateActor(AActor* FreeActor, const FTransform& Sp
 		}
 	}
 
-	NotifyActorTakenFromPool(FreeActor);
-	DelayActor(FreeActor, RecycleDelayTime, bShouldAutomaticallyReturnPool);
+	NotifyActorTakenFromPool(InFreeActor);
+	DelayActor(InFreeActor, InRecycleDelayTime, bInShouldAutomaticallyReturnPool);
 }
 
 AActor* UObjectPoolSubsystem::SpawnPooledActor(TSubclassOf<AActor> InActorClass)
@@ -398,23 +448,27 @@ AActor* UObjectPoolSubsystem::SpawnPooledActor(TSubclassOf<AActor> InActorClass)
 	return SpawnedActor;
 }
 
-void UObjectPoolSubsystem::NotifyActorTakenFromPool(AActor* Actor)
+void UObjectPoolSubsystem::NotifyActorTakenFromPool(AActor* InActor)
 {
-	if (IPoolableActor* PoolableActor = Cast<IPoolableActor>(Actor))
+	if (IPoolableActor* PoolableActor = Cast<IPoolableActor>(InActor))
 	{
 		PoolableActor->OnTakenFromPool();
 	}
 }
 
-void UObjectPoolSubsystem::NotifyActorReturnedToPool(AActor* Actor)
+void UObjectPoolSubsystem::NotifyActorReturnedToPool(AActor* InActor)
 {
-	if (IPoolableActor* PoolableActor = Cast<IPoolableActor>(Actor))
+	if (IPoolableActor* PoolableActor = Cast<IPoolableActor>(InActor))
 	{
 		PoolableActor->OnReturnedToPool();
 	}
 }
 
-void UObjectPoolSubsystem::LogPoolState(const TCHAR* Action, TSubclassOf<AActor> ActorClass, const TArray<FPoolItem>& TargetPool, const AActor* ActorInstance) const
+void UObjectPoolSubsystem::LogPoolState(
+	const TCHAR* Action,
+	TSubclassOf<AActor> ActorClass,
+	const TArray<FPoolItem>& TargetPool,
+	const AActor* ActorInstance) const
 {
 	const int32 InUseCount = CountInUseActors(TargetPool);
 	const FString ActorClassName = GetNameSafe(ActorClass.Get());
@@ -456,28 +510,4 @@ int32 UObjectPoolSubsystem::CountInUseActors(const TArray<FPoolItem>& TargetPool
 	}
 
 	return InUseCount;
-}
-
-const UObjectPoolConfigDataAsset* UObjectPoolSubsystem::LoadPoolConfigIfNeeded() const
-{
-	if (CachedPoolConfig.IsValid())
-	{
-		return CachedPoolConfig.Get();
-	}
-
-	const UObjectPoolDeveloperSettings* DeveloperSettings = GetDefault<UObjectPoolDeveloperSettings>();
-	if (!DeveloperSettings)
-	{
-		return nullptr;
-	}
-
-	const TSoftObjectPtr<UObjectPoolConfigDataAsset>& ConfigReference = DeveloperSettings->DefaultPoolConfig;
-	if (ConfigReference.IsNull())
-	{
-		return nullptr;
-	}
-
-	UObjectPoolConfigDataAsset* LoadedConfig = ConfigReference.LoadSynchronous();
-	CachedPoolConfig = LoadedConfig;
-	return LoadedConfig;
 }

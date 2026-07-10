@@ -6,6 +6,11 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/PanelWidget.h"
 
+bool UAuraDraggableWindowWidget::IsDraggingWindow() const
+{
+	return bIsDraggingWindow;
+}
+
 FReply UAuraDraggableWindowWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	const FReply SuperReply = Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);

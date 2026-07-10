@@ -20,10 +20,10 @@ UCLASS()
 class INVENTORYSYSTEM_API UInvSS_InventoryBase : public UInvSS_InvWidgetBase
 {
 	GENERATED_BODY()
-	
+
 public:
-	UCanvasPanel* GetCanvasPanel() const { return CanvasPanel_MenuRoot; }
-	
+	UCanvasPanel* GetCanvasPanel() const;
+
 protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCanvasPanel> CanvasPanel_MenuRoot;

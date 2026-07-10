@@ -75,6 +75,45 @@ void UAuraSpellMenuWidgetController::BroadcastAbilityGlobeEnabledStatusAndAbilit
 	SpellGlobeSelectedDelegate.Broadcast(bEnabledSpendPoints, bEnabledEquip, OutDescription, OutNextLevelDescription);
 }
 
+void UAuraSpellMenuWidgetController::ShouldEnableButton(const FGameplayTag& AbilityStatus, int32 SpellPoints, bool& bShouldEnableSpellPointsButton, bool& bShouldEnableEquipButton)
+{
+	bShouldEnableSpellPointsButton = false;
+	const FAuraGameTagManager& Tags = FAuraGameTagManager::Get();
+	// Button rules mirror the spell lifecycle:
+	//   Locked: inspect only.
+	//   Eligible: can spend to unlock, cannot equip yet.
+	//   UnLocked: can equip and can spend again to level.
+	//   Equipped: remains equip-capable and can be leveled if spell points remain.
+	if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Equipped))
+	{
+		bShouldEnableEquipButton = true;
+		if (SpellPoints > 0)
+		{
+			bShouldEnableSpellPointsButton = true;
+		}
+	}
+	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Eligible))
+	{
+		bShouldEnableEquipButton = false;
+		if (SpellPoints > 0)
+		{
+			bShouldEnableSpellPointsButton = true;
+		}
+	}
+	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Locked))
+	{
+		bShouldEnableEquipButton = false;
+	}
+	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_UnLocked))
+	{
+		bShouldEnableEquipButton = true;
+		if (SpellPoints > 0)
+		{
+			bShouldEnableSpellPointsButton = true;
+		}
+	}
+}
+
 void UAuraSpellMenuWidgetController::OnAbilityEquippedCallback(const FGameplayTag& AbilityTag,
 	const FGameplayTag& StatusTag, const FGameplayTag& SlotInputTag, const FGameplayTag& PreviousSlotTag)
 {
@@ -176,45 +215,6 @@ void UAuraSpellMenuWidgetController::OnEquipRowSpellGlobePressed(const FGameplay
 	}
 
 	GetAuraAbilitySystemComponent()->Server_EquipAbility(CurrentlySelectedAbility.AbilityTag, SlotInputTag);
-}
-
-void UAuraSpellMenuWidgetController::ShouldEnableButton(const FGameplayTag& AbilityStatus, int32 SpellPoints, bool& bShouldEnableSpellPointsButton, bool& bShouldEnableEquipButton)
-{
-	bShouldEnableSpellPointsButton = false;
-	const FAuraGameTagManager& Tags = FAuraGameTagManager::Get();
-	// Button rules mirror the spell lifecycle:
-	//   Locked: inspect only.
-	//   Eligible: can spend to unlock, cannot equip yet.
-	//   UnLocked: can equip and can spend again to level.
-	//   Equipped: remains equip-capable and can be leveled if spell points remain.
-	if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Equipped))
-	{
-		bShouldEnableEquipButton = true;
-		if (SpellPoints > 0)
-		{
-			bShouldEnableSpellPointsButton = true;
-		}
-	}
-	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Eligible))
-	{
-		bShouldEnableEquipButton = false;
-		if (SpellPoints > 0)
-		{
-			bShouldEnableSpellPointsButton = true;
-		}
-	}
-	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_Locked))
-	{
-		bShouldEnableEquipButton = false;
-	}
-	else if (AbilityStatus.MatchesTagExact(Tags.Ability_Status_UnLocked))
-	{
-		bShouldEnableEquipButton = true;
-		if (SpellPoints > 0)
-		{
-			bShouldEnableSpellPointsButton = true;
-		}
-	}
 }
 
 FGameplayTag UAuraSpellMenuWidgetController::GetGameplayTypeTagForAbilityTag(const FGameplayTag& AbilityTag) const

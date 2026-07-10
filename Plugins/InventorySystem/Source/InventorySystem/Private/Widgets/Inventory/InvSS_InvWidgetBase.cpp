@@ -22,6 +22,11 @@ void UInvSS_InvWidgetBase::SetWidgetController(UObject* InWidgetController)
 	WidgetControllerSet();
 }
 
+UObject* UInvSS_InvWidgetBase::GetWidgetController() const
+{
+	return WidgetController;
+}
+
 void UInvSS_InvWidgetBase::NativeWidgetControllerSet()
 {
 }

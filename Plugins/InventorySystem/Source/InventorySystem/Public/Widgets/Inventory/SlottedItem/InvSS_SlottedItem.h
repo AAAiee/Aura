@@ -6,13 +6,14 @@
 #include "Widgets/Inventory/InvSS_InvWidgetBase.h"
 #include "InvSS_SlottedItem.generated.h"
 
+class UInvSS_InventoryWidgetController;
 class UInvSS_InventoryItem;
 class UImage;
 class UTextBlock;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSlottedItemClicked, 
-	UInvSS_SlottedItem*, SlottedItem, 
-	const int32,  ParentSlotIndex, 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSlottedItemClicked,
+	UInvSS_SlottedItem*, SlottedItem,
+	const int32,  ParentSlotIndex,
 	const FPointerEvent&, MouseEvent);
 
 /**
@@ -29,26 +30,30 @@ class INVENTORYSYSTEM_API UInvSS_SlottedItem : public UInvSS_InvWidgetBase
 	GENERATED_BODY()
 
 public:
-	const UImage* GetImage_Icon() const { return Image_Icon; }
-	UImage* GetMutableImage() { return Image_Icon; }
-	int32 GetGridIndex() const { return GridIndex; }
-	FIntPoint GetGridDimensions() const { return GridDimensions; }
-	bool GetIsStackable() const { return bIsStackable; }
-	UInvSS_InventoryItem* GetInventoryItem() const { return InventoryItem.Get(); }
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual void NativeWidgetControllerSet() override;
 
-	void SetGridIndex(const int32 InIndex) { GridIndex = InIndex; }
-	void SetGridDimensions(const FInt32Point& InDimensions) { GridDimensions = InDimensions; }
-	void SetIsStackable(const bool InIsStackable) { bIsStackable = InIsStackable; }
+	const UImage* GetImage_Icon() const;
+	UImage* GetMutableImage();
+	int32 GetGridIndex() const;
+	FIntPoint GetGridDimensions() const;
+	bool GetIsStackable() const;
+	UInvSS_InventoryItem* GetInventoryItem() const;
+
+	void SetGridIndex(int32 InIndex);
+	void SetGridDimensions(const FInt32Point& InDimensions);
+	void SetIsStackable(bool bInIsStackable);
 	void SetInventoryItem(UInvSS_InventoryItem* InItem);
 	void SetIconImageBrush(const FSlateBrush& InBrush);
 	void UpdateStackCountText(int32 InCount);
-	int32 GetStackCount() const { return RenderedStackCount; }
+	int32 GetStackCount() const;
 
 	FOnSlottedItemClicked OnSlottedItemClickedDelegate;
-	
+
 protected:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	
+
 private:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Text_StackCount;
@@ -62,4 +67,5 @@ private:
 	int32 RenderedStackCount =0;
 
 	TWeakObjectPtr<UInvSS_InventoryItem> InventoryItem;
+	TWeakObjectPtr<UInvSS_InventoryWidgetController> InventoryWidgetController;
 };

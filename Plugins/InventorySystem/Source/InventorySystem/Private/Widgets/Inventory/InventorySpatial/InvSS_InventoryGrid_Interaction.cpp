@@ -100,11 +100,11 @@ void UInvSS_InventoryGrid::OnTileParametersUpdated(FInvSS_TileParameters InTileP
 	ClearHighlightedSlots();
 
 	// A single blocking item may later support swap or stack-preview behavior.
-	if (CurrentQueryResult.ValidItem.IsValid() && GridSlots.IsValidIndex(CurrentQueryResult.ItemParentIndex)) 
+	if (CurrentQueryResult.ValidItem.IsValid() && GridSlots.IsValidIndex(CurrentQueryResult.ItemParentIndex))
 	{
 		const FInvSS_GridFragment*  GridFragment = GetFragment<FInvSS_GridFragment>(CurrentQueryResult.ValidItem.Get(), ItemFragmentTag::GridFragment);
 		check(GridFragment);
-	
+
 		HighlightSlots(CurrentQueryResult.ItemParentIndex, GridFragment->GetGridSize(), EInvSS_GridSlotVisualState::GrayedOut);
 	}
 }
@@ -237,6 +237,8 @@ void UInvSS_InventoryGrid::OnSlottedItemClickedCallback(
 	}
 	else if (UInvSS_InventoryStatics::IsRightMouseButtonPressed(InMouseEvent))
 	{
+		if (IsValid(HoverItem)) return;
+
 		InventoryWidgetController->ShowItemPopUpWindow(ItemCategory, InSlotIndex);
 	}
 }
@@ -253,7 +255,7 @@ bool UInvSS_InventoryGrid::TryPutDownHeldItem(const FPointerEvent& MouseEvent)
 	if (!RefreshDropQueryForHeldItem()) return false;
 	check(GridSlots.IsValidIndex(ItemDropIndex));
 	check(InventoryWidgetController.IsValid());
-	
+
 	if (CurrentQueryResult.ValidItem.IsValid())
 	{
 		check(GridSlots.IsValidIndex(CurrentQueryResult.ItemParentIndex));
@@ -296,7 +298,7 @@ void UInvSS_InventoryGrid::OnGridSlotHoveredCallback(int32 GridIndex, const FPoi
 
 	if (UInvSS_GridSlot* GridSlot =	GridSlots[GridIndex]; GridSlot->IsBaseState(EInvSS_GridSlotVisualState::Unoccupied))
 	{
-		GridSlot->SetTemporaryVisualState(EInvSS_GridSlotVisualState::Occupied); 
+		GridSlot->SetTemporaryVisualState(EInvSS_GridSlotVisualState::Occupied);
 	}
 }
 
@@ -403,7 +405,7 @@ void UInvSS_InventoryGrid::HandleInventoryHeldItemChanged(FInvSS_HeldItemState H
 void UInvSS_InventoryGrid::ApplyValidHeldItemState(const FInvSS_HeldItemState& HeldItemState)
 {
 	check(InventoryWidgetController.IsValid());
-	
+
 	UInvSS_InventoryItem* HeldItem = InventoryWidgetController->GetInventoryItemByID(HeldItemState.ItemId);
 	check(IsValid(HeldItem));
 

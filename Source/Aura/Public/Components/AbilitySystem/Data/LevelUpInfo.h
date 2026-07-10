@@ -6,7 +6,12 @@
 #include "Engine/DataAsset.h"
 #include "LevelUpInfo.generated.h"
 
-
+/**
+ * XP threshold and reward data for a single player level.
+ *
+ * ULevelUpInfo stores one row per level so PlayerInterface callers can resolve the player's next
+ * level and grant attribute/spell points from authored progression data.
+ */
 USTRUCT(BlueprintType)
 struct FAuraLevelUpInfo
 {

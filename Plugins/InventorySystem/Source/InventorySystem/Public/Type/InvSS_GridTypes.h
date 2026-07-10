@@ -5,6 +5,9 @@
 
 class UInvSS_InventoryItem;
 
+/**
+ * Inventory category used to select one spatial grid layout.
+ */
 UENUM(BlueprintType)
 enum class EInvSS_ItemCategory : uint8
 {
@@ -14,6 +17,9 @@ enum class EInvSS_ItemCategory : uint8
 	None
 };
 
+/**
+ * Replicated item currently held by the cursor during drag/drop interactions.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_HeldItemState
 {
@@ -31,18 +37,9 @@ struct FInvSS_HeldItemState
 	UPROPERTY()
 	int32 StackCount = 0;
 
-	bool IsValid() const
-	{
-		return ItemId.IsValid();
-	}
+	bool IsValid() const;
 
-	void Reset()
-	{
-		ItemId.Invalidate();
-		SourceCategory = EInvSS_ItemCategory::None;
-		SourceParentIndex = INDEX_NONE;
-		StackCount = 0;
-	}
+	void Reset();
 };
 
 /**
@@ -95,6 +92,9 @@ struct FInvSS_BagAvailabilityResult
 	TArray<FInvSS_InventorySlotAvailability> SlotAvailability;
 };
 
+/**
+ * Cursor quadrant inside one inventory grid tile.
+ */
 UENUM(BlueprintType)
 enum class EInvSS_TileQuadrant : uint8
 {
@@ -105,38 +105,40 @@ enum class EInvSS_TileQuadrant : uint8
 	EInvSS_None			UMETA(DisplayName = "None")
 };
 
+/**
+ * Derived tile data for the current cursor position over an inventory grid.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_TileParameters
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
 	FIntPoint TileCoordinates{};
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
 	int32 TileIndex{INDEX_NONE};
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
 	EInvSS_TileQuadrant TileQuadrant{EInvSS_TileQuadrant::EInvSS_None};
-	
-	bool operator==(const FInvSS_TileParameters& Other) const
-	{
-		return TileCoordinates == Other.TileCoordinates
-			&& TileIndex == Other.TileIndex
-			&& TileQuadrant == Other.TileQuadrant;
-	}
+
+	bool operator==(const FInvSS_TileParameters& Other) const;
 };
 
+/**
+ * Result of querying whether a hovered item can fit at a candidate grid index.
+ */
 USTRUCT()
 struct FInvSS_SpaceQueryResult
 {
 	GENERATED_BODY()
-	// True if the space queried has no items in it
+
+	// True if the space queried has no items in it.
 	bool bHasSpace{false};
-	
-	// Valid if there's a single item we can swap with
+
+	// Valid if there is a single item we can swap with.
 	TWeakObjectPtr<UInvSS_InventoryItem> ValidItem = nullptr;
-	
-	// Upper left index of the valid item, if there is one
+
+	// Upper-left index of the valid item, if there is one.
 	int32 ItemParentIndex{INDEX_NONE} ;
 };

@@ -53,13 +53,13 @@ public:
 	const FAuraAttributeTagMetadatas* GetAttributeDataEntryByTag(const FGameplayTag& InTag) const;
 
 	/** Read-only list used at runtime by widget controllers. */
-	const TArray<FAuraAttributeTagMetadatas>& GetAllAttributeDataEntries() const { return AttributeTagsDataEntries; }
+	const TArray<FAuraAttributeTagMetadatas>& GetAllAttributeDataEntries() const;
 
 	/**
 	 * Mutable list accessor (editor/pipeline use only).
 	 * Bug-prone if used at runtime because external code can mutate ordering/content unexpectedly.
 	 */
-	TArray<FAuraAttributeTagMetadatas>& GetAllAttributeDataEntries() { return AttributeTagsDataEntries; }
+	TArray<FAuraAttributeTagMetadatas>& GetAllAttributeDataEntries();
 
 #if WITH_EDITOR
 	/**

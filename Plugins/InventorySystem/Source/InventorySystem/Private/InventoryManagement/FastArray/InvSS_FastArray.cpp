@@ -100,9 +100,9 @@ UInvSS_InventoryItem* FInvSS_FastArray::FindFirstItemByType(const FGameplayTag& 
 	return FoundItem ? FoundItem->InventoryItem : nullptr;
 }
 
-const UInvSS_InventoryItem* FInvSS_FastArray::FindItemByID(const FGuid& ID) const 
+const UInvSS_InventoryItem* FInvSS_FastArray::FindItemByID(const FGuid& ID) const
 {
-	if (!ID.IsValid()) return nullptr; 
+	if (!ID.IsValid()) return nullptr;
 	const FInvSS_InventoryEntry* FoundItem = InventoryEntries.FindByPredicate([TargetID = ID](const FInvSS_InventoryEntry& Entry)
 	{
 		return IsValid(Entry.InventoryItem) && Entry.InventoryItem->GetItemInstanceId() == TargetID;
@@ -112,11 +112,11 @@ const UInvSS_InventoryItem* FInvSS_FastArray::FindItemByID(const FGuid& ID) cons
 
 UInvSS_InventoryItem* FInvSS_FastArray::FindMutableItemByID(const FGuid& ID)
 {
-	if (!ID.IsValid()) return nullptr; 
+	if (!ID.IsValid()) return nullptr;
 	FInvSS_InventoryEntry* FoundItem = InventoryEntries.FindByPredicate([TargetID = ID](const FInvSS_InventoryEntry& Entry)
 	{
 		return IsValid(Entry.InventoryItem) && Entry.InventoryItem->GetItemInstanceId() == TargetID;
 	});
 	return FoundItem ? FoundItem->InventoryItem : nullptr;
-	
+
 }

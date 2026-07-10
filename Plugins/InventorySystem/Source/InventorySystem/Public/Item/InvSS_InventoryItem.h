@@ -50,7 +50,7 @@ public:
 	void GenerateItemInstanceId();
 
 	/* UObject begins */
-	virtual bool IsSupportedForNetworking() const override { return true; }
+	virtual bool IsSupportedForNetworking() const override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/* UObject ends */
 
@@ -63,7 +63,7 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_TotalStackCount)
 	int32 TotalStackCountInBag = 0;
-	
+
 	UPROPERTY(Replicated)
 	FGuid ItemInstanceId;
 };

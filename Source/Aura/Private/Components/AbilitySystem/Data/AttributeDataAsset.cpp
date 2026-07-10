@@ -13,6 +13,16 @@ const FAuraAttributeTagMetadatas* UAttributeDataAsset::GetAttributeDataEntryByTa
 		});
 }
 
+const TArray<FAuraAttributeTagMetadatas>& UAttributeDataAsset::GetAllAttributeDataEntries() const
+{
+	return AttributeTagsDataEntries;
+}
+
+TArray<FAuraAttributeTagMetadatas>& UAttributeDataAsset::GetAllAttributeDataEntries()
+{
+	return AttributeTagsDataEntries;
+}
+
 #if WITH_EDITOR
 void UAttributeDataAsset::SyncFromNativeTags()
 {

@@ -23,12 +23,27 @@ UInvSS_InventoryComponent::UInvSS_InventoryComponent()
 	bReplicateUsingRegisteredSubObjectList = true;
 }
 
+void UInvSS_InventoryComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	OwningPlayerController = CastChecked<APlayerController>(GetOwner());
+}
+
+void UInvSS_InventoryComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ThisClass, InventoryList);
+	DOREPLIFETIME(ThisClass, InventoryGridManager);
+	DOREPLIFETIME(ThisClass, HeldItemState);
+}
+
 void UInvSS_InventoryComponent::ReadyForReplication()
 {
 	Super::ReadyForReplication();
-	
+
 	if (!GetOwner() || !GetOwner()->HasAuthority()) return;
-	
+
 	GetOrCreateGridManager();
 	AddRepSubObj(InventoryGridManager);
 }
@@ -54,7 +69,7 @@ void UInvSS_InventoryComponent::TryAddItem(UInvSS_ItemComponent* InItem)
 		return;
 	}
 
-	UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager(); 
+	UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
 	check(GridManager);
 
 	// if item in result already exists and it is stackable
@@ -73,14 +88,46 @@ void UInvSS_InventoryComponent::TryAddItem(UInvSS_ItemComponent* InItem)
 		//SetInventoryItemStackCount(NewItem, StackCount);
 		Result.Item = NewItem;
 		GridManager->ApplyAvailability(NewItem, Result);
-		
+
 		if (OwningPlayerController.IsValid() && OwningPlayerController->IsLocalController())
 		{
 			OnInventoryItemAddedDelegate.Broadcast(NewItem);
 		}
 	}
 
+	const bool bPartiallyAcceptedPickup = Result.Remainder > 0;
 	HandlePickupSourceAfterAdd(InItem, Result.Remainder);
+	if (bPartiallyAcceptedPickup)
+	{
+		Client_ShowInventoryMessage(FText::FromString(TEXT("Inventory is Full!")));
+	}
+}
+
+bool UInvSS_InventoryComponent::TryFindRoomForItem(
+	const UInvSS_ItemComponent* ItemComponent,
+	FInvSS_BagAvailabilityResult& OutResult) const
+{
+	check(ItemComponent);
+
+	const FInvSS_ItemManifest& ItemManifest = ItemComponent->GetItemManifest();
+	const UInvSS_InventoryGridManager* GridManager =  TryGetGridManager();
+	check(GridManager);
+
+	UInvSS_InventoryItem* ExistingItem = InventoryList.FindFirstItemByType(ItemManifest.GetItemTypeTag());
+	return GridManager->FindRoomForItem(ItemManifest, ExistingItem, OutResult);
+}
+
+void UInvSS_InventoryComponent::HandlePickupSourceAfterAdd(UInvSS_ItemComponent* InItemComponent, const int32 Remainder)
+{
+	check(InItemComponent);
+
+	if (Remainder <= 0)
+	{
+		InItemComponent->PickUp();
+		return;
+	}
+
+	InItemComponent->TrySetStackCount(Remainder);
 }
 
 void UInvSS_InventoryComponent::UpdateHeldItemStateFromItem(
@@ -158,23 +205,13 @@ void UInvSS_InventoryComponent::Server_PutDownHeldItemAtIndex_Implementation(con
 	ResetHeldItemState();
 }
 
-bool UInvSS_InventoryComponent::IsSameAndStackable(const UInvSS_InventoryItem* SlottedItemInPlace,
-                                                   const UInvSS_InventoryItem* HeldItem)
-{
-	const bool IsSameItem = SlottedItemInPlace == HeldItem;
-	bool IsStackable = SlottedItemInPlace->IsStackable();
-	bool IsSameType = SlottedItemInPlace->GetItemManifest().GetItemTypeTag() == HeldItem->GetItemManifest().GetItemTypeTag();
-	return  IsSameItem && IsStackable && IsSameType;
-}
-
-
 void UInvSS_InventoryComponent::Server_RequestBeginSplit_Implementation(const EInvSS_ItemCategory ItemCategory, const int32 GridSlotIndex, const int32 SplitBarVal)
 {
 	if (HeldItemState.IsValid()) return;
 	if (ItemCategory == EInvSS_ItemCategory::None) return;
 	if (GridSlotIndex == INDEX_NONE) return;
 	if (SplitBarVal <= 0) return;
-	
+
 	UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
 	check(GridManager);
 
@@ -191,7 +228,7 @@ void UInvSS_InventoryComponent::Server_RequestBeginSplit_Implementation(const EI
 
 	const int32 NewStackCountAtSlot = OldStackCount - SplitBarVal;
 	check(NewStackCountAtSlot > 0);
-	
+
 	int32 PreviousStackCount = 0;
 	if (!GridManager->TryReplaceStackCountAtParentIndex(
 		ItemCategory,
@@ -442,18 +479,18 @@ void UInvSS_InventoryComponent::Server_RequestHeldItemInteractWithItemUnderCurso
 	if (!HeldItemState.IsValid()) return;
 	if (ItemParentIndex == INDEX_NONE) return;
 	if (HeldItemDropIndex == INDEX_NONE) return;
-	
+
 	const UInvSS_InventoryItem* SlottedItemInPlace = GetInventoryItemByID(ItemID);
 	const UInvSS_InventoryItem* HeldItem = GetInventoryItemByID(HeldItemState.ItemId);
 	check(SlottedItemInPlace && HeldItem);
-	
+
 	// the item is the same type, and item is stackable, using stacking to simplify swap logic
 	if (IsSameAndStackable(SlottedItemInPlace, HeldItem))
 	{
 		// Add stack path
 		UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
 		check(GridManager);
-		
+
 		const FInvSS_StackableFragment* ItemStackableFragment = GetFragment<FInvSS_StackableFragment>(
 			SlottedItemInPlace,
 			ItemFragmentTag::StackableFragment);
@@ -473,24 +510,24 @@ void UInvSS_InventoryComponent::Server_RequestHeldItemInteractWithItemUnderCurso
 			SwapStackCount(*GridManager, ItemCategory, ItemParentIndex, HoveredItemStackCount);
 			return;
 		}
-		
+
 		if (ShouldConsumeHoverItemStack(HoveredItemStackCount, RoomCanFillAtSlot))
 		{
 			ConsumeHoveredItemStackCount(*GridManager, ItemCategory, ItemParentIndex, HoveredItemStackCount, SlottedItemStackCount);
 			return;
 		}
-		
+
 		if (ShouldFillInStack(HoveredItemStackCount, RoomCanFillAtSlot))
 		{
 			FillInStack(*GridManager, ItemCategory, ItemParentIndex, MaxItemStackSize,  HoveredItemStackCount);
 			return;
 		}
-		
+
 		if (RoomCanFillAtSlot == 0)
 		{
 			return;
 		}
-		
+
 	}
 	// The item is valid, swap with the item
 	else
@@ -499,7 +536,7 @@ void UInvSS_InventoryComponent::Server_RequestHeldItemInteractWithItemUnderCurso
 		const FInvSS_HeldItemState OriginalHeldItemState = HeldItemState;
 		UInvSS_InventoryGridManager* GridManager = GetOrCreateGridManager();
 		check(GridManager);
-		
+
 		FGuid RemovedItemID;
 		int32 RemovedStackCount = 0;
 		if (!GridManager->TryRemoveItemAtParentIndex(
@@ -545,83 +582,22 @@ void UInvSS_InventoryComponent::Server_RequestHeldItemInteractWithItemUnderCurso
 	}
 }
 
-bool UInvSS_InventoryComponent::TryFindRoomForItem(
-	const UInvSS_ItemComponent* ItemComponent,
-	FInvSS_BagAvailabilityResult& OutResult) const
+bool UInvSS_InventoryComponent::IsSameAndStackable(
+	const UInvSS_InventoryItem* SlottedItemInPlace,
+	const UInvSS_InventoryItem* HeldItem)
 {
-	check(ItemComponent);
-
-	const FInvSS_ItemManifest& ItemManifest = ItemComponent->GetItemManifest();
-	const UInvSS_InventoryGridManager* GridManager =  TryGetGridManager();
-	check(GridManager);
-
-	UInvSS_InventoryItem* ExistingItem = InventoryList.FindFirstItemByType(ItemManifest.GetItemTypeTag());
-	return GridManager->FindRoomForItem(ItemManifest, ExistingItem, OutResult);
+	const bool bIsSameItem = SlottedItemInPlace == HeldItem;
+	const bool bIsStackable = SlottedItemInPlace->IsStackable();
+	const bool bIsSameType = SlottedItemInPlace->GetItemManifest().GetItemTypeTag() == HeldItem->GetItemManifest().GetItemTypeTag();
+	return bIsSameItem && bIsStackable && bIsSameType;
 }
 
-void UInvSS_InventoryComponent::Client_ShowInventoryMessage_Implementation(const FText& Message)
-{
-	if (GetOrCreateInventoryUIManager())
-	{
-		OnInventoryMessageRequestedDelegate.Broadcast(Message);
-	}
-}
-
-void UInvSS_InventoryComponent::OnInventoryGridChange(EInvSS_ItemCategory InventoryCategory) const
-{
-	if (!OwningPlayerController.Get() || !OwningPlayerController->IsLocalController()) return;
-	OnInventoryGridChangedDelegate.Broadcast(InventoryCategory);
-}
-
-void UInvSS_InventoryComponent::OnRep_InventoryGridManager()
-{
-	check(InventoryGridManager);
-
-	InventoryGridManager->OnGridChanged.RemoveAll(this);
-	InventoryGridManager->OnGridChanged.AddUObject(
-		this,
-		&ThisClass::OnInventoryGridChange);	
-	
-	// initialization 
-	check(InventoryGridManager->GetGridStatesArray().Num() > 0);
-	for (const FInvSS_InventoryGridState& GridState : InventoryGridManager->GetGridStatesArray())
-	{
-		OnInventoryGridChange(GridState.GridConfiguration.Category);
-	}
-}
-
-void UInvSS_InventoryComponent::OnRep_HeldItemState()
-{
-	OnHeldItemChangedDelegate.Broadcast(HeldItemState);
-}
-
-void UInvSS_InventoryComponent::HandlePickupSourceAfterAdd(UInvSS_ItemComponent* InItemComponent, const int32 Remainder)
-{
-	check(InItemComponent);
-
-	if (Remainder <= 0)
-	{
-		InItemComponent->PickUp();
-		return;
-	}
-
-	InItemComponent->TrySetStackCount(Remainder);
-}
-
-void UInvSS_InventoryComponent::SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount)
-{
-	if (!IsValid(InItem)) return;
-
-	if (FInvSS_StackableFragment* StackFragment = InItem->GetItemManifest().GetMutableFragmentOfTypeWithTag<FInvSS_StackableFragment>(ItemFragmentTag::StackableFragment))
-	{
-		StackFragment->SetStackCount(StackCount);
-	}
-}
-
-bool UInvSS_InventoryComponent::ShouldSwapStackCount(const int32 RoomToFill, const int32 MaxItemStackSize,
+bool UInvSS_InventoryComponent::ShouldSwapStackCount(
+	const int32 RoomToFill,
+	const int32 MaxItemStackSize,
 	const int32 HoveredItemStackCount)
 {
-	return RoomToFill == 0 && HoveredItemStackCount < MaxItemStackSize; 
+	return RoomToFill == 0 && HoveredItemStackCount < MaxItemStackSize;
 }
 
 bool UInvSS_InventoryComponent::TryReplaceSlottedItemStackCount(
@@ -651,14 +627,25 @@ bool UInvSS_InventoryComponent::SwapStackCount(
 	{
 		return false;
 	}
-	
+
 	HeldItemState.StackCount = SlottedItemStackCount;
 	NotifyHeldItemStateChanged();
 	return true;
 }
 
-bool UInvSS_InventoryComponent::ConsumeHoveredItemStackCount(UInvSS_InventoryGridManager& GridManager,
-	const EInvSS_ItemCategory ItemCategory, const int32 SlottedItemParentIndex, const int32 HoveredItemStackCount, const int32 SlotItemStackCount)
+bool UInvSS_InventoryComponent::ShouldConsumeHoverItemStack(
+	const int32 HoverItemCount,
+	const int32 RoomCanFillAtSlot)
+{
+	return HoverItemCount <= RoomCanFillAtSlot;
+}
+
+bool UInvSS_InventoryComponent::ConsumeHoveredItemStackCount(
+	UInvSS_InventoryGridManager& GridManager,
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 SlottedItemParentIndex,
+	const int32 HoveredItemStackCount,
+	const int32 SlotItemStackCount)
 {
 	const int32 NewStackCountAtSlot = SlotItemStackCount + HoveredItemStackCount;
 	int32 SlottedItemPreviousStackCount = 0;
@@ -666,40 +653,83 @@ bool UInvSS_InventoryComponent::ConsumeHoveredItemStackCount(UInvSS_InventoryGri
 	{
 		return false;
 	}
-	
+
 	ResetHeldItemState();
 	return true;
 }
 
-bool UInvSS_InventoryComponent::FillInStack(UInvSS_InventoryGridManager& GridManager,
-	const EInvSS_ItemCategory ItemCategory, const int32 SlottedItemParentIndex,  const int32 ItemMaxStackSize,   const int32 HoveredItemStackCount)
+bool UInvSS_InventoryComponent::ShouldFillInStack(
+	const int32 HoveredItemStackCount,
+	const int32 RoomCanFillAtSlot)
 {
-	const int32 NewSlottedItemCount =  ItemMaxStackSize;  
+	return RoomCanFillAtSlot < HoveredItemStackCount;
+}
+
+bool UInvSS_InventoryComponent::FillInStack(
+	UInvSS_InventoryGridManager& GridManager,
+	const EInvSS_ItemCategory ItemCategory,
+	const int32 SlottedItemParentIndex,
+	const int32 ItemMaxStackSize,
+	const int32 HoveredItemStackCount)
+{
+	const int32 NewSlottedItemCount =  ItemMaxStackSize;
 	int32 SlottedItemStackCount = 0;
 	if (!TryReplaceSlottedItemStackCount(GridManager, ItemCategory, SlottedItemParentIndex, NewSlottedItemCount, SlottedItemStackCount))
 	{
 		return false;
 	}
-	
+
 	const int32 NewHoveredItemStackCount = HoveredItemStackCount - (ItemMaxStackSize - SlottedItemStackCount);
 	HeldItemState.StackCount = NewHoveredItemStackCount;
 	NotifyHeldItemStateChanged();
 	return true;
 }
 
-bool UInvSS_InventoryComponent::ShouldConsumeHoverItemStack(const int32 HoverItemCount,
-                                                            const int32 RoomCanFillAtSlot)
+void UInvSS_InventoryComponent::Client_ShowInventoryMessage_Implementation(const FText& Message)
 {
-	return HoverItemCount <= RoomCanFillAtSlot;
+	if (GetOrCreateInventoryUIManager())
+	{
+		OnInventoryMessageRequestedDelegate.Broadcast(Message);
+	}
 }
 
-bool UInvSS_InventoryComponent::ShouldFillInStack(int32 HoveredItemStackCount, int32 RoomCanFillAtSlot)
+void UInvSS_InventoryComponent::OnInventoryGridChange(EInvSS_ItemCategory InventoryCategory) const
 {
-	return RoomCanFillAtSlot < HoveredItemStackCount; 
+	if (!OwningPlayerController.Get() || !OwningPlayerController->IsLocalController()) return;
+	OnInventoryGridChangedDelegate.Broadcast(InventoryCategory);
 }
 
+void UInvSS_InventoryComponent::OnRep_InventoryGridManager()
+{
+	check(InventoryGridManager);
 
+	InventoryGridManager->OnGridChanged.RemoveAll(this);
+	InventoryGridManager->OnGridChanged.AddUObject(
+		this,
+		&ThisClass::OnInventoryGridChange);
 
+	// initialization
+	check(InventoryGridManager->GetGridStatesArray().Num() > 0);
+	for (const FInvSS_InventoryGridState& GridState : InventoryGridManager->GetGridStatesArray())
+	{
+		OnInventoryGridChange(GridState.GridConfiguration.Category);
+	}
+}
+
+void UInvSS_InventoryComponent::OnRep_HeldItemState()
+{
+	OnHeldItemChangedDelegate.Broadcast(HeldItemState);
+}
+
+void UInvSS_InventoryComponent::SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount)
+{
+	if (!IsValid(InItem)) return;
+
+	if (FInvSS_StackableFragment* StackFragment = InItem->GetItemManifest().GetMutableFragmentOfTypeWithTag<FInvSS_StackableFragment>(ItemFragmentTag::StackableFragment))
+	{
+		StackFragment->SetStackCount(StackCount);
+	}
+}
 
 void UInvSS_InventoryComponent::ToggleInventoryMenu()
 {
@@ -761,12 +791,12 @@ UInvSS_InventoryGridManager* UInvSS_InventoryComponent::GetOrCreateGridManager()
 	{
 		return InventoryGridManager;
 	}
-	
+
 	if (!GetOwner() || !GetOwner()->HasAuthority()) {return nullptr; }
-		
+
 	checkf(InventoryGridManagerClass, TEXT("No grid manager class specified for inventory component %s"), *GetName());
 	EnsureDefaultGridManagerConfigs();
-	
+
 	InventoryGridManager = NewObject<UInvSS_InventoryGridManager>(
 		this,
 		InventoryGridManagerClass,
@@ -774,6 +804,21 @@ UInvSS_InventoryGridManager* UInvSS_InventoryComponent::GetOrCreateGridManager()
 	InventoryGridManager->Initialize(GridManagerConfigs);
 	InventoryGridManager->OnGridChanged.AddUObject(this, &ThisClass::OnInventoryGridChange);
 	return InventoryGridManager;
+}
+
+void UInvSS_InventoryComponent::EnsureDefaultGridManagerConfigs()
+{
+	if (!GridManagerConfigs.IsEmpty())
+	{
+		return;
+	}
+
+	GridManagerConfigs =
+	{
+		{ EInvSS_ItemCategory::Equippable, 4, 8 },
+		{ EInvSS_ItemCategory::Consumable, 4, 8 },
+		{ EInvSS_ItemCategory::Craftable, 4, 8 }
+	};
 }
 
 const UInvSS_InventoryGridManager* UInvSS_InventoryComponent::TryGetGridManager() const
@@ -810,34 +855,4 @@ UInvSS_InventoryItem* UInvSS_InventoryComponent::GetMutableInventoryItemByID(con
 TArray<UInvSS_InventoryItem*> UInvSS_InventoryComponent::GetAllItems() const
 {
 	return InventoryList.GetAllItems();
-}
-
-void UInvSS_InventoryComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	OwningPlayerController = CastChecked<APlayerController>(GetOwner());
-}
-
-void UInvSS_InventoryComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ThisClass, InventoryList);
-	DOREPLIFETIME(ThisClass, InventoryGridManager);
-	DOREPLIFETIME(ThisClass, HeldItemState);
-}
-
-void UInvSS_InventoryComponent::EnsureDefaultGridManagerConfigs()
-{
-	if (!GridManagerConfigs.IsEmpty())
-	{
-		return;
-	}
-
-	GridManagerConfigs =
-	{
-		{ EInvSS_ItemCategory::Equippable, 4, 8 },
-		{ EInvSS_ItemCategory::Consumable, 4, 8 },
-		{ EInvSS_ItemCategory::Craftable, 4, 8 }
-	};
 }

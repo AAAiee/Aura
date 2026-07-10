@@ -51,23 +51,23 @@ public:
 	virtual void ReadyForReplication() override;
 	UInvSS_InventoryGridManager* GetOrCreateGridManager() ;
 	const UInvSS_InventoryGridManager* TryGetGridManager() const;
-	
+
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Inventory)
 	void TryAddItem(UInvSS_ItemComponent* InItem);
 
 	UFUNCTION(Server, Reliable)
 	void Server_BeginDragItem(const EInvSS_ItemCategory ItemCategory, const int32 ItemParentIndex);
-	
+
 	UFUNCTION(Server, Reliable)
-	void Server_PutDownHeldItemAtIndex(const EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex); 
-	
+	void Server_PutDownHeldItemAtIndex(const EInvSS_ItemCategory ItemCategory, int32 ItemParentIndex);
+
 	UFUNCTION(Server, Reliable)
 	void Server_RequestHeldItemInteractWithItemUnderCursor(
 		const EInvSS_ItemCategory ItemCategory,
 		const FGuid& ItemID,
 		const int32 ItemParentIndex,
 		const int32 HeldItemDropIndex);
-	
+
 	UFUNCTION(Server, Reliable)
 	void Server_RequestBeginSplit(const EInvSS_ItemCategory ItemCategory, const int32 SlotIndex, const int32 SplitBarVal);
 
@@ -79,18 +79,18 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void Server_RequestConsumeItem(const EInvSS_ItemCategory ItemCategory, const int32 ParentIndex);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory Menu")
 	void ToggleInventoryMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory UI Manager")
 	UInvSS_InventoryUIManager* GetOrCreateInventoryUIManager();
 	const UInvSS_InventoryUIManager* GetUIManager() const;
-	
+
 	void AddRepSubObj(UObject* InSubObj);
 	void OnInventoryItemReplicated(UInvSS_InventoryItem* InItem) const;
-	
-	const UInvSS_InventoryItem* GetInventoryItemByID(const FGuid& ID) const; 
+
+	const UInvSS_InventoryItem* GetInventoryItemByID(const FGuid& ID) const;
 	UInvSS_InventoryItem* GetMutableInventoryItemByID(const FGuid& ID);
 	TArray<UInvSS_InventoryItem*> GetAllItems() const;
 
@@ -132,7 +132,7 @@ private:
 	void OnRep_InventoryGridManager() ;
 	UFUNCTION()
 	void OnRep_HeldItemState();
-	
+
 	static void HandlePickupSourceAfterAdd(UInvSS_ItemComponent* InItemComponent, const int32 Remainder);
 	static void SetInventoryItemStackCount(UInvSS_InventoryItem* InItem, const int32 StackCount);
 
@@ -154,24 +154,23 @@ private:
 		int32 SlottedItemParentIndex,
 		int32 NewSlottedItemStackCount,
 		int32& OutPreviousSlottedItemStackCount);
-	
-	
+
 	static bool ShouldConsumeHoverItemStack(const int32 HoverItemCount , const int32 RoomCanFillAtSlot);
 	static bool ShouldFillInStack(const int32 HoveredItemStackCount, const int32 RoomAvailable);
 	static bool ShouldSwapStackCount(const int32 RoomToFill,  const int32 MaxItemStackSize, const int32 HoveredItemStackCount );
 
-private:
+	/* Runtime State */
 	UPROPERTY()
 	TWeakObjectPtr<APlayerController> OwningPlayerController = nullptr;
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TArray<FInvSS_GridConfig> GridManagerConfigs;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
-	TSubclassOf<UInvSS_InventoryGridManager> InventoryGridManagerClass; 
-	
+	TSubclassOf<UInvSS_InventoryGridManager> InventoryGridManagerClass;
+
 	UPROPERTY(EditAnywhere, Category = "Inventory")
 	TSubclassOf<UInvSS_InventoryUIManager> InventoryUIManagerClass;
-	
+
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryGridManager, Transient)
 	TObjectPtr<UInvSS_InventoryGridManager> InventoryGridManager = nullptr;
 
@@ -180,7 +179,7 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_HeldItemState)
 	FInvSS_HeldItemState HeldItemState;
-	
+
 	UPROPERTY(Replicated)
 	FInvSS_FastArray InventoryList;
 };

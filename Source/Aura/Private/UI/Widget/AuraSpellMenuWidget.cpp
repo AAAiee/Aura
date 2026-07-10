@@ -2,6 +2,11 @@
 
 #include "UI/Widget/AuraSpellMenuWidget.h"
 
+FVector2D UAuraSpellMenuWidget::GetInitialPosition() const
+{
+	return FVector2D(OnScreenPositionX, OnScreenPositionY);
+}
+
 void UAuraSpellMenuWidget::ShowSpellMenu()
 {
 	// The HUD creates this widget once and then toggles visibility. That preserves the window's

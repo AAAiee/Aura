@@ -23,7 +23,7 @@ UCLASS()
 class INVENTORYSYSTEM_API UInvSS_SpatialInventory : public UInvSS_InventoryBase
 {
 	GENERATED_BODY()
-	
+
 
 protected:
 	/* UUserWidget begins */

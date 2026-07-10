@@ -19,12 +19,12 @@ Direct link: [Aura Gameplay Systems Demo](https://youtu.be/y_uQL8ulQLg)
 Click the thumbnail below to watch the inventory-system progress video on YouTube.
 
 <p align="center">
-  <a href="https://youtu.be/yDnlkwCP5xw">
-    <img src="https://img.youtube.com/vi/yDnlkwCP5xw/maxresdefault.jpg" alt="Replicated spatial inventory progress video" width="860">
+  <a href="https://www.youtube.com/watch?v=ghusU05mUH0">
+    <img src="https://img.youtube.com/vi/ghusU05mUH0/maxresdefault.jpg" alt="Replicated spatial inventory progress video" width="860">
   </a>
 </p>
 
-Direct link: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
+Direct link: [Replicated Spatial Inventory Update](https://www.youtube.com/watch?v=ghusU05mUH0)
 
 ## My Contributions
 
@@ -81,7 +81,7 @@ The inventory work is built as a separate **InventorySystem plugin** focused on 
 - **FastArray item replication:** replicates inventory item entries while the grid manager replicates spatial placement separately. ([FastArray header](Plugins/InventorySystem/Source/InventorySystem/Public/InventoryManagement/FastArray/InvSS_FastArray.h), [FastArray cpp](Plugins/InventorySystem/Source/InventorySystem/Private/InventoryManagement/FastArray/InvSS_FastArray.cpp))
 - **WidgetController UI flow:** converts inventory/grid state into view data for UMG widgets, keeping gameplay state out of the visual grid. ([controller](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/WidgetController/InvSS_InventoryWidgetController.cpp), [grid render](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid_Render.cpp), [grid interaction](Plugins/InventorySystem/Source/InventorySystem/Private/Widgets/Inventory/InventorySpatial/InvSS_InventoryGrid_Interaction.cpp))
 
-Progress video: [Replicated Spatial Inventory Update](https://youtu.be/yDnlkwCP5xw)
+Progress video: [Replicated Spatial Inventory Update](https://www.youtube.com/watch?v=ghusU05mUH0)
 
 ### Extensions Beyond Tutorial Scope
 

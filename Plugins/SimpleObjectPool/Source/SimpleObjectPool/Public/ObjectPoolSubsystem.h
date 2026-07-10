@@ -9,7 +9,10 @@ class UObjectPoolConfigDataAsset;
 struct FPoolClassConfig;
 
 /**
- * A single pooled item entry used by the object pool system.
+ * FPoolItem
+ *
+ * Single pooled actor entry used by UObjectPoolSubsystem.
+ *
  * Stores the actor instance and whether it is currently in use.
  */
 USTRUCT(BlueprintType)
@@ -27,7 +30,10 @@ struct SIMPLEOBJECTPOOL_API FPoolItem
 };
 
 /**
+ * FPoolRecyclePolicy
+ *
  * Runtime recycle policy resolved for a pooled actor class.
+ *
  * This is derived from configuration data and used by gameplay code when
  * borrowing actors from the pool.
  */
@@ -44,16 +50,24 @@ struct SIMPLEOBJECTPOOL_API FPoolRecyclePolicy
 };
 
 /**
- * A centralized object pooling system used for reusing actor instances at runtime.
+ * UObjectPoolSubsystem
  *
- * This subsystem:
- *   - Pre-spawns a configurable number of actors for a given class.
- *   - Provides already-spawned actors when requested, avoiding SpawnActor cost.
- *   - Expands pools dynamically when necessary.
- *   - Supports automatic return of actors to the pool after a delay.
- *   - Notifies pooled actors when they are borrowed and returned.
+ * Centralized world subsystem for reusing actor instances at runtime.
  *
- * This subsystem lives for the lifetime of the current world.
+ * The subsystem pre-spawns configured actors, hands out inactive instances on
+ * demand, expands pools when needed, and optionally schedules actors to return
+ * after a recycle delay. Pooled actors can implement IPoolableActor to receive
+ * borrow and return callbacks.
+ *
+ * Important functions:
+ *   - InitializePool() - Creates a manual pool for an actor class.
+ *   - GetPooledActor() - Borrows an actor using config-driven recycle behavior.
+ *   - GetPooledActorWithRecyclePolicy() - Borrows an actor with an explicit recycle override.
+ *   - ReturnActorToPool() - Deactivates an actor and marks it available again.
+ *
+ * Lifetime:
+ *   - One subsystem instance exists per world.
+ *   - Deinitialize() clears timers and tracked actor maps for that world.
  */
 UCLASS(BlueprintType)
 class SIMPLEOBJECTPOOL_API UObjectPoolSubsystem : public UWorldSubsystem
@@ -61,10 +75,11 @@ class SIMPLEOBJECTPOOL_API UObjectPoolSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	/** Constructor - initializes the default hidden transform used for pooled actors. */
 	UObjectPoolSubsystem();
 
+	/* UWorldSubsystem begins */
 	virtual void Deinitialize() override;
+	/* UWorldSubsystem ends */
 
 	/** Returns true if a pool has already been created for the supplied actor class. */
 	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
@@ -118,7 +133,7 @@ public:
 
 private:
 	/** Finds the project config row for an actor class, returning false when the class is not configured. */
-	bool TryGetPoolClassConfig(TSubclassOf<AActor> ActorClass, FPoolClassConfig& OutConfig) const;
+	bool TryGetPoolClassConfig(TSubclassOf<AActor> InActorClass, FPoolClassConfig& OutConfig) const;
 
 	/** Converts authored config data into the small runtime policy used during a borrow. */
 	static FPoolRecyclePolicy BuildRecyclePolicy(const FPoolClassConfig& PoolClassConfig);
@@ -134,32 +149,36 @@ private:
 		float RecycleDelayTime);
 
 	/** Starts or clears an auto-return timer for a borrowed actor. */
-	void DelayActor(AActor* InActor, float DelayTime, bool bAutomaticallyReturnPool);
+	void DelayActor(AActor* InActor, float InDelayTime, bool bInAutomaticallyReturnPool);
 
 	/** Cancels any pending auto-return timer before an actor is reused or returned. */
 	void ClearReturnTimer(AActor* InActor);
 
 	/** Hides, disables, and optionally notifies an actor before it rests in the pool. */
-	void DeactivateActor(AActor* SpawnedActor, bool bNotifyPoolableActor = true);
+	void DeactivateActor(AActor* InSpawnedActor, bool bNotifyPoolableActor = true);
 
 	/** Positions, enables, optionally possesses, and notifies an actor as it leaves the pool. */
 	void ActivateActor(
-		AActor* FreeActor,
-		const FTransform& SpawnTransform,
-		bool bShouldAutomaticallyReturnPool,
-		float RecycleDelayTime);
+		AActor* InFreeActor,
+		const FTransform& InSpawnTransform,
+		bool bInShouldAutomaticallyReturnPool,
+		float InRecycleDelayTime);
 
 	/** Spawns one hidden actor and records its reverse lookup so it can be returned later. */
 	AActor* SpawnPooledActor(TSubclassOf<AActor> ActorClass);
 
 	/** Optional interface hook fired after an actor has been activated from the pool. */
-	static void NotifyActorTakenFromPool(AActor* Actor);
+	static void NotifyActorTakenFromPool(AActor* InActor);
 
 	/** Optional interface hook fired before an actor is deactivated into the pool. */
-	static void NotifyActorReturnedToPool(AActor* Actor);
+	static void NotifyActorReturnedToPool(AActor* InActor);
 
 	/** Emits a compact pool-usage message after initialize, borrow, expand, or return operations. */
-	void LogPoolState(const TCHAR* Action, TSubclassOf<AActor> ActorClass, const TArray<FPoolItem>& TargetPool, const AActor* ActorInstance = nullptr) const;
+	void LogPoolState(
+		const TCHAR* Action,
+		TSubclassOf<AActor> ActorClass,
+		const TArray<FPoolItem>& TargetPool,
+		const AActor* ActorInstance = nullptr) const;
 
 	/** Counts valid actors currently marked in-use for diagnostics. */
 	static int32 CountInUseActors(const TArray<FPoolItem>& TargetPool);

@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 #pragma once
 
@@ -11,25 +11,29 @@ class UInvSS_InventoryItem;
 class UTextBlock;
 class UImage;
 /**
- * 
+ * Cursor-following widget for an item currently held by the local inventory UI.
+ *
+ * The grid creates this widget for drag/drop interactions. It mirrors the held item icon,
+ * stack count, dimensions, and source parent index while authoritative state stays in the
+ * inventory component's replicated held item state.
  */
 UCLASS()
 class INVENTORYSYSTEM_API UInvSS_HoverItem : public UInvSS_InvWidgetBase
 {
 	GENERATED_BODY()
-	
+
 public:
-	void SetImageBrush(const FSlateBrush& Brush) const; 
-	void UpdateHoverItemStackCount(const int32 InStackCount); 
+	void SetImageBrush(const FSlateBrush& Brush) const;
+	void UpdateHoverItemStackCount(const int32 InStackCount);
 	void Reset();
-	
+
 	FGameplayTag GetHoveredItemTypeTag() const;
-	FORCEINLINE int32 GetHoveredItemStackCount() const { return StackCount;}
+	FORCEINLINE int32 GetHoveredItemStackCount() const { return StackCount; }
 	FORCEINLINE bool IsStackable() const { return bIsStackable; }
-	void SetIsStackable(const bool bInIsStackable); 
-	FORCEINLINE int32 GetPreviousGridIndex() const{return PreviousGridIndex;}
-	FORCEINLINE void SetPreviousGridIndex(const int32 InIndex){PreviousGridIndex = InIndex;}
-	FORCEINLINE FIntPoint  GetHoveredItemGridDimensions() const { return GridDimensions; }
+	void SetIsStackable(const bool bInIsStackable);
+	FORCEINLINE int32 GetPreviousGridIndex() const { return PreviousGridIndex; }
+	FORCEINLINE void SetPreviousGridIndex(const int32 InIndex) { PreviousGridIndex = InIndex; }
+	FORCEINLINE FIntPoint GetHoveredItemGridDimensions() const { return GridDimensions; }
 	FORCEINLINE void SetHoveredItemGridDimensions(const FIntPoint& InDimensions) { GridDimensions = InDimensions; }
 	FORCEINLINE UInvSS_InventoryItem* GetLinkedInventoryItem() const { return LinkedInventoryItem.Get(); }
 	void SetLinkedInventoryItem(UInvSS_InventoryItem* InItem);
@@ -37,13 +41,13 @@ public:
 private:
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UImage> Image_Icon;
-	
+
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UTextBlock> TextBlock_StackCount;
-	
-	int32 PreviousGridIndex{INDEX_NONE}; 
+
+	int32 PreviousGridIndex{INDEX_NONE};
 	FIntPoint GridDimensions{1,1};
-	TWeakObjectPtr<UInvSS_InventoryItem> LinkedInventoryItem; 
+	TWeakObjectPtr<UInvSS_InventoryItem> LinkedInventoryItem;
 	bool bIsStackable{false};
 	int32 StackCount{0};
 };

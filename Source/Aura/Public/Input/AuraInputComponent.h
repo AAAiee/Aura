@@ -14,6 +14,15 @@
 template<typename T>
 concept UObjectDerived = TIsDerivedFrom<T, UObject>::Value;
 
+/**
+ * Enhanced input component with GameplayTag-aware ability binding.
+ *
+ * PlayerController code supplies callbacks once, and this component binds every tagged input action
+ * from UAuraInputConfig while forwarding the action's GameplayTag as callback payload.
+ *
+ * Template definitions remain in the header because Unreal's input delegates bind caller-specific
+ * UObject types at compile time.
+ */
 UCLASS()
 class AURA_API UAuraInputComponent : public UEnhancedInputComponent
 {

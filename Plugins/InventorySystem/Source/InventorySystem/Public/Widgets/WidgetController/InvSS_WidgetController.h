@@ -10,6 +10,9 @@ class UInvSS_InventoryUIManager;
 class APlayerController;
 class UInvSS_InventoryComponent;
 
+/**
+ * Dependency bundle used to initialize inventory widget controllers.
+ */
 USTRUCT(BlueprintType)
 struct FInvSS_WidgetControllerParams
 {
@@ -45,21 +48,21 @@ public:
 	void SetWidgetControllerParams(const FInvSS_WidgetControllerParams& Params);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	virtual void BroadcastInitialValues() {}
+	virtual void BroadcastInitialValues();
 
 	/**
 	 * @brief Binds component/UI dependencies used by this controller.
 	 */
-	virtual void BindAllDependencies() {}
+	virtual void BindAllDependencies();
 
 	UFUNCTION(BlueprintPure, Category = "Refs")
-	const APlayerController* GetPlayerController() const { return CachedPlayerController.Get(); }
+	const APlayerController* GetPlayerController() const;
 
 	UFUNCTION(BlueprintPure, Category = "Refs")
-	const UInvSS_InventoryComponent* GetInventoryComponent() const { return CachedInventoryComponent.Get(); }
+	const UInvSS_InventoryComponent* GetInventoryComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Refs")
-	UInvSS_InventoryUIManager* GetUIManager() const { return CachedUIManager; }
+	UInvSS_InventoryUIManager* GetUIManager() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Refs")

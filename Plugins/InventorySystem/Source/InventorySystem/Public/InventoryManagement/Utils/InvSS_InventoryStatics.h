@@ -47,8 +47,8 @@ public:
 	template<typename T, typename Func>
 	requires (std::is_invocable_v<Func&, const T&> || std::is_invocable_v<Func&, const T&, int32>)
 	static void ForEach2D(const TArray<T>& Array, int32 StartIndex, int32 TotalColumnsNum, FIntPoint Range2D, Func&& Action);
-	
-	
+
+
 	static bool IsLeftMouseButtonPressed(const FPointerEvent& MouseEvent);
 	static bool IsRightMouseButtonPressed(const FPointerEvent& MouseEvent);
 };

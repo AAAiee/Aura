@@ -6,7 +6,12 @@
 #include "UI/Widget/AuraDraggableWindowWidget.h"
 #include "AuraAttributeMenuWidget.generated.h"
 
-
+/**
+ * Floating attribute menu widget hosted by the HUD overlay layer.
+ *
+ * The widget is created once, then shown/hidden so its draggable window position and assignment
+ * session state can be preserved between openings.
+ */
 UCLASS()
 class AURA_API UAuraAttributeMenuWidget : public UAuraDraggableWindowWidget
 {
@@ -28,7 +33,7 @@ public:
 
 	/** Editor-configured default spawn point used the first time the HUD creates the widget. */
 	UFUNCTION(BlueprintPure)
-	FVector2D GetInitialPosition() const { return FVector2D(OnScreenPositionX, OnScreenPositionY); }
+	FVector2D GetInitialPosition() const;
 
 	/** Broadcast when HUD show/hide changes this floating window's visible state. */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute Menu")

@@ -3,6 +3,7 @@
 
 #include "Widgets/Utilis/InvSS_WidgetUtils.h"
 
+#include "InteractiveToolManager.h"
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Components/Widget.h"
 #include "Framework/Application/SlateApplication.h"
@@ -131,4 +132,18 @@ bool UInvSS_WidgetUtils::IsPositionInBounds(const FVector2D& BoundaryPos, const 
 {
 	return Position.X >= (BoundaryPos.X)  && Position.X <= (BoundaryPos.X + BoundarySize.X)
 		&& Position.Y >= (BoundaryPos.Y) && Position.Y <= (BoundaryPos.Y + BoundarySize.Y);
+}
+
+FVector2D UInvSS_WidgetUtils::GetClampedWidgetPosition(
+	const FVector2D& BoundarySize,
+	const FVector2D& WidgetSize,
+	const FVector2D& DesiredPosition)
+{
+	const FVector2D MaxPosition(
+		FMath::Max(0.f, BoundarySize.X - WidgetSize.X),
+		FMath::Max(0.f, BoundarySize.Y - WidgetSize.Y));
+
+	return FVector2D(
+		FMath::Clamp(DesiredPosition.X, 0.f, MaxPosition.X),
+		FMath::Clamp(DesiredPosition.Y, 0.f, MaxPosition.Y));
 }

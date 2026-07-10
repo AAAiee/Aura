@@ -50,7 +50,7 @@ void UInvSS_InventoryGrid::ConstructGrid(const int32 GridRows, const int32 GridC
 			GridSlots.Add(GridSlot);
 			GridSlot->OnGridSlotClicked.AddDynamic(this, &ThisClass::OnGridSlotClickedCallback);
 			GridSlot->OnGridSlotHovered.AddDynamic(this, &ThisClass::OnGridSlotHoveredCallback);
-			GridSlot->OnGridSlotUnhovered.AddDynamic(this, &ThisClass::OnGridSlotUnhoveredCallback);	
+			GridSlot->OnGridSlotUnhovered.AddDynamic(this, &ThisClass::OnGridSlotUnhoveredCallback);
 		}
 	}
 }
@@ -345,6 +345,7 @@ UInvSS_SlottedItem* UInvSS_InventoryGrid::CreateSlottedItem() const
 	checkf(SlottedItemClass, TEXT("SlottedItemClass is not set on %s."), *GetName());
 
 	UInvSS_SlottedItem* SlottedItem = CreateWidget<UInvSS_SlottedItem>(GetOwningPlayer(), SlottedItemClass);
+	SlottedItem->SetWidgetController(GetWidgetController());
 	check(SlottedItem);
 	SlottedItem->OnSlottedItemClickedDelegate.AddDynamic(this, &ThisClass::OnSlottedItemClickedCallback);
 	return SlottedItem;
@@ -366,6 +367,7 @@ bool UInvSS_InventoryGrid::TryConfigureSlottedItem(
 	InSlottedItem->SetInventoryItem(InItem);
 	SetSlottedItemIconBrush(GridFragment, ImageFragment, InSlottedItem);
 	InSlottedItem->SetGridIndex(InSlotIndex);
+	InSlottedItem->SetWidgetController(GetWidgetController());
 	InSlottedItem->SetGridDimensions(GridFragment->GetGridSize());
 	InSlottedItem->SetIsStackable(bInIsStackable);
 	InSlottedItem->UpdateStackCountText(bInIsStackable ? InStackCount : 0);

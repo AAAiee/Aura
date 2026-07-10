@@ -7,8 +7,10 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "InventoryManagement/Component/InvSS_InventoryComponent.h"
+#include "Item/InvSS_InventoryItem.h"
 #include "Widgets/HUD/InvSS_InfoMessageWidget.h"
 #include "Widgets/Inventory/InventoryBase/InvSS_InventoryBase.h"
+#include "Widgets/ItemDescription/InvSS_ItemDescriptionWindow.h"
 #include "Widgets/PopUpWidget/InvSS_ItemPopUp.h"
 #include "Widgets/WidgetController/InvSS_InventoryWidgetController.h"
 
@@ -139,13 +141,13 @@ void UInvSS_InventoryUIManager::ShowItemPopUpWindow(const EInvSS_ItemCategory It
 													const int32 WindowAppearAtSlotIndex,
 													const bool bIsItemStackable,
 													const int32 SlotStackCount,
-													const bool bCanConsume) 
+													const bool bCanConsume)
 {
 	if (!OwningPlayerController.IsValid()) return;
-	
+
 	UCanvasPanel* RootCanvasPanel =  InventoryMenu->GetCanvasPanel();
 	check(RootCanvasPanel);
-	
+
 	if (!IsValid(ItemPopUpWindow))
 	{
 		check(ItemPopUpWindowClass);
@@ -159,8 +161,8 @@ void UInvSS_InventoryUIManager::ShowItemPopUpWindow(const EInvSS_ItemCategory It
 	ItemPopUpWindow->SetGridIndex(WindowAppearAtSlotIndex);
 	ItemPopUpWindow->SetItemCategory(ItemCategory);
 	ItemPopUpWindow->SetVisibility(ESlateVisibility::Visible);
-	
-	// if the item is stackable and the stack count at the given slot is > 1 (so we have meaningful split) 
+
+	// if the item is stackable and the stack count at the given slot is > 1 (so we have meaningful split)
 	if (const int32 SliderMax = SlotStackCount - 1; bIsItemStackable && SliderMax  > 0)
 	{
 		ItemPopUpWindow->SetSliderParams(SliderMax, FMath::Max(1, SlotStackCount /2.0f));
@@ -170,7 +172,7 @@ void UInvSS_InventoryUIManager::ShowItemPopUpWindow(const EInvSS_ItemCategory It
 	{
 		ItemPopUpWindow->CollapseSplitButton();
 	}
-	
+
 	// Consume is available only for items with authored consume behavior.
 	if (!bCanConsume)
 	{
@@ -182,16 +184,79 @@ void UInvSS_InventoryUIManager::ShowItemPopUpWindow(const EInvSS_ItemCategory It
 	{
 		RootCanvasPanel->AddChildToCanvas(ItemPopUpWindow);
 	}
-	
+
 	//configure its location
 	if (UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(ItemPopUpWindow))
 	{
 		// Get mouse local position in the canvas panel
 		const FVector2D MouseViewportPosition =
 			UWidgetLayoutLibrary::GetMousePositionOnViewport(OwningPlayerController.Get());
-		
+
 		CanvasSlot->SetPosition(MouseViewportPosition);
 		CanvasSlot->SetSize(ItemPopUpWindow->GetBoxSize());
 	}
+}
+
+void UInvSS_InventoryUIManager::HideItemPopUpWindow()
+{
+	if (!IsValid(ItemPopUpWindow)) return;
+
+	ItemPopUpWindow->ResetOptions();
+	ItemPopUpWindow->RemoveFromParent();
+}
+
+void UInvSS_InventoryUIManager::ShowItemDescriptionWindow(
+	const EInvSS_ItemCategory ItemCategory,
+	const FInvSS_GridSlotViewData& SlotViewData)
+{
+	if (!OwningPlayerController.IsValid()) return;
+	check(ItemCategory != EInvSS_ItemCategory::None);
+	check(SlotViewData.Item.Get());
+
+	OwningPlayerController->GetWorldTimerManager().ClearTimer(ItemDescriptionWindowDelayTimerHandle);
+
+	UCanvasPanel* RootCanvasPanel = InventoryMenu->GetCanvasPanel();
+	check(RootCanvasPanel);
+
+	if (!IsValid(ItemDescriptionWindowWidget))
+	{
+		check(ItemDescriptionWindowWidgetClass);
+		ItemDescriptionWindowWidget = CreateWidget<UInvSS_ItemDescriptionWindow>(OwningPlayerController.Get(), ItemDescriptionWindowWidgetClass);
+		ItemDescriptionWindowWidget->SetWidgetController(InventoryWidgetController);
+		check(ItemDescriptionWindowWidget);
+	}
+
+	ItemDescriptionWindowWidget->SetOwningCanvasPanel(RootCanvasPanel);
+	if (!ItemDescriptionWindowWidget->GetParent())
+	{
+		RootCanvasPanel->AddChildToCanvas(ItemDescriptionWindowWidget);
+	}
+
+	ItemDescriptionWindowWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	const TWeakObjectPtr DescriptionItem = SlotViewData.Item.Get();
+	FTimerDelegate DescriptionTimerDelegate  = FTimerDelegate::CreateWeakLambda(this, [this, DescriptionItem]()
+	{
+		UInvSS_InventoryItem* InventoryItem = DescriptionItem.Get();
+		if (!IsValid(ItemDescriptionWindowWidget) || !IsValid(InventoryItem)) return;
+
+		ItemDescriptionWindowWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		InventoryItem->GetItemManifest().AssimilateInventoryFragment(ItemDescriptionWindowWidget);
+	});
+
+	OwningPlayerController->GetWorldTimerManager(). SetTimer(
+		ItemDescriptionWindowDelayTimerHandle,
+		DescriptionTimerDelegate,
+		DescriptionTimerDelay,
+		false);
+}
+
+void UInvSS_InventoryUIManager::HideItemDescriptionWindow()
+{
+	if (!OwningPlayerController.IsValid()) return;
+	OwningPlayerController->GetWorldTimerManager().ClearTimer(ItemDescriptionWindowDelayTimerHandle);
+	if (!IsValid(ItemDescriptionWindowWidget)) return;
+
+	ItemDescriptionWindowWidget->SetVisibility(ESlateVisibility::Collapsed);
 }
 

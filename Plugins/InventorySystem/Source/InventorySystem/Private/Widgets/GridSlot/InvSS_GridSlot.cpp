@@ -7,7 +7,7 @@
 void UInvSS_GridSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-	
+
 	OnGridSlotHovered.Broadcast(TileIndex, InMouseEvent);
 }
 
@@ -21,6 +21,21 @@ FReply UInvSS_GridSlot::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 {
 	OnGridSlotClicked.Broadcast(TileIndex, InMouseEvent);
 	return  FReply::Handled();
+}
+
+int32 UInvSS_GridSlot::GetTileIndex() const
+{
+	return TileIndex;
+}
+
+bool UInvSS_GridSlot::IsBaseState(const EInvSS_GridSlotVisualState State) const
+{
+	return BaseVisualState == State;
+}
+
+void UInvSS_GridSlot::SetTileIndex(const int32 InIndex)
+{
+	TileIndex = InIndex;
 }
 
 void UInvSS_GridSlot::SetBaseVisualState(const EInvSS_GridSlotVisualState InState)

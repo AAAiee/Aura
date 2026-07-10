@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 
 #include "Item/InvSS_InventoryItem.h"
@@ -27,11 +27,16 @@ void UInvSS_InventoryItem::GenerateItemInstanceId()
 	}
 }
 
+bool UInvSS_InventoryItem::IsSupportedForNetworking() const
+{
+	return true;
+}
+
 void UInvSS_InventoryItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	UObject::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ThisClass, ItemManifest);
-	DOREPLIFETIME(ThisClass, TotalStackCountInBag);	
+	DOREPLIFETIME(ThisClass, TotalStackCountInBag);
 	DOREPLIFETIME(ThisClass, ItemInstanceId);
 }
 

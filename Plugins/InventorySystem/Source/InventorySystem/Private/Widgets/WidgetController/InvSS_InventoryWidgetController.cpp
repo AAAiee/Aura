@@ -84,6 +84,7 @@ void UInvSS_InventoryWidgetController::RequestBeginDragItem(
 	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
 	check(InventoryComponent);
 
+	HideTransientItemWindows();
 	InventoryComponent->Server_BeginDragItem(ItemCategory, ParentIndex);
 }
 
@@ -92,7 +93,7 @@ void UInvSS_InventoryWidgetController::RequestPutDownHeldITemAtIndex(const EInvS
 {
 	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
 	check(InventoryComponent);
-	
+
 	InventoryComponent->Server_PutDownHeldItemAtIndex(ItemCategory, ItemParentIndex);
 }
 
@@ -104,12 +105,18 @@ void UInvSS_InventoryWidgetController::RequestInteractHeldItemWithItemUnderCurso
 {
 	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
 	check(InventoryComponent);
-	
+
 	InventoryComponent->Server_RequestHeldItemInteractWithItemUnderCursor(ItemCategory, ItemID, ItemParentIndex, HeldItemDropIndex);
 }
 
 void UInvSS_InventoryWidgetController::ShowItemPopUpWindow(const EInvSS_ItemCategory ItemCategory, const int32 InSlotIndex)
 {
+	if (CachedHeldItemState.IsValid())
+	{
+		HideTransientItemWindows();
+		return;
+	}
+
 	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
 	if (!ViewData) return;
 
@@ -136,18 +143,18 @@ void UInvSS_InventoryWidgetController::RequestBeginSplit(const EInvSS_ItemCatego
 {
 	UInvSS_InventoryComponent* InventoryComponent = CachedInventoryComponent.Get();
 	check(InventoryComponent);
-	
+
 	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
 	if (!ViewData) return;
 	if (!ViewData->Slots.IsValidIndex(InSlotIndex)) return;
-	
+
 	const FInvSS_GridSlotViewData& SlotViewData = ViewData->Slots[InSlotIndex];
 	if (!SlotViewData.bParentSlot) return;
 	if (!IsValid(SlotViewData.Item)) return;
 	if (!SlotViewData.Item->IsStackable()) return;
 	if (SplitBarVal <= 0 || SplitBarVal >= SlotViewData.StackCount) return;
 
-	InventoryComponent->Server_RequestBeginSplit(ItemCategory, InSlotIndex, SplitBarVal); 
+	InventoryComponent->Server_RequestBeginSplit(ItemCategory, InSlotIndex, SplitBarVal);
 }
 
 void UInvSS_InventoryWidgetController::RequestDropItem(
@@ -199,6 +206,37 @@ bool UInvSS_InventoryWidgetController::RequestDropHeldItem()
 	return true;
 }
 
+void UInvSS_InventoryWidgetController::RequestShowItemDescription(
+	UInvSS_InventoryItem* InventoryItem,
+	const int32 ParentIndex)
+{
+	if (CachedHeldItemState.IsValid()) return;
+	if (!IsValid(InventoryItem)) return;
+	if (ParentIndex == INDEX_NONE) return;
+
+	const EInvSS_ItemCategory ItemCategory = InventoryItem->GetItemManifest().GetItemCategory();
+	if (ItemCategory == EInvSS_ItemCategory::None) return;
+
+	const FInvSS_InventoryGridViewData* ViewData = GetCachedGridViewData(ItemCategory);
+	if (!ViewData) return;
+	if (!ViewData->Slots.IsValidIndex(ParentIndex)) return;
+
+	const FInvSS_GridSlotViewData& SlotViewData = ViewData->Slots[ParentIndex];
+	if (!SlotViewData.bParentSlot) return;
+	if (!IsValid(SlotViewData.Item)) return;
+	if (SlotViewData.Item->GetItemInstanceId() != InventoryItem->GetItemInstanceId()) return;
+
+	check(GetUIManager());
+	GetUIManager()->ShowItemDescriptionWindow(ItemCategory, SlotViewData);
+}
+
+void UInvSS_InventoryWidgetController::RequestHideItemDescription()
+{
+	check(GetUIManager());
+	GetUIManager()->HideItemDescriptionWindow();
+}
+
+
 
 void UInvSS_InventoryWidgetController::QueryGridSpace(const EInvSS_ItemCategory ItemCategory, const int32 StartIndex,
                                                       const FIntPoint& ItemDimensions, FInvSS_SpaceQueryResult& OutResult)
@@ -212,14 +250,14 @@ void UInvSS_InventoryWidgetController::QueryGridSpace(const EInvSS_ItemCategory 
 	OutResult.bHasSpace = true;
 
 	TSet<int32> BlockingParentIndices;
-	UInvSS_InventoryStatics::ForEach2D( ViewData->Slots, StartIndex, ViewData->Columns, ItemDimensions, 
-		[&](const FInvSS_GridSlotViewData& SlotViewData, const int32 SlotIndex) 
+	UInvSS_InventoryStatics::ForEach2D( ViewData->Slots, StartIndex, ViewData->Columns, ItemDimensions,
+		[&](const FInvSS_GridSlotViewData& SlotViewData, const int32 SlotIndex)
 		{
 			if (!SlotViewData.bOccupied) return;
 
 			BlockingParentIndices.Add( SlotViewData.ParentIndex);
 			OutResult.bHasSpace = false;
-			
+
 		});
 
 	if (BlockingParentIndices.Num() == 1)
@@ -294,7 +332,7 @@ void UInvSS_InventoryWidgetController::InvalidateAllGridViewData()
 	DirtyGridCategories.Empty();
 }
 
-void UInvSS_InventoryWidgetController::HandleInventoryItemAdded(UInvSS_InventoryItem* InItem) 
+void UInvSS_InventoryWidgetController::HandleInventoryItemAdded(UInvSS_InventoryItem* InItem)
 {
 	check(InItem);
 
@@ -316,12 +354,12 @@ void UInvSS_InventoryWidgetController::HandleInventoryItemRemoved(UInvSS_Invento
 	OnInventoryGridChanged.Broadcast(ItemCategory);
 }
 
-void UInvSS_InventoryWidgetController::HandleInventoryMessageRequested(const FText& InMessage) 
+void UInvSS_InventoryWidgetController::HandleInventoryMessageRequested(const FText& InMessage)
 {
 	GetUIManager()->ShowPopUpMessageWidget(InMessage);
 }
 
-void UInvSS_InventoryWidgetController::HandleInventoryGridChanged(EInvSS_ItemCategory GridCategory) 
+void UInvSS_InventoryWidgetController::HandleInventoryGridChanged(EInvSS_ItemCategory GridCategory)
 {
 	InvalidateGridViewData(GridCategory);
 	OnInventoryGridChanged.Broadcast(GridCategory);
@@ -330,5 +368,19 @@ void UInvSS_InventoryWidgetController::HandleInventoryGridChanged(EInvSS_ItemCat
 void UInvSS_InventoryWidgetController::HandleInventoryHeldItemChanged(FInvSS_HeldItemState HeldItemState)
 {
 	CachedHeldItemState = HeldItemState;
+	if (CachedHeldItemState.IsValid())
+	{
+		HideTransientItemWindows();
+	}
+
 	OnInventoryHeldItemChanged.Broadcast(HeldItemState);
+}
+
+void UInvSS_InventoryWidgetController::HideTransientItemWindows()
+{
+	UInvSS_InventoryUIManager* UIManager = GetUIManager();
+	if (!IsValid(UIManager)) return;
+
+	UIManager->HideItemDescriptionWindow();
+	UIManager->HideItemPopUpWindow();
 }

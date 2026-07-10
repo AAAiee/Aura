@@ -6,6 +6,7 @@
 #include "Type/InvSS_GridTypes.h"
 #include "InvSS_ItemManifest.generated.h"
 
+class UInvSS_CompositeBase;
 class AActor;
 struct FInvSS_ItemFragment;
 class UInvSS_InventoryItem;
@@ -27,10 +28,11 @@ struct INVENTORYSYSTEM_API FInvSS_ItemManifest
 	 * @brief Creates a runtime inventory item object from this manifest.
 	 */
 	UInvSS_InventoryItem* Manifest(UObject* Outer) const;
-	EInvSS_ItemCategory GetItemCategory() const { return ItemCategory; }
-	FText GetItemDisplayName() const { return ItemDisplayName; }
-	FGameplayTag GetItemTypeTag() const { return ItemTypeTag; }
-	TSubclassOf<AActor> GetWorldItemActorClass() const { return WorldItemActorClass; }
+	EInvSS_ItemCategory GetItemCategory() const;
+	FText GetItemDisplayName() const;
+	FGameplayTag GetItemTypeTag() const;
+	TSubclassOf<AActor> GetWorldItemActorClass() const;
+	void AssimilateInventoryFragment(UInvSS_CompositeBase * Composite) const;
 
 	/**
 	 * @brief Returns a typed fragment with the exact requested fragment tag.
@@ -45,6 +47,10 @@ struct INVENTORYSYSTEM_API FInvSS_ItemManifest
 	template<typename T>
 	requires std::derived_from<T, FInvSS_ItemFragment>
 	T* GetMutableFragmentOfTypeWithTag(const FGameplayTag& InFragmentTag);
+
+	template<typename T>
+	requires std::derived_from<T, FInvSS_ItemFragment>
+	TArray<const T*> GetAllFragmentOfType() const;
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Inventory", meta = (ExcludeBaseStruct))
@@ -93,4 +99,18 @@ T* FInvSS_ItemManifest::GetMutableFragmentOfTypeWithTag(const FGameplayTag& InFr
 		}
 	}
 	return nullptr;
+}
+
+template <typename T> requires std::derived_from<T, FInvSS_ItemFragment>
+TArray<const T*> FInvSS_ItemManifest::GetAllFragmentOfType() const
+{
+	TArray<const T*> OutputArray;
+	for (const TInstancedStruct<FInvSS_ItemFragment>& Fragment : FragmentsArray)
+	{
+		if (const T* FragmentOfTypeT = Fragment.GetPtr<T>())
+		{
+			OutputArray.Add(FragmentOfTypeT);
+		}
+	}
+	return OutputArray;
 }

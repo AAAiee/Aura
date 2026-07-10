@@ -31,7 +31,7 @@ public:
 	void RequestReturnToPool();
 
 	UFUNCTION(BlueprintPure, Category = "Pooling")
-	bool IsActiveInPool() const { return bIsActiveInPool; }
+	bool IsActiveInPool() const;
 
 protected:
 	/** IPoolableActor implementation - called by the pool when this actor is borrowed. */

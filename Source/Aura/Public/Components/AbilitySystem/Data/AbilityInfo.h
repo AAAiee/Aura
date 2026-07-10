@@ -9,6 +9,13 @@
 
 class UGameplayAbility;
 
+/**
+ * Static and runtime UI metadata for one Aura ability.
+ *
+ * Data assets author the static fields such as icon, ability class, cooldown tag, and type.
+ * Widget controllers stamp runtime fields such as input slot and current unlock/equip status before
+ * broadcasting the row to Blueprint widgets.
+ */
 USTRUCT(BlueprintType)
 struct FAuraAbilityInfo
 {

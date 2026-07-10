@@ -29,7 +29,7 @@ class AURA_API UAuraDraggableWindowWidget : public UAuraUserWidget
 
 public:
 	UFUNCTION(BlueprintPure, Category = "Drag")
-	bool IsDraggingWindow() const { return bIsDraggingWindow; }
+	bool IsDraggingWindow() const;
 
 protected:
 	/** Starts a drag when the player clicks inside the draggable header region. */

@@ -1,4 +1,4 @@
-﻿// @Copyright HaolunYuan
+// @Copyright HaolunYuan
 
 
 #include "Widgets/HoverItem/InvSS_HoverItem.h"
@@ -13,7 +13,7 @@ void UInvSS_HoverItem::SetImageBrush(const FSlateBrush& Brush) const
 	Image_Icon->SetBrush(Brush);
 }
 
-void UInvSS_HoverItem::UpdateHoverItemStackCount(const int32 InStackCount) 
+void UInvSS_HoverItem::UpdateHoverItemStackCount(const int32 InStackCount)
 {
 	this->StackCount = InStackCount;
 	if (InStackCount > 0)
@@ -43,7 +43,7 @@ FGameplayTag UInvSS_HoverItem::GetHoveredItemTypeTag() const
 	{
 		return LinkedInventoryItem.Get()->GetItemManifest().GetItemTypeTag();
 	}
-	return FGameplayTag(); 
+	return FGameplayTag();
 }
 
 void UInvSS_HoverItem::SetIsStackable(const bool bInIsStackable)

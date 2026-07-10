@@ -63,7 +63,6 @@ public:
 	/* Ability Spec Queries */
 	/** Iterates granted abilities under GAS's scoped list lock so specs are not mutated mid-loop. */
 	void ForEachAbility(const TFunction<void(const FGameplayAbilitySpec&)>& Predicate);
-	bool IsPassiveAbility(FGameplayAbilitySpec** AbilitySpec);
 
 	/** Reads the authored Ability.* asset tag from a granted spec. */
 	static FGameplayTag GetAbilityTagFromSpec(const FGameplayAbilitySpec& Spec);

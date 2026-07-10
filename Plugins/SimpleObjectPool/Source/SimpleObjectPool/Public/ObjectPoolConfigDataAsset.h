@@ -5,9 +5,12 @@
 #include "ObjectPoolConfigDataAsset.generated.h"
 
 /**
- * Configuration entry for a pooled actor class.
- * This is intentionally lightweight so projects can extend or replace the
- * lookup policy later without changing the core pool subsystem API.
+ * FPoolClassConfig
+ *
+ * Authored configuration for one actor class managed by the object pool.
+ *
+ * This struct keeps pool sizing and default recycle behavior in data so
+ * gameplay code can request pooled actors without hardcoding spawn counts.
  */
 USTRUCT(BlueprintType)
 struct SIMPLEOBJECTPOOL_API FPoolClassConfig
@@ -28,9 +31,15 @@ struct SIMPLEOBJECTPOOL_API FPoolClassConfig
 };
 
 /**
- * Data asset that stores pooled actor class configuration.
- * Projects are expected to create asset instances in the editor and decide how
- * the runtime pool subsystem should discover and use them.
+ * UObjectPoolConfigDataAsset
+ *
+ * Stores the actor-class configuration consumed by UObjectPoolSubsystem.
+ *
+ * Projects create this asset in the editor, then point developer settings at it
+ * so each world subsystem can resolve pool sizes and recycle behavior at runtime.
+ *
+ * Important functions:
+ *   - FindPoolConfigByClass() - Finds the authored config for a specific actor class.
  */
 UCLASS(BlueprintType)
 class SIMPLEOBJECTPOOL_API UObjectPoolConfigDataAsset : public UDataAsset
@@ -38,10 +47,11 @@ class SIMPLEOBJECTPOOL_API UObjectPoolConfigDataAsset : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	/** Finds the config row for ActorClass and writes it to OutConfig when present. */
 	UFUNCTION(BlueprintCallable, Category = "ObjectPool")
 	bool FindPoolConfigByClass(TSubclassOf<AActor> ActorClass, FPoolClassConfig& OutConfig) const;
 
-public:
+	/* Authored Pool Data */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ObjectPool")
 	TArray<FPoolClassConfig> PoolClassConfigs;
 };
