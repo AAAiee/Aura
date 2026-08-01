@@ -60,16 +60,32 @@ Aura 的核心系统基于 [*Unreal Engine 5 - Gameplay Ability System - Top Dow
 背包最初基于 [*Unreal Engine 5 C++ Inventory Systems*](https://www.udemy.com/course/unreal-engine-5-inventory-systems/) 实现。随着交互和同步逻辑增加，我把玩法数据、服务器验证、网络复制和 UI 生命周期拆开。现在 Widget 只负责显示与输入，所有背包修改都交给 `InventoryComponent` 在服务器验证。
 
 ```mermaid
-flowchart LR
-    UIManager["InventoryUIManager<br/>本地 UI 生命周期"] --> Controller["InventoryWidgetController<br/>View Data / Delegate"]
-    UIManager --> View["SpatialInventory / InventoryGrid<br/>渲染与输入"]
-    View -->|玩家请求| Controller
-    Controller -->|Server RPC| Component["InventoryComponent<br/>Server Authority"]
-    Component --> FastArray["FastArray<br/>物品列表复制"]
-    Component --> GridManager["InventoryGridManager<br/>空间状态复制"]
-    FastArray -->|客户端事件| Controller
-    GridManager -->|复制后刷新| Controller
-    Controller -->|View Data| View
+flowchart RL
+    UIManager["InventoryUIManager<br/>创建并管理 Widget 与 Controller"]
+
+    UIManager -.->|负责 UI 初始化| Pipeline
+
+    subgraph Pipeline["背包运行时流程"]
+        direction TB
+
+        View["SpatialInventory / InventoryGrid<br/>界面显示与输入处理"]
+
+        Controller["InventoryWidgetController<br/>提供视图数据并分发事件"]
+
+        Component["InventoryComponent<br/>服务器权威逻辑"]:::core
+
+        State["同步到客户端的背包状态<br/>FastArray 物品列表 + Grid 状态"]
+
+        View -->|玩家操作| Controller
+        Controller -->|视图数据 / UI 事件| View
+
+        Controller -->|背包操作请求| Component
+        Component -->|状态更新| Controller
+
+        Component -->|管理并同步| State
+    end
+
+    classDef core stroke-width:3px
 ```
 
 <details>

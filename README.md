@@ -60,16 +60,32 @@ For example, Dynamic Spec Source Tags now use `GetDynamicSpecSourceTags()`, whil
 The inventory started from [*Unreal Engine 5 C++ Inventory Systems*](https://www.udemy.com/course/unreal-engine-5-inventory-systems/). As the interaction and replication logic grew, I separated gameplay data, server validation, network replication, and the UI lifecycle. Widgets now handle only display and input. Every inventory change goes through `InventoryComponent` for server validation.
 
 ```mermaid
-flowchart LR
-    UIManager["InventoryUIManager<br/>Local UI lifecycle"] --> Controller["InventoryWidgetController<br/>View Data / Delegate"]
-    UIManager --> View["SpatialInventory / InventoryGrid<br/>Rendering and input"]
-    View -->|Player request| Controller
-    Controller -->|Server RPC| Component["InventoryComponent<br/>Server Authority"]
-    Component --> FastArray["FastArray<br/>Item list replication"]
-    Component --> GridManager["InventoryGridManager<br/>Spatial state replication"]
-    FastArray -->|Client event| Controller
-    GridManager -->|Refresh after replication| Controller
-    Controller -->|View Data| View
+flowchart RL
+    UIManager["InventoryUIManager<br/>Creates Widgets and Controller"]
+
+    UIManager -.->|UI setup only| Pipeline
+
+    subgraph Pipeline["Runtime Inventory Pipeline"]
+        direction TB
+
+        View["SpatialInventory / InventoryGrid<br/>Rendering and input"]
+
+        Controller["InventoryWidgetController<br/>View Data / Delegates"]
+
+        Component["InventoryComponent<br/>Core server authority"]:::core
+
+        State["Replicated Inventory State<br/>FastArray Item List + Grid States"]
+
+        View -->|Player input| Controller
+        Controller -->|View Data / Events| View
+
+        Controller -->|Gameplay requests| Component
+        Component -->|State changes| Controller
+
+        Component -->|Owns and replicates| State
+    end
+
+    classDef core stroke-width:3px
 ```
 
 <details>
