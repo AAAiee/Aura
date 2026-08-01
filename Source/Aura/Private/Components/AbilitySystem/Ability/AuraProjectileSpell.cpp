@@ -8,7 +8,6 @@
 #include "GameFramework/Pawn.h"
 #include "Interaction/CombatInterface.h"
 #include "ObjectPoolSubsystem.h"
-#include "Projects.h"
 
 void UAuraProjectileSpell::SpawnProjectile(const FVector& ProjectileTargetLocation, const FGameplayTag& CombatSocket)
 {

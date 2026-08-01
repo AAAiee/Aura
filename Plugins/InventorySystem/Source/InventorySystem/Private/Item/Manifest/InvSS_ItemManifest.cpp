@@ -34,7 +34,6 @@ TSubclassOf<AActor> FInvSS_ItemManifest::GetWorldItemActorClass() const
 
 void FInvSS_ItemManifest::AssimilateInventoryFragment(UInvSS_CompositeBase* Composite) const
 {
-
 	const auto Fragments= GetAllFragmentOfType<FInvSS_InventoryItemFragment>();
 	for (const auto Fragment: Fragments)
 	{
