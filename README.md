@@ -36,7 +36,6 @@ Beyond the course material, I made the following changes:
 - I built the `SimpleObjectPool` plugin on top of `UWorldSubsystem`. It supports configurable preallocation, on-demand growth, manual release, and delayed release. Before a pooled projectile is reused, the system resets its collision, movement, homing, audio, and damage state.
 - I moved the course's Click-to-Move logic into a standalone `AutoMoveComponent`. A short ground click asks the server to calculate a path and replicate it to the client. Holding the mouse moves the character directly and also cancels requests and discards stale paths.
 - I extended the character build UI. The Attribute Menu supports local previews, point-by-point undo, confirmation, and rollback on close. The Spell Menu uses a two-stage equip flow: select an ability, then select a compatible slot. Both menus are draggable, cache their instances, and can be opened and closed repeatedly.
-- I added Health/Mana pickup prompts and camera obstruction fading so the character and status changes remain visible from the top-down camera.
 
 ### Course project and UE 5.6 migration
 
